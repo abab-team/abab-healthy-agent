@@ -13,10 +13,23 @@ class Settings(BaseSettings):
     ENV: str = "development"
     DEBUG: bool = False
     DATABASE_URL: str = ""
+    REDIS_URL: str = ""
     SECRET_KEY: str = ""
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     CORS_ORIGINS: str = ""
     LLM_PROVIDER: str = "mock"
+    OPENAI_API_KEY: str = ""
     LOCAL_STORAGE_DIR: str = "backend/storage/local"
+    S3_ENDPOINT: str = ""
+    S3_BUCKET: str = ""
+    S3_ACCESS_KEY: str = ""
+    S3_SECRET_KEY: str = ""
+    POSTGRES_DB: str = "family_health"
+    POSTGRES_USER: str = "family_health"
+    POSTGRES_PASSWORD: str = "family_health"
+    MINIO_ROOT_USER: str = "minioadmin"
+    MINIO_ROOT_PASSWORD: str = "minioadmin"
+    DAILY_REPORT_HOUR: int = 8
 
     model_config = SettingsConfigDict(
         env_file=(
