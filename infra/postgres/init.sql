@@ -1,0 +1,2 @@
+-- Phase 01 development database initialization placeholder.
+-- Business tables and schema migrations are introduced in later phases.

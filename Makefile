@@ -1,20 +1,31 @@
-.PHONY: help dev test lint format
+COMPOSE := docker compose -f docker-compose.dev.yml
+PYTHON ?= python
+
+.PHONY: help dev backend-dev test lint format migrate
 
 help:
-	@echo "family-health-agent Phase 00 scaffold commands"
-	@echo "  make dev     - placeholder for future development startup"
-	@echo "  make test    - placeholder for future test command"
-	@echo "  make lint    - placeholder for future lint command"
-	@echo "  make format  - placeholder for future format command"
+	@echo "family-health-agent development commands"
+	@echo "  make dev          - start backend, postgres, redis, and minio with Docker Compose"
+	@echo "  make backend-dev  - start the FastAPI backend directly on the host"
+	@echo "  make test         - run the Phase 01 backend smoke test"
+	@echo "  make lint         - run Python syntax checks"
+	@echo "  make format       - run Python compile checks as a formatting placeholder"
+	@echo "  make migrate      - run Alembic migrations to head"
 
 dev:
-	@echo "Phase 00 only: backend startup is not implemented yet."
+	$(COMPOSE) up --build
+
+backend-dev:
+	cd backend && $(PYTHON) -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 test:
-	@echo "Phase 00 only: test command is not wired yet."
+	cd backend && $(PYTHON) -c "from fastapi.testclient import TestClient; from app.main import app; response = TestClient(app).get('/health'); assert response.status_code == 200; assert response.json() == {'status': 'ok', 'service': 'family-health-agent'}; print('health smoke test passed')"
 
 lint:
-	@echo "Phase 00 only: lint command is not wired yet."
+	cd backend && $(PYTHON) -m compileall app
 
 format:
-	@echo "Phase 00 only: format command is not wired yet."
+	cd backend && $(PYTHON) -m compileall app
+
+migrate:
+	cd backend && $(PYTHON) -m alembic -c alembic.ini upgrade head
