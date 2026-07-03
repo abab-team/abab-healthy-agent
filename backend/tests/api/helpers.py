@@ -16,6 +16,9 @@ from app.db.base import Base  # noqa: E402
 from app.db.session import SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.modules.family.models import Family, FamilyInvitation, FamilyMember  # noqa: E402
+from app.modules.health_data.models import BloodPressureRecord, HealthMetric  # noqa: E402
+from app.modules.health_profile.models import HealthProfile  # noqa: E402
+from app.modules.health_record.models import HealthRecordDraft, SymptomRecord  # noqa: E402
 from app.modules.identity import service as identity_service  # noqa: E402
 from app.modules.identity.enums import Gender  # noqa: E402
 from app.modules.identity.models import LoginSession, RefreshToken, User, UserAuthAccount  # noqa: E402
@@ -29,6 +32,11 @@ client = TestClient(app)
 def reset_database() -> None:
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
+        db.execute(delete(HealthRecordDraft))
+        db.execute(delete(SymptomRecord))
+        db.execute(delete(BloodPressureRecord))
+        db.execute(delete(HealthMetric))
+        db.execute(delete(HealthProfile))
         db.execute(delete(PermissionAuditLog))
         db.execute(delete(MemberSharePermission))
         db.execute(delete(FamilyInvitation))

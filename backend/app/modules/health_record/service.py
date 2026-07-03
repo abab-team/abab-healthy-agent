@@ -249,6 +249,22 @@ def cancel_draft(db: Session, draft_id: UUID) -> HealthRecordDraft:
     return draft
 
 
+def get_health_record_draft(db: Session, draft_id: UUID) -> HealthRecordDraft:
+    draft = repository.get_health_record_draft(db, draft_id)
+    if draft is None:
+        raise HealthRecordDraftNotFoundError("health record draft not found")
+    return draft
+
+
+def list_pending_drafts(
+    db: Session,
+    *,
+    user_id: UUID,
+    family_id: UUID | None = None,
+) -> list[HealthRecordDraft]:
+    return repository.list_pending_drafts(db, user_id, family_id=family_id)
+
+
 # 函数职责：更新流程，在校验当前状态后修改已有对象或推进状态机。
 # 业务边界：更新动作要保持幂等性和状态合法性，避免跳过必要确认。
 def update_symptom_record_status(
