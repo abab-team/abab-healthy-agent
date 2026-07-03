@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.family import service as family_service
 from app.modules.family.exceptions import FamilyMemberNotFoundError
-from app.modules.permissions import repository, service
+from app.modules.permissions import service
 from app.modules.permissions.api_schemas import (
     PermissionCheckRequest,
     PermissionCheckResponse,
@@ -44,7 +44,7 @@ def list_family_permissions(
     db: Session = Depends(get_db),
 ) -> list[PermissionResponse]:
     _assert_current_member(db, family_id, current_user_id)
-    permissions = repository.list_permissions_for_family(db, family_id)
+    permissions = service.list_family_share_permissions(db, family_id=family_id)
     return [permission_response(permission) for permission in permissions]
 
 
@@ -75,6 +75,7 @@ def update_member_permissions(
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ) -> PermissionResponse:
+    # Phase 05.A only requires family membership; owner/admin checks are refined later.
     _assert_current_member(db, family_id, current_user_id)
     _assert_target_member(db, family_id, target_user_id)
     updates = payload.model_dump(exclude={"reason"}, exclude_none=True)

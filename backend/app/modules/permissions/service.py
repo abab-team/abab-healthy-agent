@@ -148,6 +148,14 @@ def get_member_share_permission(
     return repository.get_member_share_permission(db, family_id, target_user_id)
 
 
+def list_family_share_permissions(
+    db: Session,
+    *,
+    family_id: UUID,
+) -> list[MemberSharePermission]:
+    return repository.list_permissions_for_family(db, family_id)
+
+
 # 函数职责：更新流程，在校验当前状态后修改已有对象或推进状态机。
 # 业务边界：更新动作要保持幂等性和状态合法性，避免跳过必要确认。
 def update_share_permission(
