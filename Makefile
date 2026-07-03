@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f docker-compose.dev.yml
 PYTHON ?= python
 
-.PHONY: help dev backend-dev test lint format migrate
+.PHONY: help dev backend-dev test lint format migrate seed verify-demo
 
 help:
 	@echo "family-health-agent development commands"
@@ -11,6 +11,8 @@ help:
 	@echo "  make lint         - run Python syntax checks"
 	@echo "  make format       - run Python compile checks as a formatting placeholder"
 	@echo "  make migrate      - run Alembic migrations to head"
+	@echo "  make seed         - seed deterministic Phase 03 demo data"
+	@echo "  make verify-demo  - verify Phase 03 demo data"
 
 dev:
 	$(COMPOSE) up --build
@@ -29,3 +31,9 @@ format:
 
 migrate:
 	cd backend && $(PYTHON) -m alembic -c alembic.ini upgrade head
+
+seed:
+	$(PYTHON) backend/scripts/seed_demo_data.py
+
+verify-demo:
+	$(PYTHON) backend/scripts/verify_demo_data.py
