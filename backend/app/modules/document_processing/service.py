@@ -63,6 +63,13 @@ def mark_job_started(db: Session, job_id: UUID) -> DocumentProcessingJob:
     return job
 
 
+def get_processing_job(db: Session, job_id: UUID) -> DocumentProcessingJob:
+    job = repository.get_processing_job(db, job_id)
+    if job is None:
+        raise DocumentProcessingJobNotFoundError("document processing job not found")
+    return job
+
+
 def mark_job_success(db: Session, job_id: UUID) -> DocumentProcessingJob:
     job = repository.update_processing_job_status(
         db,
@@ -169,6 +176,13 @@ def list_pending_medical_event_drafts(
     family_id: UUID | None = None,
 ) -> list[MedicalEventDraft]:
     return repository.list_pending_medical_event_drafts(db, user_id, family_id=family_id)
+
+
+def get_medical_event_draft(db: Session, draft_id: UUID) -> MedicalEventDraft:
+    draft = repository.get_medical_event_draft(db, draft_id)
+    if draft is None:
+        raise MedicalEventDraftNotFoundError("medical event draft not found")
+    return draft
 
 
 def confirm_medical_event_draft(
