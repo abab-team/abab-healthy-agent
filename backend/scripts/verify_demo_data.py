@@ -1,3 +1,8 @@
+# 模块领域：开发脚本
+# 领域说明：负责演示数据初始化、数据校验和本地辅助操作。
+# 文件职责：业务代码文件。承载本模块的一部分领域能力或工程能力。
+# 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
+
 from __future__ import annotations
 
 import sys
@@ -6,6 +11,7 @@ from pathlib import Path
 from sqlalchemy import func, select
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+# 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
@@ -30,12 +36,26 @@ DEMO_EMAILS = {
 DEMO_FAMILY_NAME = "Gala 的家庭"
 
 
+# 函数职责：业务函数，封装 开发脚本 中的一段可复用逻辑。
+# 业务边界：调用方应根据返回值和异常语义处理成功与失败。
 def count_for_user_ids(model: type, user_ids: list) -> int:
+    # 上下文说明：在受控资源边界内执行，确保会话、文件或事务被正确释放。
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     with SessionLocal() as session:
         return session.scalar(select(func.count()).select_from(model).where(model.user_id.in_(user_ids))) or 0
 
 
+# 函数职责：业务函数，封装 开发脚本 中的一段可复用逻辑。
+# 业务边界：调用方应根据返回值和异常语义处理成功与失败。
 def main() -> None:
+    # 上下文说明：在受控资源边界内执行，确保会话、文件或事务被正确释放。
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     with SessionLocal() as session:
         users = list(session.scalars(select(User).where(User.email.in_(DEMO_EMAILS))))
         user_ids = [user.id for user in users]
@@ -122,17 +142,22 @@ def main() -> None:
     ]
 
     print("Phase 03 demo data verification summary:")
+    # 循环说明：逐项处理集合中的业务对象，保持每个元素处理逻辑一致。
     for name, value in checks.items():
         print(f"- {name}: {value}")
 
+    # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
     if failures:
         print("Verification failed:")
+        # 循环说明：逐项处理集合中的业务对象，保持每个元素处理逻辑一致。
         for failure in failures:
             print(f"- {failure}")
+        # 异常抛出：当前业务条件不满足，主动中断流程并交给上层处理。
         raise SystemExit(1)
 
     print("Verification passed.")
 
 
+# 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
 if __name__ == "__main__":
     main()

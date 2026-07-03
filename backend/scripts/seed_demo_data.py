@@ -1,3 +1,8 @@
+# 模块领域：开发脚本
+# 领域说明：负责演示数据初始化、数据校验和本地辅助操作。
+# 文件职责：业务代码文件。承载本模块的一部分领域能力或工程能力。
+# 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
+
 from __future__ import annotations
 
 import sys
@@ -82,7 +87,13 @@ DEMO_TODAY = date(2026, 7, 3)
 DEMO_NOW = datetime(2026, 7, 3, 8, 0, tzinfo=timezone.utc)
 
 
+# 函数职责：业务函数，封装 开发脚本 中的一段可复用逻辑。
+# 业务边界：调用方应根据返回值和异常语义处理成功与失败。
 def clear_demo_data(session: Session) -> None:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     users = list(
         session.scalars(select(User).where(User.email.in_(DEMO_EMAILS.values()))),
     )
@@ -131,7 +142,13 @@ def clear_demo_data(session: Session) -> None:
     session.flush()
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_users(session: Session) -> dict[str, User]:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     users = {
         "gala": User(
             phone="demo_gala_phone",
@@ -166,7 +183,13 @@ def seed_users(session: Session) -> dict[str, User]:
     return users
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_family(session: Session, users: dict[str, User]) -> Family:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     family = Family(name=DEMO_FAMILY_NAME, owner_user_id=users["gala"].id)
     session.add(family)
     session.flush()
@@ -205,7 +228,13 @@ def seed_family(session: Session, users: dict[str, User]) -> Family:
     return family
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_permissions(session: Session, family: Family, users: dict[str, User]) -> None:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     enabled = {
         "share_all": True,
         "can_view_profile": True,
@@ -228,7 +257,13 @@ def seed_permissions(session: Session, family: Family, users: dict[str, User]) -
         session.add(MemberSharePermission(family_id=family.id, user_id=user.id, **enabled))
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_health_profiles(session: Session, users: dict[str, User]) -> None:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     profiles = [
         HealthProfile(
             user_id=users["gala"].id,
@@ -267,11 +302,23 @@ def seed_health_profiles(session: Session, users: dict[str, User]) -> None:
     session.add_all(profiles)
 
 
+# 函数职责：业务函数，封装 开发脚本 中的一段可复用逻辑。
+# 业务边界：调用方应根据返回值和异常语义处理成功与失败。
 def metric_at(days_ago: int, hour: int = 8) -> datetime:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     return datetime.combine(DEMO_TODAY - timedelta(days=days_ago), datetime.min.time(), tzinfo=timezone.utc).replace(hour=hour)
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_health_metrics(session: Session, users: dict[str, User]) -> None:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     gala_series = {
         MetricType.SLEEP_DURATION: ([7.2, 6.8, 7.5, 7.0, 6.9, 7.4, 7.1], "hour"),
         MetricType.STEPS: ([8200, 7600, 9100, 6800, 7400, 8000, 8600], "steps"),
@@ -329,7 +376,13 @@ def seed_health_metrics(session: Session, users: dict[str, User]) -> None:
     session.add_all(records)
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_blood_pressure(session: Session, users: dict[str, User]) -> list[BloodPressureRecord]:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     values = [
         (0, 145, 92, 78),
         (1, 142, 90, 80),
@@ -363,7 +416,13 @@ def seed_blood_pressure(session: Session, users: dict[str, User]) -> list[BloodP
     return records
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_symptoms(session: Session, family: Family, users: dict[str, User]) -> list[SymptomRecord]:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     records = [
         SymptomRecord(
             user_id=users["mother"].id,
@@ -450,7 +509,13 @@ def seed_symptoms(session: Session, family: Family, users: dict[str, User]) -> l
     return records
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_document(session: Session, family: Family, users: dict[str, User]) -> MedicalDocument:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     document = MedicalDocument(
         user_id=users["father"].id,
         family_id=family.id,
@@ -477,12 +542,18 @@ def seed_document(session: Session, family: Family, users: dict[str, User]) -> M
     return document
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_medical_events(
     session: Session,
     family: Family,
     users: dict[str, User],
     document: MedicalDocument,
 ) -> list[MedicalEvent]:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     events = [
         MedicalEvent(
             user_id=users["father"].id,
@@ -533,7 +604,13 @@ def seed_medical_events(
     return events
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_daily_reports(session: Session, family: Family, users: dict[str, User]) -> None:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     session.add_all(
         [
             DailyReport(
@@ -582,6 +659,8 @@ def seed_daily_reports(session: Session, family: Family, users: dict[str, User])
     )
 
 
+# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
+# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_alerts(
     session: Session,
     family: Family,
@@ -590,6 +669,10 @@ def seed_alerts(
     symptoms: list[SymptomRecord],
     events: list[MedicalEvent],
 ) -> None:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     father_bp_alert = Alert(
         user_id=users["father"].id,
         family_id=family.id,
@@ -639,7 +722,13 @@ def seed_alerts(
     session.add_all([father_bp_alert, father_follow_up, mother_symptom])
 
 
+# 函数职责：业务函数，封装 开发脚本 中的一段可复用逻辑。
+# 业务边界：调用方应根据返回值和异常语义处理成功与失败。
 def main() -> None:
+    # 流程说明：
+    # 1. 接收上游传入的数据或上下文。
+    # 2. 完成本函数职责范围内的处理。
+    # 3. 将结果返回给调用方，继续由上层流程编排。
     with SessionLocal() as session:
         clear_demo_data(session)
         users = seed_users(session)

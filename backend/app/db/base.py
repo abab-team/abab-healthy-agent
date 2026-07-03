@@ -1,9 +1,20 @@
+# 模块领域：数据库基础层
+# 领域说明：负责 ORM 基类、会话、事务和迁移元数据。
+# 文件职责：ORM 元数据入口。汇总所有模型，确保 Alembic 能发现完整表结构。
+# 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
+
 from sqlalchemy.orm import DeclarativeBase
 
 
+# 类职责：Base 承载 数据库基础层 中的一组相关状态或行为。
+# 设计边界：保持职责集中，避免把跨模块编排逻辑塞进单个类型。继承/混入：DeclarativeBase。
 class Base(DeclarativeBase):
     """Shared SQLAlchemy declarative base for future ORM models."""
 
+    # 类内部说明：
+    # 1. 类属性描述该领域对象的核心状态。
+    # 2. 类方法只处理与该类型强相关的局部行为。
+    # 3. 跨对象编排应放在 service、workflow 或 policy 中。
     pass
 
 
