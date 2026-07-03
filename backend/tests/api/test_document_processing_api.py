@@ -80,6 +80,55 @@ class DocumentProcessingApiTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_event_draft_rejects_cross_scope_document_references(self) -> None:
+        create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
+        family_doc = self._post_family_document().json()
+        my_cross_scope_draft = client.post(
+            "/api/v1/document-processing/me/event-drafts",
+            headers=auth_headers(self.owner["id"]),
+            json=self._draft_payload({"medical_event": {"title": "Wrong scope"}}, family_doc["id"]),
+        )
+        family_cross_scope_draft = client.post(
+            f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/document-processing/event-drafts",
+            headers=auth_headers(self.owner["id"]),
+            json=self._draft_payload({"medical_event": {"title": "Wrong scope"}}, self.document["id"]),
+        )
+
+        self.assertEqual(my_cross_scope_draft.status_code, 404)
+        self.assertEqual(family_cross_scope_draft.status_code, 404)
+
+    def test_event_draft_rejects_cross_scope_extraction_result_references(self) -> None:
+        create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
+        my_extraction = client.post(
+            f"/api/v1/document-processing/me/documents/{self.document['id']}/extraction-results",
+            headers=auth_headers(self.owner["id"]),
+            json={"ai_summary": "owner draft"},
+        ).json()
+        family_doc = self._post_family_document().json()
+        family_job = client.post(
+            f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/document-processing/documents/{family_doc['id']}/jobs",
+            headers=auth_headers(self.owner["id"]),
+            json={"job_type": "ai_extract"},
+        ).json()
+        family_extraction = client.post(
+            f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/document-processing/extraction-results",
+            headers=auth_headers(self.owner["id"]),
+            json={"processing_job_id": family_job["id"], "ai_summary": "family draft"},
+        ).json()
+        my_cross_scope_draft = client.post(
+            "/api/v1/document-processing/me/event-drafts",
+            headers=auth_headers(self.owner["id"]),
+            json=self._draft_payload({"medical_event": {"title": "Wrong scope"}}, extraction_result_id=family_extraction["id"]),
+        )
+        family_cross_scope_draft = client.post(
+            f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/document-processing/event-drafts",
+            headers=auth_headers(self.owner["id"]),
+            json=self._draft_payload({"medical_event": {"title": "Wrong scope"}}, extraction_result_id=my_extraction["id"]),
+        )
+
+        self.assertEqual(my_cross_scope_draft.status_code, 404)
+        self.assertEqual(family_cross_scope_draft.status_code, 404)
+
     def test_family_confirm_requires_documents_and_medical_event_create_permissions(self) -> None:
         denied = client.post(
             f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/document-processing/event-drafts",

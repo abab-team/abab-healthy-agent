@@ -64,6 +64,7 @@ class AlertsApiTestCase(unittest.TestCase):
             headers=auth_headers(self.owner["id"]),
         )
         create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
+        personal = client.post("/api/v1/alerts/me", headers=auth_headers(self.member["id"]), json={**self._alert_payload(), "title": "Personal alert"})
         created = client.post(
             f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/alerts",
             headers=auth_headers(self.owner["id"]),
@@ -75,8 +76,10 @@ class AlertsApiTestCase(unittest.TestCase):
         )
 
         self.assertEqual(denied.status_code, 403)
+        self.assertEqual(personal.status_code, 201, personal.text)
         self.assertEqual(created.status_code, 201, created.text)
         self.assertEqual(len(active.json()["items"]), 1)
+        self.assertEqual(active.json()["items"][0]["title"], "Document review")
 
     def _post_my_alert(self, *, due_at=None):
         payload = self._alert_payload()

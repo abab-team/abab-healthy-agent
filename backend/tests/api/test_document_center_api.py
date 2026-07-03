@@ -52,6 +52,7 @@ class DocumentCenterApiTestCase(unittest.TestCase):
             json=self._document_payload("denied.pdf"),
         )
         create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
+        personal = client.post("/api/v1/documents/me", headers=auth_headers(self.member["id"]), json=self._document_payload("member-personal.pdf"))
         created = client.post(
             f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/documents",
             headers=auth_headers(self.owner["id"]),
@@ -63,9 +64,11 @@ class DocumentCenterApiTestCase(unittest.TestCase):
         )
 
         self.assertEqual(denied.status_code, 403)
+        self.assertEqual(personal.status_code, 201, personal.text)
         self.assertEqual(created.status_code, 201, created.text)
         self.assertNotIn("file_path", created.json())
         self.assertEqual(len(listed.json()["items"]), 1)
+        self.assertEqual(listed.json()["items"][0]["file_name"], "family.pdf")
 
     def _post_my_document(self):
         return client.post("/api/v1/documents/me", headers=auth_headers(self.owner["id"]), json=self._document_payload("checkup.pdf"))

@@ -17,6 +17,7 @@ from app.modules.document_processing.enums import (
     MedicalEventDraftStatus,
 )
 from app.modules.document_processing.exceptions import (
+    DocumentExtractionResultNotFoundError,
     DocumentProcessingJobNotFoundError,
     InvalidMedicalEventDraftError,
     MedicalEventDraftNotFoundError,
@@ -68,6 +69,13 @@ def get_processing_job(db: Session, job_id: UUID) -> DocumentProcessingJob:
     if job is None:
         raise DocumentProcessingJobNotFoundError("document processing job not found")
     return job
+
+
+def get_extraction_result(db: Session, result_id: UUID) -> DocumentExtractionResult:
+    result = repository.get_extraction_result(db, result_id)
+    if result is None:
+        raise DocumentExtractionResultNotFoundError("document extraction result not found")
+    return result
 
 
 def mark_job_success(db: Session, job_id: UUID) -> DocumentProcessingJob:

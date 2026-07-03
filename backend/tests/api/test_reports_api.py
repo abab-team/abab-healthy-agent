@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from datetime import date
+from datetime import date, timedelta
 
 from tests.api.helpers import (
     add_member,
@@ -44,22 +44,29 @@ class ReportsApiTestCase(unittest.TestCase):
         self.assertNotIn("healthy", response.json()["message"].lower())
 
     def test_family_reports_permissions(self) -> None:
+        family_date = (date.today() - timedelta(days=1)).isoformat()
+        personal = client.post(
+            "/api/v1/reports/me/daily",
+            headers=auth_headers(self.member["id"]),
+            json=self._report_payload(date.today().isoformat(), "member personal"),
+        )
         denied = client.post(
             f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/reports/daily",
             headers=auth_headers(self.owner["id"]),
-            json=self._report_payload(date.today().isoformat(), "denied"),
+            json=self._report_payload(family_date, "denied"),
         )
         create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
         created = client.post(
             f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/reports/daily",
             headers=auth_headers(self.owner["id"]),
-            json=self._report_payload(date.today().isoformat(), "family"),
+            json=self._report_payload(family_date, "family"),
         )
         latest = client.get(
             f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/reports/daily/latest",
             headers=auth_headers(self.owner["id"]),
         )
 
+        self.assertEqual(personal.status_code, 201, personal.text)
         self.assertEqual(denied.status_code, 403)
         self.assertEqual(created.status_code, 201, created.text)
         self.assertEqual(latest.json()["summary_text"], "family")

@@ -14,6 +14,9 @@ from app.modules.reports.enums import (
 from app.modules.reports.models import DailyReport
 
 
+_UNSET = object()
+
+
 def create_daily_report(
     db: Session,
     *,
@@ -57,21 +60,27 @@ def get_daily_report(
     db: Session,
     user_id: UUID,
     report_date: date,
+    *,
+    family_id: UUID | None | object = _UNSET,
 ) -> DailyReport | None:
     stmt = select(DailyReport).where(
         DailyReport.user_id == user_id,
         DailyReport.report_date == report_date,
     )
+    if family_id is not _UNSET:
+        stmt = stmt.where(DailyReport.family_id == family_id)
     return db.scalar(stmt)
 
 
-def get_latest_daily_report(db: Session, user_id: UUID) -> DailyReport | None:
+def get_latest_daily_report(db: Session, user_id: UUID, *, family_id: UUID | None | object = _UNSET) -> DailyReport | None:
     stmt = (
         select(DailyReport)
         .where(DailyReport.user_id == user_id)
         .order_by(DailyReport.report_date.desc(), DailyReport.created_at.desc())
         .limit(1)
     )
+    if family_id is not _UNSET:
+        stmt = stmt.where(DailyReport.family_id == family_id)
     return db.scalar(stmt)
 
 
@@ -79,11 +88,14 @@ def list_daily_reports(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     start_date: date | None = None,
     end_date: date | None = None,
     limit: int = 30,
 ) -> list[DailyReport]:
     stmt = select(DailyReport).where(DailyReport.user_id == user_id)
+    if family_id is not _UNSET:
+        stmt = stmt.where(DailyReport.family_id == family_id)
     if start_date is not None:
         stmt = stmt.where(DailyReport.report_date >= start_date)
     if end_date is not None:
@@ -95,13 +107,16 @@ def upsert_daily_report(
     db: Session,
     user_id: UUID,
     report_date: date,
+    *,
+    family_id: UUID | None = None,
     **fields,
 ) -> DailyReport:
-    report = get_daily_report(db, user_id, report_date)
+    report = get_daily_report(db, user_id, report_date, family_id=family_id)
     if report is None:
         return create_daily_report(
             db,
             user_id=user_id,
+            family_id=family_id,
             report_date=report_date,
             **fields,
         )

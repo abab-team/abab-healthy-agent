@@ -15,6 +15,9 @@ from app.modules.medical_timeline.enums import (
 from app.modules.medical_timeline.models import MedicalEvent
 
 
+_UNSET = object()
+
+
 def create_medical_event(
     db: Session,
     *,
@@ -76,6 +79,7 @@ def list_medical_events(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     event_type: MedicalEventType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
@@ -83,6 +87,8 @@ def list_medical_events(
     limit: int = 100,
 ) -> list[MedicalEvent]:
     stmt = select(MedicalEvent).where(MedicalEvent.user_id == user_id)
+    if family_id is not _UNSET:
+        stmt = stmt.where(MedicalEvent.family_id == family_id)
     if event_type is not None:
         stmt = stmt.where(MedicalEvent.event_type == event_type)
     if start_date is not None:
@@ -99,17 +105,19 @@ def list_recent_medical_events(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     days: int = 365,
     limit: int = 50,
 ) -> list[MedicalEvent]:
     start_date = (datetime.now(timezone.utc) - timedelta(days=days)).date()
-    return list_medical_events(db, user_id, start_date=start_date, limit=limit)
+    return list_medical_events(db, user_id, family_id=family_id, start_date=start_date, limit=limit)
 
 
 def list_follow_up_events(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     due_before: datetime | None = None,
 ) -> list[MedicalEvent]:
     stmt = select(MedicalEvent).where(
@@ -117,6 +125,8 @@ def list_follow_up_events(
         MedicalEvent.follow_up_needed.is_(True),
         MedicalEvent.status == MedicalEventStatus.ACTIVE,
     )
+    if family_id is not _UNSET:
+        stmt = stmt.where(MedicalEvent.family_id == family_id)
     if due_before is not None:
         stmt = stmt.where(MedicalEvent.follow_up_at <= due_before)
     return list(db.scalars(stmt.order_by(MedicalEvent.follow_up_at.asc().nullslast())))

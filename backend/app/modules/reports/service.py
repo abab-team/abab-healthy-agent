@@ -17,6 +17,9 @@ from app.modules.reports.models import DailyReport
 from app.modules.reports.schemas import DailyReportSnapshot
 
 
+_UNSET = repository._UNSET
+
+
 def save_daily_report(
     db: Session,
     *,
@@ -61,23 +64,25 @@ def get_daily_report(
     *,
     user_id: UUID,
     report_date: date,
+    family_id: UUID | None | object = _UNSET,
 ) -> DailyReport | None:
-    return repository.get_daily_report(db, user_id, report_date)
+    return repository.get_daily_report(db, user_id, report_date, family_id=family_id)
 
 
-def get_latest_daily_report(db: Session, *, user_id: UUID) -> DailyReport | None:
-    return repository.get_latest_daily_report(db, user_id)
+def get_latest_daily_report(db: Session, *, user_id: UUID, family_id: UUID | None | object = _UNSET) -> DailyReport | None:
+    return repository.get_latest_daily_report(db, user_id, family_id=family_id)
 
 
 def list_recent_daily_reports(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None | object = _UNSET,
     days: int = 30,
 ) -> list[DailyReport]:
     end_date = date.today()
     start_date = end_date - timedelta(days=days)
-    return repository.list_daily_reports(db, user_id, start_date=start_date, end_date=end_date, limit=days)
+    return repository.list_daily_reports(db, user_id, family_id=family_id, start_date=start_date, end_date=end_date, limit=days)
 
 
 def mark_daily_report_failed(
@@ -107,8 +112,9 @@ def get_daily_report_snapshot(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None | object = _UNSET,
 ) -> DailyReportSnapshot:
-    report = get_latest_daily_report(db, user_id=user_id)
+    report = get_latest_daily_report(db, user_id=user_id, family_id=family_id)
     if report is None:
         return DailyReportSnapshot(
             user_id=str(user_id),

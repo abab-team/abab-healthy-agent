@@ -110,7 +110,7 @@ def list_family_member_documents(
     db: Session = Depends(get_db),
 ):
     _require_permission(db, current_user_id, family_id, target_user_id, "documents", "view")
-    return {"items": [_document_response(doc) for doc in _list_documents(db, target_user_id, document_type, visibility)]}
+    return {"items": [_document_response(doc) for doc in _list_family_documents(db, target_user_id, family_id, document_type, visibility)]}
 
 
 @router.get("/families/{family_id}/members/{target_user_id}/documents/{document_id}", response_model=DocumentSafeResponse)
@@ -150,7 +150,14 @@ def _create_document(
 
 def _list_documents(db: Session, user_id: UUID, document_type: str | None, visibility: str | None):
     try:
-        return service.list_user_documents(db, user_id=user_id, document_type=document_type, visibility=visibility)
+        return service.list_user_documents(db, user_id=user_id, family_id=None, document_type=document_type, visibility=visibility)
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+def _list_family_documents(db: Session, user_id: UUID, family_id: UUID, document_type: str | None, visibility: str | None):
+    try:
+        return service.list_user_documents(db, user_id=user_id, family_id=family_id, document_type=document_type, visibility=visibility)
     except ValueError as exc:
         raise _bad_request(exc) from exc
 

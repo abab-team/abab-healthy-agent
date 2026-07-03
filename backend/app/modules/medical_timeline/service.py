@@ -21,6 +21,9 @@ from app.modules.medical_timeline.models import MedicalEvent
 from app.modules.medical_timeline.schemas import MedicalEventSummary
 
 
+_UNSET = repository._UNSET
+
+
 def create_medical_event(
     db: Session,
     *,
@@ -87,15 +90,17 @@ def get_medical_timeline(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None | object = _UNSET,
     days: int = 365,
     event_type: MedicalEventType | str | None = None,
 ) -> list[MedicalEvent]:
     coerced_type = _coerce_enum(MedicalEventType, event_type) if event_type is not None else None
     if coerced_type is None:
-        return repository.list_recent_medical_events(db, user_id, days=days)
+        return repository.list_recent_medical_events(db, user_id, family_id=family_id, days=days)
     return repository.list_medical_events(
         db,
         user_id,
+        family_id=family_id,
         event_type=coerced_type,
         limit=100,
     )
@@ -105,18 +110,20 @@ def get_recent_medical_events(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None | object = _UNSET,
     days: int = 365,
 ) -> list[MedicalEvent]:
-    return repository.list_recent_medical_events(db, user_id, days=days)
+    return repository.list_recent_medical_events(db, user_id, family_id=family_id, days=days)
 
 
 def get_follow_up_events(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None | object = _UNSET,
     due_before: datetime | None = None,
 ) -> list[MedicalEvent]:
-    return repository.list_follow_up_events(db, user_id, due_before=due_before)
+    return repository.list_follow_up_events(db, user_id, family_id=family_id, due_before=due_before)
 
 
 def archive_medical_event(db: Session, event_id: UUID) -> MedicalEvent:
@@ -130,9 +137,10 @@ def get_medical_event_summary(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None | object = _UNSET,
     days: int = 365,
 ) -> MedicalEventSummary:
-    events = get_recent_medical_events(db, user_id=user_id, days=days)
+    events = get_recent_medical_events(db, user_id=user_id, family_id=family_id, days=days)
     follow_up_count = sum(1 for event in events if event.follow_up_needed)
     return MedicalEventSummary(
         days=days,

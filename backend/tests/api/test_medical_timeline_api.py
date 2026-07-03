@@ -50,6 +50,11 @@ class MedicalTimelineApiTestCase(unittest.TestCase):
 
     def test_family_view_and_create_permissions(self) -> None:
         create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
+        personal = client.post(
+            "/api/v1/medical-timeline/me/events",
+            headers=auth_headers(self.member["id"]),
+            json={"title": "Personal checkup", "event_type": "checkup", "event_date": date.today().isoformat()},
+        )
 
         created = client.post(
             f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/medical-timeline/events",
@@ -61,8 +66,10 @@ class MedicalTimelineApiTestCase(unittest.TestCase):
             headers=auth_headers(self.owner["id"]),
         )
 
+        self.assertEqual(personal.status_code, 201, personal.text)
         self.assertEqual(created.status_code, 201, created.text)
         self.assertEqual(len(listed.json()["items"]), 1)
+        self.assertEqual(listed.json()["items"][0]["title"], "Family checkup")
 
     def test_family_permissions_denied_before_data_access(self) -> None:
         denied_create = client.post(

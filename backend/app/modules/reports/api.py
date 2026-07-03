@@ -50,9 +50,9 @@ def mark_my_daily_report_failed(report_date: date, current_user_id: UUID = Depen
 @router.get("/families/{family_id}/members/{target_user_id}/reports/daily/latest")
 def get_family_member_latest_daily_report(family_id: UUID, target_user_id: UUID, current_user_id: UUID = Depends(get_current_user_id_for_demo), db: Session = Depends(get_db)):
     _require_permission(db, current_user_id, family_id, target_user_id, "reports", "view")
-    report = service.get_latest_daily_report(db, user_id=target_user_id)
+    report = service.get_latest_daily_report(db, user_id=target_user_id, family_id=family_id)
     if report is None:
-        return service.get_daily_report_snapshot(db, user_id=target_user_id)
+        return service.get_daily_report_snapshot(db, user_id=target_user_id, family_id=family_id)
     return _report_response(report)
 
 
@@ -65,7 +65,7 @@ def list_family_member_recent_daily_reports(
     db: Session = Depends(get_db),
 ):
     _require_permission(db, current_user_id, family_id, target_user_id, "reports", "view")
-    return {"items": [_report_response(report) for report in service.list_recent_daily_reports(db, user_id=target_user_id, days=days)]}
+    return {"items": [_report_response(report) for report in service.list_recent_daily_reports(db, user_id=target_user_id, family_id=family_id, days=days)]}
 
 
 @router.post("/families/{family_id}/members/{target_user_id}/reports/daily", response_model=DailyReportResponse, status_code=status.HTTP_201_CREATED)

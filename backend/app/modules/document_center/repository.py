@@ -74,11 +74,13 @@ def list_medical_documents(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None = None,
     document_type: DocumentType | None = None,
     visibility: DocumentVisibility | None = None,
     limit: int = 100,
 ) -> list[MedicalDocument]:
     stmt = select(MedicalDocument).where(MedicalDocument.user_id == user_id)
+    stmt = stmt.where(MedicalDocument.family_id == family_id)
     if document_type is not None:
         stmt = stmt.where(MedicalDocument.document_type == document_type)
     if visibility is not None:

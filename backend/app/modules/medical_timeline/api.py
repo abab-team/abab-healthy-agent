@@ -99,7 +99,7 @@ def get_family_member_medical_events(
 ):
     _require_permission(db, current_user_id, family_id, target_user_id, "medical_events", "view")
     try:
-        events = service.get_medical_timeline(db, user_id=target_user_id, days=days, event_type=event_type)
+        events = service.get_medical_timeline(db, user_id=target_user_id, family_id=family_id, days=days, event_type=event_type)
     except ValueError as exc:
         raise _bad_request(exc) from exc
     return {"items": [_event_response(event) for event in events]}
@@ -114,7 +114,7 @@ def get_family_member_medical_event_summary(
     db: Session = Depends(get_db),
 ):
     _require_permission(db, current_user_id, family_id, target_user_id, "medical_events", "view")
-    return service.get_medical_event_summary(db, user_id=target_user_id, days=days)
+    return service.get_medical_event_summary(db, user_id=target_user_id, family_id=family_id, days=days)
 
 
 @router.get("/families/{family_id}/members/{target_user_id}/medical-timeline/events/follow-ups")
@@ -125,7 +125,7 @@ def get_family_member_follow_up_events(
     db: Session = Depends(get_db),
 ):
     _require_permission(db, current_user_id, family_id, target_user_id, "medical_events", "view")
-    return {"items": [_event_response(event) for event in service.get_follow_up_events(db, user_id=target_user_id)]}
+    return {"items": [_event_response(event) for event in service.get_follow_up_events(db, user_id=target_user_id, family_id=family_id)]}
 
 
 def _create_event(

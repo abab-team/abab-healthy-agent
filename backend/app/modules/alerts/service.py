@@ -23,6 +23,9 @@ from app.modules.alerts.models import Alert
 from app.modules.alerts.schemas import AlertSummary
 
 
+_UNSET = repository._UNSET
+
+
 def create_alert(
     db: Session,
     *,
@@ -76,17 +79,18 @@ def get_alert(db: Session, alert_id: UUID) -> Alert:
     return alert
 
 
-def get_active_alerts(db: Session, *, user_id: UUID) -> list[Alert]:
-    return repository.list_active_alerts(db, user_id)
+def get_active_alerts(db: Session, *, user_id: UUID, family_id: UUID | None | object = _UNSET) -> list[Alert]:
+    return repository.list_active_alerts(db, user_id, family_id=family_id)
 
 
 def get_due_alerts(
     db: Session,
     *,
     user_id: UUID | None = None,
+    family_id: UUID | None | object = _UNSET,
     due_before: datetime | None = None,
 ) -> list[Alert]:
-    return repository.list_due_alerts(db, user_id=user_id, due_before=due_before)
+    return repository.list_due_alerts(db, user_id=user_id, family_id=family_id, due_before=due_before)
 
 
 def mark_alert_read(
@@ -170,10 +174,10 @@ def expire_alert(db: Session, alert_id: UUID) -> Alert:
     )
 
 
-def get_alert_summary(db: Session, *, user_id: UUID) -> AlertSummary:
-    alerts = repository.list_alerts(db, user_id, limit=100)
+def get_alert_summary(db: Session, *, user_id: UUID, family_id: UUID | None | object = _UNSET) -> AlertSummary:
+    alerts = repository.list_alerts(db, user_id, family_id=family_id, limit=100)
     active_alerts = [alert for alert in alerts if alert.status == AlertStatus.ACTIVE]
-    due_alerts = repository.list_due_alerts(db, user_id=user_id)
+    due_alerts = repository.list_due_alerts(db, user_id=user_id, family_id=family_id)
     return AlertSummary(
         user_id=str(user_id),
         count=len(alerts),

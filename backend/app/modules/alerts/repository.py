@@ -16,6 +16,9 @@ from app.modules.alerts.enums import (
 from app.modules.alerts.models import Alert, AlertEvent
 
 
+_UNSET = object()
+
+
 def create_alert(
     db: Session,
     *,
@@ -65,12 +68,15 @@ def list_alerts(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     status: AlertStatus | None = None,
     alert_type: AlertType | None = None,
     level: AlertLevel | None = None,
     limit: int = 100,
 ) -> list[Alert]:
     stmt = select(Alert).where(Alert.user_id == user_id)
+    if family_id is not _UNSET:
+        stmt = stmt.where(Alert.family_id == family_id)
     if status is not None:
         stmt = stmt.where(Alert.status == status)
     if alert_type is not None:
@@ -84,6 +90,7 @@ def list_active_alerts(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     limit: int = 50,
 ) -> list[Alert]:
     stmt = (
@@ -92,6 +99,8 @@ def list_active_alerts(
         .order_by(Alert.created_at.desc())
         .limit(limit)
     )
+    if family_id is not _UNSET:
+        stmt = stmt.where(Alert.family_id == family_id)
     return list(db.scalars(stmt))
 
 
@@ -99,6 +108,7 @@ def list_due_alerts(
     db: Session,
     *,
     user_id: UUID | None = None,
+    family_id: UUID | None | object = _UNSET,
     due_before: datetime | None = None,
     status: AlertStatus = AlertStatus.ACTIVE,
     limit: int = 100,
@@ -107,6 +117,8 @@ def list_due_alerts(
     stmt = select(Alert).where(Alert.status == status, Alert.due_at <= due_before)
     if user_id is not None:
         stmt = stmt.where(Alert.user_id == user_id)
+    if family_id is not _UNSET:
+        stmt = stmt.where(Alert.family_id == family_id)
     return list(db.scalars(stmt.order_by(Alert.due_at.asc()).limit(limit)))
 
 

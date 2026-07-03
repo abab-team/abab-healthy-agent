@@ -69,13 +69,13 @@ def expire_my_alert(alert_id: UUID, current_user_id: UUID = Depends(get_current_
 @router.get("/families/{family_id}/members/{target_user_id}/alerts/active")
 def get_family_member_active_alerts(family_id: UUID, target_user_id: UUID, current_user_id: UUID = Depends(get_current_user_id_for_demo), db: Session = Depends(get_db)):
     _require_permission(db, current_user_id, family_id, target_user_id, "alerts", "view")
-    return {"items": [_alert_response(alert) for alert in service.get_active_alerts(db, user_id=target_user_id)]}
+    return {"items": [_alert_response(alert) for alert in service.get_active_alerts(db, user_id=target_user_id, family_id=family_id)]}
 
 
 @router.get("/families/{family_id}/members/{target_user_id}/alerts/summary")
 def get_family_member_alert_summary(family_id: UUID, target_user_id: UUID, current_user_id: UUID = Depends(get_current_user_id_for_demo), db: Session = Depends(get_db)):
     _require_permission(db, current_user_id, family_id, target_user_id, "alerts", "view")
-    return service.get_alert_summary(db, user_id=target_user_id)
+    return service.get_alert_summary(db, user_id=target_user_id, family_id=family_id)
 
 
 @router.post("/families/{family_id}/members/{target_user_id}/alerts", response_model=AlertResponse, status_code=201)

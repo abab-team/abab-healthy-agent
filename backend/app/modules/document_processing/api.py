@@ -18,6 +18,7 @@ from app.modules.document_processing.api_schemas import (
     ProcessingJobResponse,
 )
 from app.modules.document_processing.exceptions import (
+    DocumentExtractionResultNotFoundError,
     DocumentProcessingJobNotFoundError,
     InvalidMedicalEventDraftError,
     MedicalEventDraftNotFoundError,
@@ -197,6 +198,7 @@ def _save_extraction_result(db: Session, *, document_id: UUID, user_id: UUID, fa
 
 
 def _create_draft(db: Session, *, user_id: UUID, family_id: UUID | None, created_by_user_id: UUID, payload: MedicalEventDraftCreateRequest) -> dict:
+    _assert_draft_references_scope(db, user_id=user_id, family_id=family_id, payload=payload)
     try:
         draft = service.create_medical_event_draft(db, user_id=user_id, family_id=family_id, created_by_user_id=created_by_user_id, **payload.model_dump())
     except (InvalidMedicalEventDraftError, ValueError) as exc:
@@ -235,6 +237,13 @@ def _get_draft_or_404(db: Session, draft_id: UUID):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
+def _get_extraction_result_or_404(db: Session, result_id: UUID):
+    try:
+        return service.get_extraction_result(db, result_id)
+    except DocumentExtractionResultNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
 def _assert_document_scope(document, *, user_id: UUID, family_id: UUID | None) -> None:
     if document.user_id != user_id or document.family_id != family_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="medical document not found")
@@ -248,6 +257,20 @@ def _assert_job_scope(job, *, user_id: UUID, family_id: UUID | None) -> None:
 def _assert_draft_scope(draft, *, user_id: UUID, family_id: UUID | None) -> None:
     if draft.user_id != user_id or draft.family_id != family_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="medical event draft not found")
+
+
+def _assert_extraction_result_scope(result, *, user_id: UUID, family_id: UUID | None) -> None:
+    if result.user_id != user_id or result.family_id != family_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document extraction result not found")
+
+
+def _assert_draft_references_scope(db: Session, *, user_id: UUID, family_id: UUID | None, payload: MedicalEventDraftCreateRequest) -> None:
+    if payload.source_document_id is not None:
+        document = _get_document_or_404(db, payload.source_document_id)
+        _assert_document_scope(document, user_id=user_id, family_id=family_id)
+    if payload.extraction_result_id is not None:
+        result = _get_extraction_result_or_404(db, payload.extraction_result_id)
+        _assert_extraction_result_scope(result, user_id=user_id, family_id=family_id)
 
 
 def _require_permission(db: Session, current_user_id: UUID, family_id: UUID, target_user_id: UUID, permission_type: str, action: str) -> None:

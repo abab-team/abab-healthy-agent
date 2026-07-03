@@ -81,12 +81,14 @@ def list_user_documents(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None = None,
     document_type: DocumentType | str | None = None,
     visibility: DocumentVisibility | str | None = None,
 ) -> list[MedicalDocument]:
     return repository.list_medical_documents(
         db,
         user_id,
+        family_id=family_id,
         document_type=_coerce_enum(DocumentType, document_type) if document_type else None,
         visibility=_coerce_enum(DocumentVisibility, visibility) if visibility else None,
     )
