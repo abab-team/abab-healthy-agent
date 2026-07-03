@@ -18,3 +18,5 @@ from app.modules.document_center import models as document_center_models  # noqa
 from app.modules.document_processing import models as document_processing_models  # noqa: E402,F401
 from app.modules.reports import models as report_models  # noqa: E402,F401
 from app.modules.alerts import models as alert_models  # noqa: E402,F401
+from app.agent import models as agent_models  # noqa: E402,F401
+from app.modules.audit import models as audit_models  # noqa: E402,F401
