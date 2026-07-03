@@ -8,3 +8,5 @@ class Base(DeclarativeBase):
 
 
 from app.modules.identity import models as identity_models  # noqa: E402,F401
+from app.modules.family import models as family_models  # noqa: E402,F401
+from app.modules.permissions import models as permission_models  # noqa: E402,F401
