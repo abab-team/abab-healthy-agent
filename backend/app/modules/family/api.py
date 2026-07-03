@@ -1,6 +1,134 @@
-# 模块领域：家庭成员模块
-# 领域说明：负责家庭、成员关系、邀请流程和自然语言成员称呼解析。
-# 文件职责：接口文件。把 HTTP 请求转换为服务层调用，并把业务结果转换为接口响应。
-# 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
+from __future__ import annotations
 
-"""family.api.py placeholder."""
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user_id_for_demo, get_db
+from app.modules.family import service
+from app.modules.family.api_schemas import (
+    FamilyCreateRequest,
+    FamilyMemberCreateRequest,
+    FamilyMemberResponse,
+    FamilyResponse,
+    FamilyWithOwnerResponse,
+    MemberResolutionResponse,
+    ResolveMemberRequest,
+    family_member_response,
+    family_response,
+    member_resolution_response,
+)
+from app.modules.family.exceptions import (
+    FamilyMemberAlreadyExistsError,
+    FamilyMemberNotFoundError,
+    FamilyNotFoundError,
+    MemberReferenceAmbiguousError,
+    MemberReferenceNotFoundError,
+)
+from app.modules.identity.exceptions import UserNotFoundError
+
+
+router = APIRouter(prefix="/families", tags=["families"])
+
+
+@router.post("", response_model=FamilyWithOwnerResponse, status_code=status.HTTP_201_CREATED)
+def create_family(
+    payload: FamilyCreateRequest,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> FamilyWithOwnerResponse:
+    try:
+        family = service.create_family_with_owner(
+            db,
+            owner_user_id=current_user_id,
+            family_name=payload.name,
+            owner_display_name=payload.owner_display_name or "本人",
+        )
+        owner_member = service.assert_user_in_family(
+            db,
+            user_id=current_user_id,
+            family_id=family.id,
+        )
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found") from exc
+    return FamilyWithOwnerResponse(
+        family=family_response(family),
+        owner_member=family_member_response(owner_member),
+    )
+
+
+@router.get("", response_model=list[FamilyResponse])
+def list_my_families(
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> list[FamilyResponse]:
+    try:
+        families = service.list_my_families(db, current_user_id)
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found") from exc
+    return [family_response(family) for family in families]
+
+
+@router.get("/{family_id}/members", response_model=list[FamilyMemberResponse])
+def list_family_members(
+    family_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> list[FamilyMemberResponse]:
+    try:
+        service.assert_user_in_family(db, user_id=current_user_id, family_id=family_id)
+        members = service.list_family_members(db, family_id)
+    except (FamilyNotFoundError, FamilyMemberNotFoundError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="family member not found",
+        ) from exc
+    return [family_member_response(member) for member in members]
+
+
+@router.post("/{family_id}/members", response_model=FamilyMemberResponse, status_code=status.HTTP_201_CREATED)
+def add_registered_member(
+    family_id: UUID,
+    payload: FamilyMemberCreateRequest,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> FamilyMemberResponse:
+    try:
+        service.assert_user_in_family(db, user_id=current_user_id, family_id=family_id)
+        member = service.add_registered_member(
+            db,
+            family_id=family_id,
+            user_id=payload.user_id,
+            relationship_label=payload.relationship_label,
+            display_name=payload.display_name,
+            role=payload.role,
+        )
+    except FamilyMemberAlreadyExistsError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except (FamilyNotFoundError, FamilyMemberNotFoundError, UserNotFoundError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="resource not found") from exc
+    return family_member_response(member)
+
+
+@router.post("/{family_id}/resolve-member", response_model=MemberResolutionResponse)
+def resolve_member(
+    family_id: UUID,
+    payload: ResolveMemberRequest,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> MemberResolutionResponse:
+    try:
+        result = service.resolve_member_reference(
+            db,
+            current_user_id=current_user_id,
+            current_family_id=family_id,
+            member_reference=payload.member_reference,
+        )
+    except MemberReferenceNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except MemberReferenceAmbiguousError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except FamilyMemberNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="family member not found") from exc
+    return member_resolution_response(result)

@@ -1,6 +1,80 @@
-# 模块领域：用户身份模块
-# 领域说明：负责用户账号、登录会话、认证令牌和第三方身份关联。
-# 文件职责：接口文件。把 HTTP 请求转换为服务层调用，并把业务结果转换为接口响应。
-# 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
+from __future__ import annotations
 
-"""identity.api.py placeholder."""
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user_id_for_demo, get_db
+from app.modules.identity import service
+from app.modules.identity.api_schemas import (
+    UserCreateRequest,
+    UserProfileUpdateRequest,
+    UserResponse,
+    user_response,
+)
+from app.modules.identity.exceptions import (
+    UserAlreadyExistsError,
+    UserContactRequiredError,
+    UserNotFoundError,
+)
+
+
+router = APIRouter(prefix="/identity", tags=["identity"])
+
+
+@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(payload: UserCreateRequest, db: Session = Depends(get_db)) -> UserResponse:
+    try:
+        user = service.create_user(
+            db,
+            email=payload.email,
+            phone=payload.phone,
+            nickname=payload.nickname,
+            gender=payload.gender,
+            birth_date=payload.birth_date,
+        )
+    except UserContactRequiredError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except UserAlreadyExistsError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return user_response(user)
+
+
+@router.get("/users/{user_id}", response_model=UserResponse)
+def get_user(user_id: UUID, db: Session = Depends(get_db)) -> UserResponse:
+    user = service.get_user(db, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")
+    return user_response(user)
+
+
+@router.get("/me", response_model=UserResponse)
+def get_me(
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    user = service.get_user(db, current_user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")
+    return user_response(user)
+
+
+@router.patch("/me/profile", response_model=UserResponse)
+def update_me_profile(
+    payload: UserProfileUpdateRequest,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    try:
+        user = service.update_profile(
+            db,
+            current_user_id,
+            nickname=payload.nickname,
+            avatar_url=payload.avatar_url,
+            gender=payload.gender,
+            birth_date=payload.birth_date,
+        )
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found") from exc
+    return user_response(user)
