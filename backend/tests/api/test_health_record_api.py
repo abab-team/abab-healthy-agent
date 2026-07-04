@@ -143,6 +143,41 @@ class HealthRecordApiTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_family_recent_symptoms_are_limited_to_family_scope(self) -> None:
+        create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
+        client.post(
+            "/api/v1/health-records/me/symptoms",
+            headers=auth_headers(self.member["id"]),
+            json={"raw_text": "personal cough", "symptom_name": "personal"},
+        )
+        client.post(
+            f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/health-records/symptoms",
+            headers=auth_headers(self.owner["id"]),
+            json={"raw_text": "family cough", "symptom_name": "family"},
+        )
+
+        response = client.get(
+            f"/api/v1/families/{self.family['id']}/members/{self.member['id']}/health-records/symptoms/recent",
+            headers=auth_headers(self.owner["id"]),
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        items = response.json()["items"]
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["symptom_name"], "family")
+
+    def test_my_pending_drafts_are_limited_to_personal_scope(self) -> None:
+        create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
+        self._post_family_draft()
+
+        response = client.get(
+            "/api/v1/health-records/me/drafts/pending",
+            headers=auth_headers(self.member["id"]),
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["items"], [])
+
     def test_family_create_draft_allowed(self) -> None:
         create_permission_for_member(self.family["id"], self.member["id"], share_all=True)
 

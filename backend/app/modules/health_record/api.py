@@ -54,7 +54,7 @@ def get_my_recent_symptoms(
     return {
         "items": [
             _symptom_response(record)
-            for record in service.get_recent_symptoms(db, user_id=current_user_id, days=days)
+            for record in service.get_recent_symptoms(db, user_id=current_user_id, family_id=None, days=days)
         ]
     }
 
@@ -65,7 +65,7 @@ def get_my_symptom_summary(
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ):
-    return service.get_symptom_summary(db, user_id=current_user_id, days=days)
+    return service.get_symptom_summary(db, user_id=current_user_id, family_id=None, days=days)
 
 
 @router.post(
@@ -95,7 +95,7 @@ def get_my_pending_drafts(
     return {
         "items": [
             _draft_response(draft)
-            for draft in service.list_pending_drafts(db, user_id=current_user_id)
+            for draft in service.list_pending_drafts(db, user_id=current_user_id, family_id=None)
         ]
     }
 
@@ -163,7 +163,7 @@ def get_family_member_recent_symptoms(
     return {
         "items": [
             _symptom_response(record)
-            for record in service.get_recent_symptoms(db, user_id=target_user_id, days=days)
+            for record in service.get_recent_symptoms(db, user_id=target_user_id, family_id=family_id, days=days)
         ]
     }
 
@@ -177,7 +177,7 @@ def get_family_member_symptom_summary(
     db: Session = Depends(get_db),
 ):
     _require_permission(db, current_user_id, family_id, target_user_id, "symptoms", "view")
-    return service.get_symptom_summary(db, user_id=target_user_id, days=days)
+    return service.get_symptom_summary(db, user_id=target_user_id, family_id=family_id, days=days)
 
 
 @router.post(

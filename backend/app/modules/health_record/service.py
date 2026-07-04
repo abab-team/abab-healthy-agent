@@ -31,6 +31,9 @@ from app.modules.health_record.models import HealthRecordDraft, SymptomRecord
 from app.modules.health_record.schemas import SymptomSummary
 
 
+_UNSET = repository._UNSET
+
+
 # 函数职责：创建流程，完成输入校验、业务规则检查和新对象写入。
 # 业务边界：创建动作通常会影响数据库状态，调用前必须保证必要权限和唯一性约束。
 def create_symptom_record(
@@ -86,13 +89,14 @@ def get_recent_symptoms(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None | object = _UNSET,
     days: int = 30,
 ) -> list[SymptomRecord]:
     # 流程说明：
     # 1. 接收接口层或其他模块传入的业务请求。
     # 2. 按模块规则完成校验、权限判断和状态流转。
     # 3. 调用仓储层读写数据，并返回稳定的业务结果。
-    return repository.list_recent_symptom_records(db, user_id, days=days)
+    return repository.list_recent_symptom_records(db, user_id, family_id=family_id, days=days)
 
 
 # 函数职责：查询流程，根据业务标识读取对象或聚合信息。
@@ -101,13 +105,14 @@ def get_symptom_summary(
     db: Session,
     *,
     user_id: UUID,
+    family_id: UUID | None | object = _UNSET,
     days: int = 30,
 ) -> SymptomSummary:
     # 流程说明：
     # 1. 接收接口层或其他模块传入的业务请求。
     # 2. 按模块规则完成校验、权限判断和状态流转。
     # 3. 调用仓储层读写数据，并返回稳定的业务结果。
-    records = get_recent_symptoms(db, user_id=user_id, days=days)
+    records = get_recent_symptoms(db, user_id=user_id, family_id=family_id, days=days)
     active_count = sum(1 for record in records if record.status == SymptomRecordStatus.ACTIVE)
     follow_up_count = sum(1 for record in records if record.follow_up_needed)
     names = Counter(record.symptom_name for record in records if record.symptom_name)
@@ -260,7 +265,7 @@ def list_pending_drafts(
     db: Session,
     *,
     user_id: UUID,
-    family_id: UUID | None = None,
+    family_id: UUID | None | object = _UNSET,
 ) -> list[HealthRecordDraft]:
     return repository.list_pending_drafts(db, user_id, family_id=family_id)
 

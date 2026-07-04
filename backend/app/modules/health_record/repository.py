@@ -21,6 +21,9 @@ from app.modules.health_record.enums import (
 from app.modules.health_record.models import HealthRecordDraft, SymptomRecord
 
 
+_UNSET = object()
+
+
 # 函数职责：创建流程，完成输入校验、业务规则检查和新对象写入。
 # 业务边界：创建动作通常会影响数据库状态，调用前必须保证必要权限和唯一性约束。
 def create_symptom_record(
@@ -96,6 +99,7 @@ def list_symptom_records(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     start_at: datetime | None = None,
     end_at: datetime | None = None,
     status: SymptomRecordStatus | None = None,
@@ -106,6 +110,8 @@ def list_symptom_records(
     # 2. 使用统一数据库会话执行 ORM 操作。
     # 3. 返回 ORM 对象或基础结果，由服务层继续处理业务语义。
     stmt = select(SymptomRecord).where(SymptomRecord.user_id == user_id)
+    if family_id is not _UNSET:
+        stmt = stmt.where(SymptomRecord.family_id == family_id)
     # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
     if start_at is not None:
         stmt = stmt.where(SymptomRecord.started_at >= start_at)
@@ -124,6 +130,7 @@ def list_recent_symptom_records(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     days: int = 30,
     limit: int = 50,
 ) -> list[SymptomRecord]:
@@ -132,7 +139,7 @@ def list_recent_symptom_records(
     # 2. 使用统一数据库会话执行 ORM 操作。
     # 3. 返回 ORM 对象或基础结果，由服务层继续处理业务语义。
     start_at = datetime.now(timezone.utc) - timedelta(days=days)
-    return list_symptom_records(db, user_id, start_at=start_at, limit=limit)
+    return list_symptom_records(db, user_id, family_id=family_id, start_at=start_at, limit=limit)
 
 
 # 函数职责：列表查询流程，按过滤条件返回一组对象，并保持排序、分页或范围语义稳定。
@@ -141,6 +148,7 @@ def list_follow_up_symptoms(
     db: Session,
     user_id: UUID,
     *,
+    family_id: UUID | None | object = _UNSET,
     due_before: datetime | None = None,
 ) -> list[SymptomRecord]:
     # 流程说明：
@@ -151,6 +159,8 @@ def list_follow_up_symptoms(
         SymptomRecord.user_id == user_id,
         SymptomRecord.follow_up_needed.is_(True),
     )
+    if family_id is not _UNSET:
+        stmt = stmt.where(SymptomRecord.family_id == family_id)
     # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
     if due_before is not None:
         stmt = stmt.where(SymptomRecord.follow_up_at <= due_before)
@@ -237,7 +247,7 @@ def list_pending_drafts(
     db: Session,
     user_id: UUID,
     *,
-    family_id: UUID | None = None,
+    family_id: UUID | None | object = _UNSET,
     limit: int = 50,
 ) -> list[HealthRecordDraft]:
     # 流程说明：
@@ -249,7 +259,7 @@ def list_pending_drafts(
         HealthRecordDraft.status == HealthRecordDraftStatus.PENDING,
     )
     # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
-    if family_id is not None:
+    if family_id is not _UNSET:
         stmt = stmt.where(HealthRecordDraft.family_id == family_id)
     return list(db.scalars(stmt.order_by(HealthRecordDraft.created_at.desc()).limit(limit)))
 
