@@ -5,9 +5,6 @@ import uuid
 
 from sqlalchemy import select
 
-from app.db.session import SessionLocal
-from app.modules.audit.models import DataAccessLog
-from app.modules.permissions import service as permission_service
 from tests.api.helpers import (
     add_member,
     auth_headers,
@@ -17,6 +14,9 @@ from tests.api.helpers import (
     create_user,
     reset_database,
 )
+from app.db.session import SessionLocal
+from app.modules.audit.models import DataAccessLog
+from app.modules.permissions import service as permission_service
 
 
 class ApiAccessControlTestCase(unittest.TestCase):

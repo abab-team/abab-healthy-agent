@@ -4,7 +4,6 @@ import unittest
 
 from sqlalchemy import func, select
 
-from app.modules.medical_timeline.models import MedicalEvent
 from tests.api.helpers import (
     SessionLocal,
     add_member,
@@ -15,6 +14,7 @@ from tests.api.helpers import (
     create_user,
     reset_database,
 )
+from app.modules.medical_timeline.models import MedicalEvent
 
 
 class DocumentProcessingApiTestCase(unittest.TestCase):
