@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from typing import Literal
 from uuid import UUID
 
+from sqlalchemy.orm import Session
+
 from app.agent.enums import AgentSafetyLevel, AgentTraceStatus, AgentWorkflowName
 
 
@@ -67,6 +69,14 @@ class AgentWorkflowResult:
     generated_content: str | None = None
     status: AgentTraceStatus = AgentTraceStatus.SUCCESS
     tool_calls_count: int = 0
+
+
+@dataclass(frozen=True)
+class AgentWorkflowContext:
+    db: Session
+    trace_id: UUID
+    request: AgentRunRequest
+    safety_level: str
 
 
 @dataclass(frozen=True)

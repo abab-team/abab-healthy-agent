@@ -4,7 +4,8 @@ from typing import Protocol
 
 from app.agent.enums import AgentWorkflowName
 from app.agent.exceptions import AgentWorkflowNotRegisteredError
-from app.agent.schemas import AgentRunRequest, AgentWorkflowResult
+from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult
+from app.agent.workflows.daily_health_brief import DailyHealthBriefWorkflow
 
 
 NO_OP_AGENT_MESSAGE = "Agent runtime is ready. No AI workflow has been executed in this phase."
@@ -13,14 +14,14 @@ NO_OP_AGENT_MESSAGE = "Agent runtime is ready. No AI workflow has been executed 
 class AgentWorkflowHandler(Protocol):
     workflow_name: AgentWorkflowName
 
-    def run(self, request: AgentRunRequest) -> AgentWorkflowResult:
+    def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         ...
 
 
 class NoOpHealthAssistantWorkflow:
     workflow_name = AgentWorkflowName.CHAT_WORKFLOW
 
-    def run(self, request: AgentRunRequest) -> AgentWorkflowResult:
+    def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         return AgentWorkflowResult(
             message=NO_OP_AGENT_MESSAGE,
             generated_content=NO_OP_AGENT_MESSAGE,
@@ -45,4 +46,5 @@ class AgentWorkflowRegistry:
 def default_workflow_registry() -> AgentWorkflowRegistry:
     registry = AgentWorkflowRegistry()
     registry.register(NoOpHealthAssistantWorkflow())
+    registry.register(DailyHealthBriefWorkflow())
     return registry

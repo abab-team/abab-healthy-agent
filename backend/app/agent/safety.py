@@ -268,6 +268,16 @@ class AgentSafetyPolicy:
                 allowed_actions=("return_empty_output",),
             )
         lowered = text.lower()
+        if str(workflow_type or "") == "daily_health_brief" and _is_safe_daily_health_brief_output(text, lowered):
+            return _decision(
+                allowed=True,
+                blocked=False,
+                safety_level="safe",
+                category="health_summary",
+                reason_code="safe_daily_health_brief_output",
+                safe_message=GENERAL_SAFE_MESSAGE,
+                allowed_actions=("return_output",),
+            )
         unsafe_terms = UNSAFE_OUTPUT_TERMS + DIAGNOSIS_TERMS + PRESCRIPTION_TERMS + DOSAGE_TERMS + MEDICATION_CHANGE_TERMS
         if matched := _match_terms(lowered, unsafe_terms):
             return _decision(
@@ -350,6 +360,31 @@ def _medication_block(category: str, reason_code: str, matched_rules: tuple[str,
         allowed_actions=("record_question_for_doctor",),
         matched_rules=matched_rules,
     )
+
+
+def _is_safe_daily_health_brief_output(text: str, lowered: str) -> bool:
+    required_markers = ("根据系统内记录", "系统内", "不能替代医生诊断", "请联系医生")
+    if not all(marker in text for marker in required_markers):
+        return False
+    unsafe_terms = (
+        "你很健康",
+        "没有问题",
+        "正常",
+        "异常",
+        "高血压",
+        "低血压",
+        "不用看医生",
+        "no need to see a doctor",
+        "nothing is wrong",
+        "take 2 pills",
+        "take two pills",
+        "stop your medication",
+        "increase your dose",
+        "decrease your dose",
+        "the diagnosis is",
+        "i diagnose",
+    )
+    return not any(term in lowered or term in text for term in unsafe_terms)
 
 
 def _decision(

@@ -16,7 +16,7 @@ from app.agent import service  # noqa: E402
 from app.agent.enums import AgentTraceStatus, AgentWorkflowName  # noqa: E402
 from app.agent.models import AgentToolCall  # noqa: E402
 from app.agent.runtime import AgentRuntime  # noqa: E402
-from app.agent.schemas import AgentRunRequest, AgentWorkflowResult  # noqa: E402
+from app.agent.schemas import AgentRunRequest, AgentWorkflowContext, AgentWorkflowResult  # noqa: E402
 from app.agent.workflows import AgentWorkflowRegistry, NoOpHealthAssistantWorkflow  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.session import SessionLocal, engine  # noqa: E402
@@ -120,7 +120,7 @@ class AgentRuntimeTestCase(unittest.TestCase):
 
 
 class FailingWorkflow(NoOpHealthAssistantWorkflow):
-    def run(self, request: AgentRunRequest) -> AgentWorkflowResult:
+    def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         raise RuntimeError("boom with stack-worthy details")
 
 

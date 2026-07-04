@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.agent import safety, service
 from app.agent.enums import AgentSafetyLevel, AgentTraceStatus, AgentWorkflowName
 from app.agent.exceptions import AgentRuntimeError, AgentWorkflowNotRegisteredError
-from app.agent.schemas import AgentRunRequest, AgentRunResult
+from app.agent.schemas import AgentRunRequest, AgentRunResult, AgentWorkflowContext
 from app.agent.workflows import AgentWorkflowRegistry, default_workflow_registry
 
 
@@ -68,7 +68,14 @@ class AgentRuntime:
                 )
 
             handler = self.registry.get(workflow_name)
-            workflow_result = handler.run(request)
+            workflow_result = handler.run(
+                AgentWorkflowContext(
+                    db=db,
+                    trace_id=trace.id,
+                    request=request,
+                    safety_level=input_decision.safety_level,
+                )
+            )
             output_decision = self.safety_policy.evaluate_output(workflow_result.generated_content or workflow_result.message, requested_workflow)
             service.record_safety_check(
                 db,

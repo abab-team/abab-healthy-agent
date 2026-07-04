@@ -17,7 +17,7 @@ from app.agent.enums import AgentTraceStatus, AgentWorkflowName  # noqa: E402
 from app.agent.models import AgentToolCall  # noqa: E402
 from app.agent.runtime import AgentRuntime  # noqa: E402
 from app.agent.safety import AgentSafetyPolicy, MAX_AGENT_USER_MESSAGE_LENGTH  # noqa: E402
-from app.agent.schemas import AgentRunRequest, AgentWorkflowResult  # noqa: E402
+from app.agent.schemas import AgentRunRequest, AgentWorkflowContext, AgentWorkflowResult  # noqa: E402
 from app.agent.workflows import AgentWorkflowRegistry, NoOpHealthAssistantWorkflow  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.session import SessionLocal, engine  # noqa: E402
@@ -255,13 +255,13 @@ class CountingWorkflow(NoOpHealthAssistantWorkflow):
     def __init__(self) -> None:
         self.run_count = 0
 
-    def run(self, request: AgentRunRequest) -> AgentWorkflowResult:
+    def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         self.run_count += 1
-        return super().run(request)
+        return super().run(context)
 
 
 class UnsafeOutputWorkflow(NoOpHealthAssistantWorkflow):
-    def run(self, request: AgentRunRequest) -> AgentWorkflowResult:
+    def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         content = "The diagnosis is flu. Take 2 pills and no need to see a doctor."
         return AgentWorkflowResult(message=content, generated_content=content, tool_calls_count=0)
 

@@ -25,6 +25,7 @@ class AgentWorkflowName(StrEnum):
     DOCTOR_VISIT_SUMMARY_WORKFLOW = "doctor_visit_summary_workflow"
     # 枚举说明：HEALTH_KNOWLEDGE_QA_WORKFLOW 是该枚举允许出现的一个业务取值。
     HEALTH_KNOWLEDGE_QA_WORKFLOW = "health_knowledge_qa_workflow"
+    DAILY_HEALTH_BRIEF = "daily_health_brief"
 
 
 # 类职责：AgentTriggerType 约束 健康 Agent 核心层 中允许出现的固定状态或类型。
