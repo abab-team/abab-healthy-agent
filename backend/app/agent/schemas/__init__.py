@@ -1,12 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
 from uuid import UUID
 
 from app.agent.enums import AgentSafetyLevel, AgentTraceStatus, AgentWorkflowName
 
 
 MAX_AGENT_USER_MESSAGE_LENGTH = 2000
+AgentToolCategory = Literal[
+    "health_profile",
+    "health_data",
+    "health_record",
+    "medical_timeline",
+    "document",
+    "report",
+    "alert",
+    "system",
+]
+AgentToolAccessMode = Literal["read", "write", "draft", "admin"]
+AgentToolRiskLevel = Literal["low", "medium", "high", "critical"]
 
 
 @dataclass(frozen=True)
@@ -60,3 +73,19 @@ class AgentTraceStart:
     session_id: str | None = None
     source_page: str | None = None
     raw_input_summary: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentToolMetadata:
+    name: str
+    description: str
+    category: AgentToolCategory
+    access_mode: AgentToolAccessMode
+    risk_level: AgentToolRiskLevel
+    required_permission_type: str | None = None
+    required_permission_action: str | None = None
+    requires_confirmation: bool = False
+    enabled: bool = True
+    input_schema_name: str | None = None
+    output_schema_name: str | None = None
+    safety_notes: tuple[str, ...] = ()
