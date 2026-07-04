@@ -5,14 +5,17 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.api.validators import DisplayName, Name, RequiredDisplayName, RequiredRelationshipLabel, STRICT_MODEL_CONFIG
 from app.modules.family.enums import FamilyMemberStatus, FamilyRole
 from app.modules.family.models import Family, FamilyMember
 from app.modules.family.schemas import MemberResolutionResult
 
 
 class FamilyCreateRequest(BaseModel):
-    name: str
-    owner_display_name: str | None = None
+    model_config = STRICT_MODEL_CONFIG
+
+    name: Name
+    owner_display_name: DisplayName = None
 
 
 class FamilyResponse(BaseModel):
@@ -24,9 +27,11 @@ class FamilyResponse(BaseModel):
 
 
 class FamilyMemberCreateRequest(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
     user_id: UUID
-    relationship_label: str
-    display_name: str
+    relationship_label: RequiredRelationshipLabel
+    display_name: RequiredDisplayName
     role: FamilyRole = FamilyRole.MEMBER
 
 
@@ -49,7 +54,9 @@ class FamilyWithOwnerResponse(BaseModel):
 
 
 class ResolveMemberRequest(BaseModel):
-    member_reference: str
+    model_config = STRICT_MODEL_CONFIG
+
+    member_reference: Name
 
 
 class MemberCandidateResponse(BaseModel):

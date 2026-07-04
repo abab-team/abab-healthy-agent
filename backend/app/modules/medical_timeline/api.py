@@ -29,7 +29,7 @@ def create_my_medical_event(
 
 @router.get("/medical-timeline/me/events")
 def get_my_medical_events(
-    days: int = Query(default=365, ge=1, le=3650),
+    days: int = Query(default=365, ge=1, le=365),
     event_type: str | None = None,
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
@@ -43,7 +43,7 @@ def get_my_medical_events(
 
 @router.get("/medical-timeline/me/events/summary")
 def get_my_medical_event_summary(
-    days: int = Query(default=365, ge=1, le=3650),
+    days: int = Query(default=365, ge=1, le=365),
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ):
@@ -92,7 +92,7 @@ def create_family_member_medical_event(
 def get_family_member_medical_events(
     family_id: UUID,
     target_user_id: UUID,
-    days: int = Query(default=365, ge=1, le=3650),
+    days: int = Query(default=365, ge=1, le=365),
     event_type: str | None = None,
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
@@ -109,7 +109,7 @@ def get_family_member_medical_events(
 def get_family_member_medical_event_summary(
     family_id: UUID,
     target_user_id: UUID,
-    days: int = Query(default=365, ge=1, le=3650),
+    days: int = Query(default=365, ge=1, le=365),
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ):

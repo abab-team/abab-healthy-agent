@@ -3,25 +3,26 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
+from app.api.validators import AnyJson, RawText, ShortText, STRICT_MODEL_CONFIG, StringList, SummaryText
 from app.modules.health_data.enums import ConfidenceLevel
 from app.modules.health_record.enums import HealthRecordDraftType, HealthRecordSource
 
 
 class SymptomCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
-    raw_text: str = Field(min_length=1)
-    symptom_name: str | None = Field(default=None, max_length=100)
-    body_part: str | None = Field(default=None, max_length=100)
+    raw_text: RawText
+    symptom_name: ShortText = None
+    body_part: ShortText = None
     severity: int | None = Field(default=None, ge=1, le=10)
     started_at: datetime | None = None
     ended_at: datetime | None = None
-    possible_trigger: str | None = Field(default=None, max_length=255)
+    possible_trigger: ShortText = None
     follow_up_needed: bool = False
     follow_up_at: datetime | None = None
-    ai_summary: str | None = Field(default=None, max_length=1000)
+    ai_summary: SummaryText = None
     source: HealthRecordSource = HealthRecordSource.MANUAL
 
 
@@ -48,14 +49,14 @@ class SymptomRecordResponse(BaseModel):
 
 
 class HealthRecordDraftCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
-    raw_text: str = Field(min_length=1)
-    target_display_name: str | None = Field(default=None, max_length=100)
+    raw_text: RawText
+    target_display_name: ShortText = None
     draft_type: HealthRecordDraftType = HealthRecordDraftType.SYMPTOM
-    extracted_json: dict | None = None
-    missing_fields: list[str] | None = None
-    safety_flags: list[str] | None = None
+    extracted_json: AnyJson | None = None
+    missing_fields: StringList = None
+    safety_flags: StringList = None
     confidence_level: ConfidenceLevel = ConfidenceLevel.MEDIUM
 
 

@@ -3,24 +3,27 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
+from app.api.validators import Email, Nickname, Phone, STRICT_MODEL_CONFIG
 from app.modules.identity.enums import Gender, UserStatus
 from app.modules.identity.schemas import UserPublic
 
 
 class UserCreateRequest(BaseModel):
-    email: str | None = None
-    phone: str | None = None
-    nickname: str | None = None
+    model_config = STRICT_MODEL_CONFIG
+
+    email: Email = None
+    phone: Phone = None
+    nickname: Nickname = None
     gender: Gender | None = None
     birth_date: date | None = None
 
 
 class UserProfileUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
-    nickname: str | None = None
+    nickname: Nickname = None
     avatar_url: str | None = None
     gender: Gender | None = None
     birth_date: date | None = None

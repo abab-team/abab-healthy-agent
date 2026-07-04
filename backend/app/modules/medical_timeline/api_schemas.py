@@ -3,26 +3,27 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 
+from app.api.validators import DoctorAdvice, HospitalOrOrg, Department, JsonList, ShortText, STRICT_MODEL_CONFIG, SummaryText, Title
 from app.modules.health_data.enums import ConfidenceLevel
 from app.modules.medical_timeline.enums import MedicalEventSource, MedicalEventType
 
 
 class MedicalEventCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     event_type: MedicalEventType
-    title: str = Field(min_length=1, max_length=200)
+    title: Title
     event_date: date | None = None
-    event_date_text: str | None = Field(default=None, max_length=100)
-    hospital_or_org: str | None = Field(default=None, max_length=200)
-    department: str | None = Field(default=None, max_length=100)
-    diagnosis_text: str | None = Field(default=None, max_length=500)
-    summary: str | None = None
-    doctor_advice: str | None = None
-    medications: list[dict] | None = None
-    key_findings: list[dict] | None = None
+    event_date_text: ShortText = None
+    hospital_or_org: HospitalOrOrg = None
+    department: Department = None
+    diagnosis_text: SummaryText = None
+    summary: SummaryText = None
+    doctor_advice: DoctorAdvice = None
+    medications: JsonList = None
+    key_findings: JsonList = None
     follow_up_needed: bool = False
     follow_up_at: datetime | None = None
     related_document_id: UUID | None = None

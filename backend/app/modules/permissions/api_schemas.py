@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
+from app.api.validators import Reason, RequiredShortText, STRICT_MODEL_CONFIG
 from app.modules.permissions.models import MemberSharePermission
 from app.modules.permissions.schemas import PermissionCheckResult
 
@@ -34,7 +35,7 @@ class PermissionResponse(BaseModel):
 
 
 class PermissionUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     share_all: bool | None = None
     can_view_profile: bool | None = None
@@ -52,13 +53,15 @@ class PermissionUpdateRequest(BaseModel):
     can_generate_reports: bool | None = None
     can_generate_doctor_visit_summary: bool | None = None
     can_export_summary: bool | None = None
-    reason: str | None = None
+    reason: Reason = None
 
 
 class PermissionCheckRequest(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
     target_user_id: UUID
-    permission_type: str
-    action: str = "view"
+    permission_type: RequiredShortText
+    action: RequiredShortText = "view"
 
 
 class PermissionCheckResponse(BaseModel):

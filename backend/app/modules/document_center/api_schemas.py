@@ -3,34 +3,35 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
+from app.api.validators import Description, FileName, FilePath, HospitalOrOrg, ShortText, STRICT_MODEL_CONFIG, Title
 from app.modules.document_center.enums import DocumentSource, DocumentType, DocumentVisibility
 
 
 class DocumentMetadataCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     document_type: DocumentType
-    title: str = Field(min_length=1, max_length=200)
-    file_name: str = Field(min_length=1, max_length=255)
-    file_path: str = Field(min_length=1, max_length=500)
-    file_mime_type: str | None = Field(default=None, max_length=100)
+    title: Title
+    file_name: FileName
+    file_path: FilePath
+    file_mime_type: ShortText = None
     file_size: int | None = Field(default=None, ge=0)
     document_date: date | None = None
-    document_date_text: str | None = Field(default=None, max_length=100)
-    hospital_or_org: str | None = Field(default=None, max_length=200)
-    description: str | None = None
+    document_date_text: ShortText = None
+    hospital_or_org: HospitalOrOrg = None
+    description: Description = None
     visibility: DocumentVisibility = DocumentVisibility.PRIVATE
     source: DocumentSource = DocumentSource.UPLOAD
 
 
 class DocumentVersionCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
-    file_name: str = Field(min_length=1, max_length=255)
-    file_path: str = Field(min_length=1, max_length=500)
-    file_mime_type: str | None = Field(default=None, max_length=100)
+    file_name: FileName
+    file_path: FilePath
+    file_mime_type: ShortText = None
     file_size: int | None = Field(default=None, ge=0)
 
 

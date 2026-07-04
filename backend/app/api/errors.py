@@ -42,6 +42,11 @@ SENSITIVE_FIELD_NAMES = {
     "access_token",
     "refresh_token",
     "session_token",
+    "session_token_hash",
+    "token_hash",
+    "secret",
+    "api_key",
+    "private_key",
     "file_path",
     "raw_text",
     "raw_extracted_text",
@@ -217,10 +222,11 @@ def get_request_id(request: Request | None) -> str | None:
 def _validation_field_summary(error: dict[str, Any]) -> dict[str, str | None]:
     loc = [str(part) for part in error.get("loc", []) if part != "body"]
     field = ".".join(loc) if loc else None
-    if field and any(part.lower() in SENSITIVE_FIELD_NAMES for part in loc):
+    if field and any(_is_sensitive_field_name(part) for part in loc):
         field = "[sensitive]"
     message = str(error.get("msg") or "Invalid value.")
-    return {"field": field, "message": _safe_validation_message(message)}
+    error_type = str(error.get("type") or "value_error")
+    return {"field": field, "type": error_type, "message": _safe_validation_message(message)}
 
 
 def _safe_validation_message(message: str) -> str:
@@ -259,3 +265,8 @@ def _contains_sensitive_token(message: str) -> bool:
     return any(token in lowered for token in SENSITIVE_FIELD_NAMES) or any(
         marker in message for marker in ("\\", "/", "traceback", "select ", "insert ", "update ", "delete ")
     )
+
+
+def _is_sensitive_field_name(field_name: str) -> bool:
+    lowered = field_name.lower()
+    return any(token in lowered for token in SENSITIVE_FIELD_NAMES)

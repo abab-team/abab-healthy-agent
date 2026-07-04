@@ -3,8 +3,19 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 
+from app.api.validators import (
+    Description,
+    DoctorAdvice,
+    JsonList,
+    OptionalTitle,
+    RawExtractedText,
+    RequiredJsonDict,
+    STRICT_MODEL_CONFIG,
+    StringList,
+    SummaryText,
+)
 from app.modules.document_processing.enums import (
     DocumentExtractionMode,
     DocumentExtractionResultStatus,
@@ -15,15 +26,15 @@ from app.modules.medical_timeline.enums import MedicalEventType
 
 
 class ProcessingJobCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     job_type: DocumentProcessingJobType = DocumentProcessingJobType.AI_EXTRACT
 
 
 class ProcessingJobFailedRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
-    error_message: str = Field(min_length=1, max_length=1000)
+    error_message: Description
 
 
 class ProcessingJobResponse(BaseModel):
@@ -42,16 +53,16 @@ class ProcessingJobResponse(BaseModel):
 
 
 class ExtractionResultCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     extraction_mode: DocumentExtractionMode = DocumentExtractionMode.STANDARD
-    ai_summary: str | None = None
-    key_findings: list[dict] | None = None
-    doctor_advice: str | None = None
-    suggested_events: list[dict] | None = None
-    raw_extracted_text: str | None = None
+    ai_summary: SummaryText = None
+    key_findings: JsonList = None
+    doctor_advice: DoctorAdvice = None
+    suggested_events: JsonList = None
+    raw_extracted_text: RawExtractedText = None
     confidence_level: ConfidenceLevel = ConfidenceLevel.MEDIUM
-    safety_notes: list[str] | None = None
+    safety_notes: StringList = None
     status: DocumentExtractionResultStatus = DocumentExtractionResultStatus.DRAFT
     processing_job_id: UUID | None = None
 
@@ -76,16 +87,16 @@ class ExtractionResultResponse(BaseModel):
 
 
 class MedicalEventDraftCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     source_document_id: UUID | None = None
     extraction_result_id: UUID | None = None
     draft_event_type: MedicalEventType
-    draft_title: str | None = Field(default=None, max_length=200)
-    draft_json: dict
-    missing_fields: list[str] | None = None
+    draft_title: OptionalTitle = None
+    draft_json: RequiredJsonDict
+    missing_fields: StringList = None
     confidence_level: ConfidenceLevel = ConfidenceLevel.MEDIUM
-    safety_flags: list[str] | None = None
+    safety_flags: StringList = None
     expires_at: datetime | None = None
 
 

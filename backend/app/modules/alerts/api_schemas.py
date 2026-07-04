@@ -3,30 +3,31 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 
+from app.api.validators import Note, RequiredAlertText, ShortText, STRICT_MODEL_CONFIG, SuggestedAction, Title, TriggerReason
 from app.modules.alerts.enums import AlertLevel, AlertSource, AlertType
 
 
 class AlertCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     alert_type: AlertType
     level: AlertLevel
-    title: str = Field(min_length=1, max_length=200)
-    message: str = Field(min_length=1)
-    suggested_action: str | None = Field(default=None, max_length=500)
-    related_entity_type: str | None = Field(default=None, max_length=100)
+    title: Title
+    message: RequiredAlertText
+    suggested_action: SuggestedAction = None
+    related_entity_type: ShortText = None
     related_entity_id: UUID | None = None
-    trigger_reason: str | None = None
+    trigger_reason: TriggerReason = None
     due_at: datetime | None = None
     source: AlertSource = AlertSource.SYSTEM
 
 
 class AlertTransitionRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
-    note: str | None = None
+    note: Note = None
 
 
 class AlertResponse(BaseModel):

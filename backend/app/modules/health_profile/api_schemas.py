@@ -3,23 +3,24 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
+from app.api.validators import Description, STRICT_MODEL_CONFIG
 from app.modules.health_profile.enums import BloodType
 from app.modules.identity.enums import Gender
 
 
 class HealthProfileUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     height_cm: float | None = Field(default=None, ge=30, le=260)
     gender: Gender | None = None
     birth_date: date | None = None
     blood_type: BloodType | None = None
-    health_goal: str | None = Field(default=None, max_length=500)
-    chronic_conditions_summary: str | None = Field(default=None, max_length=1000)
-    allergy_summary: str | None = Field(default=None, max_length=1000)
-    medication_summary: str | None = Field(default=None, max_length=1000)
+    health_goal: Description = None
+    chronic_conditions_summary: Description = None
+    allergy_summary: Description = None
+    medication_summary: Description = None
 
 
 class HealthProfileResponse(BaseModel):

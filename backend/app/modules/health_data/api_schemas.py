@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
+from app.api.validators import Note, STRICT_MODEL_CONFIG, ShortText, SourceDetail
 from app.modules.health_data.enums import (
     BloodPressureArm,
     BloodPressureMeasurementContext,
@@ -16,19 +17,19 @@ from app.modules.health_data.enums import (
 
 
 class MetricCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
     metric_type: MetricType | str
-    value_numeric: float | None = None
-    value_text: str | None = Field(default=None, max_length=255)
-    unit: str | None = Field(default=None, max_length=32)
+    value_numeric: float | None = Field(default=None, ge=0, le=1_000_000)
+    value_text: ShortText = None
+    unit: ShortText = None
     measured_at: datetime | None = None
     period_start: datetime | None = None
     period_end: datetime | None = None
     source: MetricSource = MetricSource.MANUAL
-    source_detail: str | None = Field(default=None, max_length=255)
+    source_detail: SourceDetail = None
     confidence_level: ConfidenceLevel = ConfidenceLevel.HIGH
-    note: str | None = None
+    note: Note = None
 
     @model_validator(mode="after")
     def validate_value(self) -> MetricCreateRequest:
@@ -55,18 +56,18 @@ class MetricResponse(BaseModel):
 
 
 class BloodPressureCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = STRICT_MODEL_CONFIG
 
-    systolic: int
-    diastolic: int
-    pulse: int | None = None
+    systolic: int = Field(gt=0, le=400)
+    diastolic: int = Field(gt=0, le=300)
+    pulse: int | None = Field(default=None, gt=0, le=300)
     measured_at: datetime | None = None
     measurement_context: BloodPressureMeasurementContext = BloodPressureMeasurementContext.UNKNOWN
     arm: BloodPressureArm = BloodPressureArm.UNKNOWN
     posture: BloodPressurePosture = BloodPressurePosture.UNKNOWN
     source: MetricSource = MetricSource.MANUAL
     confidence_level: ConfidenceLevel = ConfidenceLevel.HIGH
-    note: str | None = None
+    note: Note = None
 
 
 class BloodPressureResponse(BaseModel):
