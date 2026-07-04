@@ -138,6 +138,12 @@ class AgentSafetyPolicyTestCase(unittest.TestCase):
         self.assertTrue(decision.blocked)
         self.assertEqual(decision.reason_code, "unsafe_medical_output")
 
+    def test_output_prescription_advice_is_blocked(self) -> None:
+        decision = self.policy.evaluate_output("I prescribe this medicine for you.")
+
+        self.assertTrue(decision.blocked)
+        self.assertEqual(decision.reason_code, "unsafe_medical_output")
+
     def test_output_dosage_advice_is_blocked(self) -> None:
         decision = self.policy.evaluate_output("Take 2 pills every morning.")
 

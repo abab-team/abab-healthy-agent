@@ -268,7 +268,8 @@ class AgentSafetyPolicy:
                 allowed_actions=("return_empty_output",),
             )
         lowered = text.lower()
-        if matched := _match_terms(lowered, UNSAFE_OUTPUT_TERMS + DIAGNOSIS_TERMS + DOSAGE_TERMS + MEDICATION_CHANGE_TERMS):
+        unsafe_terms = UNSAFE_OUTPUT_TERMS + DIAGNOSIS_TERMS + PRESCRIPTION_TERMS + DOSAGE_TERMS + MEDICATION_CHANGE_TERMS
+        if matched := _match_terms(lowered, unsafe_terms):
             return _decision(
                 allowed=False,
                 blocked=True,
