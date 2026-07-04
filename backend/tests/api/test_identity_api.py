@@ -32,7 +32,7 @@ class IdentityApiTestCase(unittest.TestCase):
         response = client.get("/api/v1/identity/me")
 
         self.assertEqual(response.status_code, 401)
-        self.assertIn("X-Current-User-Id", response.json()["detail"])
+        self.assertEqual(response.json()["detail"]["code"], "missing_current_user")
 
     def test_me_success_does_not_return_password_hash(self) -> None:
         user = create_user("identity_me", nickname="Current User")

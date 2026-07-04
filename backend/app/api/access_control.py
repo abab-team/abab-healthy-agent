@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.errors import raise_permission_denied
 from app.modules.audit import service as audit_service
 from app.modules.permissions import service as permission_service
 from app.modules.permissions.schemas import PermissionCheckResult
@@ -62,15 +62,7 @@ def require_self_or_family_permission(
     )
     db.commit()
     if not result.allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "permission_denied",
-                "message": result.safe_message,
-                "permission_type": result.permission_type,
-                "action": result.action,
-            },
-        )
+        raise_permission_denied(result.safe_message)
     return AccessContext(
         allowed=True,
         current_user_id=current_user_id,

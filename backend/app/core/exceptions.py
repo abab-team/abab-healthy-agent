@@ -4,7 +4,29 @@
 # 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.api.errors import (
+    ApiErrorCode,
+    build_error_detail,
+    business_exception_handler,
+    http_exception_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
+from app.modules.alerts.exceptions import AlertsError
+from app.modules.document_center.exceptions import DocumentCenterError
+from app.modules.document_processing.exceptions import DocumentProcessingError
+from app.modules.family.exceptions import FamilyError
+from app.modules.health_data.exceptions import HealthDataError
+from app.modules.health_profile.exceptions import HealthProfileError
+from app.modules.health_record.exceptions import HealthRecordError
+from app.modules.identity.exceptions import IdentityError
+from app.modules.medical_timeline.exceptions import MedicalTimelineError
+from app.modules.permissions.exceptions import PermissionError as ModulePermissionError
+from app.modules.reports.exceptions import ReportsError
 
 
 # 类职责：AppException 表示 核心基础设施层 中可预期的业务异常。
@@ -39,9 +61,11 @@ async def app_exception_handler(
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error": {
-                "message": exc.message,
-            },
+            "detail": build_error_detail(
+                code=ApiErrorCode.INVALID_REQUEST,
+                message=exc.message,
+                request_id=request.headers.get("X-Request-Id"),
+            ),
         },
     )
 
@@ -54,3 +78,20 @@ def register_exception_handlers(app: FastAPI) -> None:
     # 2. 构造新的领域对象并交给仓储层保存。
     # 3. 返回创建后的对象或业务摘要。
     app.add_exception_handler(AppException, app_exception_handler)
+    for exception_class in (
+        AlertsError,
+        DocumentCenterError,
+        DocumentProcessingError,
+        FamilyError,
+        HealthDataError,
+        HealthProfileError,
+        HealthRecordError,
+        IdentityError,
+        MedicalTimelineError,
+        ModulePermissionError,
+        ReportsError,
+    ):
+        app.add_exception_handler(exception_class, business_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(Exception, unhandled_exception_handler)
