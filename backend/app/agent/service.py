@@ -1,6 +1,129 @@
-# 模块领域：健康 Agent 核心层
-# 领域说明：负责运行时上下文、工具调用、工作流编排、安全边界和执行审计。
-# 文件职责：业务服务文件。编排领域规则、权限校验、仓储调用和状态流转，是模块的主要业务入口。
-# 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
+from __future__ import annotations
 
-"""Agent service.py placeholder."""
+from datetime import datetime
+from uuid import UUID
+
+from sqlalchemy.orm import Session
+
+from app.agent import repository
+from app.agent.enums import AgentSafetyLevel, AgentTraceStatus, AgentTriggerType, AgentWorkflowName
+from app.agent.exceptions import AgentRuntimeError
+from app.agent.models import AgentSafetyCheck, AgentTrace
+from app.db.mixins import utc_now
+
+
+def start_trace(
+    db: Session,
+    *,
+    request_id: str,
+    workflow_name: AgentWorkflowName,
+    current_user_id: UUID,
+    target_user_id: UUID | None,
+    current_family_id: UUID | None = None,
+    session_id: str | None = None,
+    source_page: str | None = None,
+    raw_input_summary: str | None = None,
+    trigger_type: AgentTriggerType = AgentTriggerType.USER_CHAT,
+) -> AgentTrace:
+    return repository.create_trace(
+        db,
+        request_id=request_id,
+        workflow_name=workflow_name,
+        current_user_id=current_user_id,
+        current_family_id=current_family_id,
+        target_user_id=target_user_id,
+        session_id=session_id,
+        source_page=source_page,
+        raw_input_summary=raw_input_summary,
+        trigger_type=trigger_type,
+        started_at=utc_now(),
+    )
+
+
+def complete_trace(db: Session, trace_id: UUID, *, final_output_summary: str | None = None) -> AgentTrace:
+    trace = _require_trace(db, trace_id)
+    completed = repository.mark_trace_completed(
+        db,
+        trace_id,
+        ended_at=utc_now(),
+        duration_ms=_duration_ms(trace.started_at, utc_now()),
+        final_output_summary=final_output_summary,
+    )
+    if completed is None:
+        raise AgentRuntimeError("trace not found")
+    return completed
+
+
+def fail_trace(
+    db: Session,
+    trace_id: UUID,
+    *,
+    error_type: str,
+    error_message: str,
+    final_output_summary: str | None = None,
+    status: AgentTraceStatus = AgentTraceStatus.FAILED,
+) -> AgentTrace:
+    trace = _require_trace(db, trace_id)
+    failed = repository.mark_trace_failed(
+        db,
+        trace_id,
+        ended_at=utc_now(),
+        duration_ms=_duration_ms(trace.started_at, utc_now()),
+        error_type=error_type[:100],
+        error_message=error_message[:1000],
+        final_output_summary=final_output_summary,
+        status=status,
+    )
+    if failed is None:
+        raise AgentRuntimeError("trace not found")
+    return failed
+
+
+def record_safety_check(
+    db: Session,
+    *,
+    request_id: str,
+    workflow_name: AgentWorkflowName,
+    safety_level: AgentSafetyLevel,
+    passed: bool,
+    intent: str | None = None,
+    safety_flags: list[str] | None = None,
+    blocked_reason: str | None = None,
+    input_risk_summary: str | None = None,
+    original_answer_summary: str | None = None,
+    revised_answer_summary: str | None = None,
+    was_rewritten: bool = False,
+) -> AgentSafetyCheck:
+    return repository.create_safety_check(
+        db,
+        request_id=request_id,
+        workflow_name=workflow_name,
+        safety_level=safety_level,
+        passed=passed,
+        intent=intent,
+        safety_flags=safety_flags,
+        blocked_reason=blocked_reason,
+        input_risk_summary=input_risk_summary,
+        original_answer_summary=original_answer_summary,
+        revised_answer_summary=revised_answer_summary,
+        was_rewritten=was_rewritten,
+    )
+
+
+def get_trace(db: Session, trace_id: UUID) -> AgentTrace | None:
+    return repository.get_trace(db, trace_id)
+
+
+def list_safety_checks(db: Session, *, request_id: str | None = None, workflow_name: AgentWorkflowName | None = None) -> list[AgentSafetyCheck]:
+    return repository.list_safety_checks(db, request_id=request_id, workflow_name=workflow_name)
+
+
+def _require_trace(db: Session, trace_id: UUID) -> AgentTrace:
+    trace = repository.get_trace(db, trace_id)
+    if trace is None:
+        raise AgentRuntimeError("trace not found")
+    return trace
+
+
+def _duration_ms(started_at: datetime, ended_at: datetime) -> int:
+    return max(0, int((ended_at - started_at).total_seconds() * 1000))

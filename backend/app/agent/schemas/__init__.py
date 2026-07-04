@@ -1,6 +1,62 @@
-# 模块领域：健康 Agent 核心层
-# 领域说明：负责运行时上下文、工具调用、工作流编排、安全边界和执行审计。
-# 文件职责：业务代码文件。承载本模块的一部分领域能力或工程能力。
-# 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
+from __future__ import annotations
 
-"""Agent schemas/__init__.py placeholder."""
+from dataclasses import dataclass, field
+from uuid import UUID
+
+from app.agent.enums import AgentSafetyLevel, AgentTraceStatus, AgentWorkflowName
+
+
+MAX_AGENT_USER_MESSAGE_LENGTH = 2000
+
+
+@dataclass(frozen=True)
+class AgentRunRequest:
+    actor_user_id: UUID
+    target_user_id: UUID
+    workflow_type: AgentWorkflowName | str
+    user_message: str
+    family_id: UUID | None = None
+    source: str | None = None
+    request_id: str | None = None
+    session_id: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentRunResult:
+    trace_id: UUID | None
+    status: str
+    workflow_type: str
+    message: str
+    blocked: bool
+    safety_level: str
+    tool_calls_count: int = 0
+    generated_content: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentWorkflowResult:
+    message: str
+    generated_content: str | None = None
+    status: AgentTraceStatus = AgentTraceStatus.SUCCESS
+    tool_calls_count: int = 0
+
+
+@dataclass(frozen=True)
+class AgentSafetyResult:
+    passed: bool
+    safety_level: AgentSafetyLevel
+    flags: list[str] = field(default_factory=list)
+    blocked_reason: str | None = None
+    input_risk_summary: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentTraceStart:
+    request_id: str
+    workflow_name: AgentWorkflowName
+    current_user_id: UUID
+    target_user_id: UUID | None
+    current_family_id: UUID | None = None
+    session_id: str | None = None
+    source_page: str | None = None
+    raw_input_summary: str | None = None
