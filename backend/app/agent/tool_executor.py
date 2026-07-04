@@ -148,7 +148,14 @@ class AgentToolExecutor:
 
         try:
             validated_input = tool.validate_input(dict(request.input_data))
-            output_data = tool.execute(validated_input)
+            output_data = tool.execute(
+                {
+                    **validated_input,
+                    "_db": db,
+                    "_target_user_id": request.target_user_id,
+                    "_family_id": request.family_id,
+                }
+            )
             output_summary = _summarize_mapping(output_data)
             service.complete_tool_call(db, tool_call.id, output_summary=output_summary)
             db.commit()
@@ -217,7 +224,7 @@ class AgentToolExecutor:
             current_user_id=request.actor_user_id,
             family_id=request.family_id,
             target_user_id=request.target_user_id,
-            permission_type=metadata.required_permission_type,
+            permission_type=_permission_type_for_check(metadata.required_permission_type),
             action=metadata.required_permission_action,
         )
 
@@ -261,6 +268,12 @@ def _permission_summary(permission_result: Any) -> dict[str, Any]:
         "reason": getattr(permission_result, "reason", None),
         "visibility_scope": getattr(permission_result, "visibility_scope", None),
     }
+
+
+def _permission_type_for_check(permission_type: str) -> str:
+    if permission_type == "health_profile":
+        return "profile"
+    return permission_type
 
 
 def _summarize_mapping(value: dict[str, Any] | None) -> dict[str, Any] | None:

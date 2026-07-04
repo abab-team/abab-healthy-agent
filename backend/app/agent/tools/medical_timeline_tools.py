@@ -6,22 +6,22 @@ from sqlalchemy.orm import Session
 
 from app.agent.schemas import AgentToolMetadata
 from app.agent.tools.base import AgentTool
-from app.modules.alerts import service as alert_service
+from app.modules.medical_timeline import service as medical_timeline_service
 
 
-class ActiveAlertsListTool(AgentTool):
+class MedicalFollowupsListTool(AgentTool):
     metadata = AgentToolMetadata(
-        name="alerts.active.list",
-        description="Read active alert summaries for the target user.",
-        category="alert",
+        name="medical_timeline.followups.list",
+        description="Read stored medical events that are marked as needing follow-up.",
+        category="medical_timeline",
         access_mode="read",
-        risk_level="low",
-        required_permission_type="alerts",
+        risk_level="medium",
+        required_permission_type="medical_events",
         required_permission_action="view",
         requires_confirmation=False,
-        input_schema_name="ActiveAlertsListInput",
-        output_schema_name="ActiveAlertsListOutput",
-        safety_notes=("Alerts are reminders from system records and are not diagnosis.",),
+        input_schema_name="MedicalFollowupsListInput",
+        output_schema_name="MedicalFollowupsListOutput",
+        safety_notes=("Returns stored follow-up flags only; no treatment plan or medical conclusion.",),
     )
 
     def validate_input(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -29,7 +29,7 @@ class ActiveAlertsListTool(AgentTool):
 
     def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
         db = _require_db(payload)
-        alerts = alert_service.get_active_alerts(
+        events = medical_timeline_service.get_follow_up_events(
             db,
             user_id=payload["_target_user_id"],
             family_id=payload.get("_family_id"),
@@ -37,21 +37,20 @@ class ActiveAlertsListTool(AgentTool):
         return {
             "status": "ok",
             "source": "system_records",
-            "empty": len(alerts) == 0,
-            "no_records_message": "No active alerts were found in system records." if not alerts else None,
-            "count": len(alerts),
-            "items": [_alert_summary(alert) for alert in alerts],
+            "count": len(events),
+            "items": [_event_summary(event) for event in events],
         }
 
 
-def _alert_summary(alert) -> dict[str, Any]:
+def _event_summary(event) -> dict[str, Any]:
     return {
-        "id": str(alert.id),
-        "alert_type": getattr(alert.alert_type, "value", alert.alert_type),
-        "level": getattr(alert.level, "value", alert.level),
-        "title": alert.title,
-        "status": getattr(alert.status, "value", alert.status),
-        "due_at": alert.due_at,
+        "id": str(event.id),
+        "event_type": getattr(event.event_type, "value", event.event_type),
+        "title": event.title,
+        "event_date": event.event_date,
+        "follow_up_needed": bool(event.follow_up_needed),
+        "follow_up_at": event.follow_up_at,
+        "status": getattr(event.status, "value", event.status),
     }
 
 
