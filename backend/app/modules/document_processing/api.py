@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.document_center import service as document_service
 from app.modules.document_center.exceptions import MedicalDocumentNotFoundError
@@ -24,7 +25,6 @@ from app.modules.document_processing.exceptions import (
     MedicalEventDraftNotFoundError,
     MedicalEventDraftNotPendingError,
 )
-from app.modules.permissions import service as permission_service
 
 
 router = APIRouter(tags=["document-processing"])
@@ -274,16 +274,16 @@ def _assert_draft_references_scope(db: Session, *, user_id: UUID, family_id: UUI
 
 
 def _require_permission(db: Session, current_user_id: UUID, family_id: UUID, target_user_id: UUID, permission_type: str, action: str) -> None:
-    result = permission_service.check_member_permission(
+    require_self_or_family_permission(
         db,
         current_user_id=current_user_id,
         family_id=family_id,
         target_user_id=target_user_id,
         permission_type=permission_type,
         action=action,
+        data_category="documents" if permission_type == "documents" else "medical_events",
+        access_reason="api_document_processing",
     )
-    if not result.allowed:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=result.safe_message)
 
 
 def _job_response(job) -> dict:

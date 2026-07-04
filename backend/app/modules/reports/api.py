@@ -6,8 +6,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
-from app.modules.permissions import service as permission_service
 from app.modules.reports import service
 from app.modules.reports.api_schemas import DailyReportResponse, DailyReportSaveRequest
 from app.modules.reports.exceptions import InvalidDailyReportError
@@ -89,16 +89,16 @@ def _save_daily_report(db: Session, *, user_id: UUID, family_id: UUID | None, pa
 
 
 def _require_permission(db: Session, current_user_id: UUID, family_id: UUID, target_user_id: UUID, permission_type: str, action: str) -> None:
-    result = permission_service.check_member_permission(
+    require_self_or_family_permission(
         db,
         current_user_id=current_user_id,
         family_id=family_id,
         target_user_id=target_user_id,
         permission_type=permission_type,
         action=action,
+        data_category="reports",
+        access_reason="api_reports",
     )
-    if not result.allowed:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=result.safe_message)
 
 
 def _report_response(report) -> dict:

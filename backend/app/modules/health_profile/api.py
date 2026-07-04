@@ -3,16 +3,16 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.health_profile import service
 from app.modules.health_profile.api_schemas import (
     HealthProfileResponse,
     HealthProfileUpdateRequest,
 )
-from app.modules.permissions import service as permission_service
 
 
 router = APIRouter(tags=["health-profile"])
@@ -23,6 +23,15 @@ def get_my_health_profile(
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ):
+    require_self_or_family_permission(
+        db=db,
+        current_user_id=current_user_id,
+        target_user_id=current_user_id,
+        permission_type="profile",
+        action="view",
+        data_category="profile",
+        access_reason="api_health_profile_self",
+    )
     return _profile_response(service.ensure_profile(db, current_user_id))
 
 
@@ -70,19 +79,16 @@ def _require_permission(
     permission_type: str,
     action: str,
 ) -> None:
-    result = permission_service.check_member_permission(
+    require_self_or_family_permission(
         db,
         current_user_id=current_user_id,
         family_id=family_id,
         target_user_id=target_user_id,
         permission_type=permission_type,
         action=action,
+        data_category="profile",
+        access_reason="api_health_profile",
     )
-    if not result.allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=result.safe_message,
-        )
 
 
 def _profile_response(profile) -> dict:

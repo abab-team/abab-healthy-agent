@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.health_record import service
 from app.modules.health_record.api_schemas import (
@@ -20,7 +21,6 @@ from app.modules.health_record.exceptions import (
     HealthRecordDraftTypeUnsupportedError,
     InvalidHealthRecordDraftError,
 )
-from app.modules.permissions import service as permission_service
 
 
 router = APIRouter(tags=["health-records"])
@@ -346,16 +346,16 @@ def _require_permission(
     permission_type: str,
     action: str,
 ) -> None:
-    result = permission_service.check_member_permission(
+    require_self_or_family_permission(
         db,
         current_user_id=current_user_id,
         family_id=family_id,
         target_user_id=target_user_id,
         permission_type=permission_type,
         action=action,
+        data_category="symptoms",
+        access_reason="api_health_record",
     )
-    if not result.allowed:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=result.safe_message)
 
 
 def _symptom_response(record) -> dict:

@@ -6,11 +6,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.alerts import service
 from app.modules.alerts.api_schemas import AlertCreateRequest, AlertResponse, AlertTransitionRequest
 from app.modules.alerts.exceptions import AlertNotFoundError, InvalidAlertError, InvalidAlertTransitionError
-from app.modules.permissions import service as permission_service
 
 
 router = APIRouter(tags=["alerts"])
@@ -120,16 +120,16 @@ def _transition(fn) -> dict:
 
 
 def _require_permission(db: Session, current_user_id: UUID, family_id: UUID, target_user_id: UUID, permission_type: str, action: str) -> None:
-    result = permission_service.check_member_permission(
+    require_self_or_family_permission(
         db,
         current_user_id=current_user_id,
         family_id=family_id,
         target_user_id=target_user_id,
         permission_type=permission_type,
         action=action,
+        data_category="alerts",
+        access_reason="api_alerts",
     )
-    if not result.allowed:
-        raise HTTPException(status_code=403, detail=result.safe_message)
 
 
 def _alert_response(alert) -> dict:

@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.medical_timeline import service
 from app.modules.medical_timeline.api_schemas import (
@@ -12,7 +13,6 @@ from app.modules.medical_timeline.api_schemas import (
     MedicalEventResponse,
 )
 from app.modules.medical_timeline.exceptions import InvalidMedicalEventError, MedicalEventNotFoundError
-from app.modules.permissions import service as permission_service
 
 
 router = APIRouter(tags=["medical-timeline"])
@@ -162,16 +162,16 @@ def _assert_event_scope(event, *, user_id: UUID, family_id: UUID | None) -> None
 
 
 def _require_permission(db: Session, current_user_id: UUID, family_id: UUID, target_user_id: UUID, permission_type: str, action: str) -> None:
-    result = permission_service.check_member_permission(
+    require_self_or_family_permission(
         db,
         current_user_id=current_user_id,
         family_id=family_id,
         target_user_id=target_user_id,
         permission_type=permission_type,
         action=action,
+        data_category="medical_events",
+        access_reason="api_medical_timeline",
     )
-    if not result.allowed:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=result.safe_message)
 
 
 def _event_response(event) -> dict:

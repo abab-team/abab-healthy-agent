@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.health_data import service
 from app.modules.health_data.api_schemas import (
@@ -18,7 +19,6 @@ from app.modules.health_data.exceptions import (
     InvalidBloodPressureValueError,
     InvalidMetricValueError,
 )
-from app.modules.permissions import service as permission_service
 
 
 router = APIRouter(tags=["health-data"])
@@ -120,6 +120,15 @@ def get_my_blood_pressure_summary(
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ):
+    require_self_or_family_permission(
+        db=db,
+        current_user_id=current_user_id,
+        target_user_id=current_user_id,
+        permission_type="metrics",
+        action="view",
+        data_category="metrics",
+        access_reason="api_health_data_self",
+    )
     return service.get_blood_pressure_summary(db, user_id=current_user_id, days=days)
 
 
@@ -307,16 +316,16 @@ def _require_permission(
     permission_type: str,
     action: str,
 ) -> None:
-    result = permission_service.check_member_permission(
+    require_self_or_family_permission(
         db,
         current_user_id=current_user_id,
         family_id=family_id,
         target_user_id=target_user_id,
         permission_type=permission_type,
         action=action,
+        data_category="metrics",
+        access_reason="api_health_data",
     )
-    if not result.allowed:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=result.safe_message)
 
 
 def _parse_metric_types(metric_types: list[str] | None) -> list[str] | None:
