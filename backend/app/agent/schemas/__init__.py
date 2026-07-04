@@ -20,6 +20,21 @@ AgentToolCategory = Literal[
 ]
 AgentToolAccessMode = Literal["read", "write", "draft", "admin"]
 AgentToolRiskLevel = Literal["low", "medium", "high", "critical"]
+AgentSafetyCategory = Literal[
+    "general",
+    "record_keeping",
+    "health_summary",
+    "medical_question",
+    "diagnosis_request",
+    "prescription_request",
+    "dosage_request",
+    "medication_change_request",
+    "emergency_symptom",
+    "mental_health_crisis",
+    "self_harm",
+    "unknown",
+]
+AgentSafetyDecisionLevel = Literal["safe", "caution", "high_risk", "emergency", "blocked"]
 
 
 @dataclass(frozen=True)
@@ -61,6 +76,21 @@ class AgentSafetyResult:
     flags: list[str] = field(default_factory=list)
     blocked_reason: str | None = None
     input_risk_summary: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentSafetyDecision:
+    allowed: bool
+    blocked: bool
+    safety_level: AgentSafetyDecisionLevel
+    category: AgentSafetyCategory
+    reason_code: str
+    safe_message: str
+    requires_human_review: bool = False
+    requires_medical_attention: bool = False
+    disallowed_actions: tuple[str, ...] = ()
+    allowed_actions: tuple[str, ...] = ()
+    matched_rules: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

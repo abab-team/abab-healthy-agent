@@ -18,6 +18,7 @@ SAFE_BLOCKED_MESSAGE = "Agent runtime blocked this request before workflow execu
 class AgentRuntime:
     def __init__(self, registry: AgentWorkflowRegistry | None = None) -> None:
         self.registry = registry or default_workflow_registry()
+        self.safety_policy = safety.AgentSafetyPolicy()
 
     def run(self, db: Session, request: AgentRunRequest) -> AgentRunResult:
         request_id = request.request_id or str(uuid4())
@@ -34,24 +35,25 @@ class AgentRuntime:
             raw_input_summary=_input_summary(request.user_message, requested_workflow),
         )
         try:
-            safety_result = safety.check_user_message(request.user_message)
+            input_decision = self.safety_policy.evaluate_input(request.user_message, requested_workflow)
             service.record_safety_check(
                 db,
                 request_id=request_id,
                 workflow_name=workflow_name,
-                safety_level=safety_result.safety_level,
-                passed=safety_result.passed,
-                safety_flags=safety_result.flags,
-                blocked_reason=safety_result.blocked_reason,
-                input_risk_summary=safety_result.input_risk_summary,
+                safety_level=safety.to_agent_safety_level(input_decision),
+                passed=input_decision.allowed and not input_decision.blocked,
+                safety_flags=list(input_decision.matched_rules),
+                blocked_reason=input_decision.reason_code if input_decision.blocked else None,
+                input_risk_summary=input_decision.reason_code,
             )
-            if not safety_result.passed:
+            if input_decision.blocked:
+                blocked_message = self.safety_policy.build_safe_blocked_message(input_decision)
                 service.fail_trace(
                     db,
                     trace.id,
                     error_type="safety_blocked",
-                    error_message=safety_result.blocked_reason or "safety blocked",
-                    final_output_summary=SAFE_BLOCKED_MESSAGE,
+                    error_message=input_decision.reason_code,
+                    final_output_summary=blocked_message,
                     status=AgentTraceStatus.BLOCKED,
                 )
                 db.commit()
@@ -59,25 +61,47 @@ class AgentRuntime:
                     trace_id=trace.id,
                     status="blocked",
                     workflow_type=requested_workflow,
-                    message=SAFE_BLOCKED_MESSAGE,
+                    message=blocked_message,
                     blocked=True,
-                    safety_level=safety_result.safety_level.value,
+                    safety_level=input_decision.safety_level,
                     generated_content=None,
                 )
 
             handler = self.registry.get(workflow_name)
             workflow_result = handler.run(request)
-            service.complete_trace(db, trace.id, final_output_summary=safety.excerpt_text(workflow_result.message))
+            output_decision = self.safety_policy.evaluate_output(workflow_result.generated_content or workflow_result.message, requested_workflow)
+            service.record_safety_check(
+                db,
+                request_id=request_id,
+                workflow_name=workflow_name,
+                safety_level=safety.to_agent_safety_level(output_decision),
+                passed=output_decision.allowed and not output_decision.blocked,
+                safety_flags=list(output_decision.matched_rules),
+                blocked_reason=output_decision.reason_code if output_decision.blocked else None,
+                input_risk_summary=f"output:{output_decision.reason_code}",
+            )
+            message = workflow_result.message
+            generated_content = workflow_result.generated_content
+            blocked = False
+            safety_level = input_decision.safety_level
+            if output_decision.blocked:
+                message = output_decision.safe_message
+                generated_content = output_decision.safe_message
+                blocked = True
+                safety_level = output_decision.safety_level
+            elif input_decision.safety_level != "safe":
+                safety_level = input_decision.safety_level
+            service.complete_trace(db, trace.id, final_output_summary=safety.excerpt_text(message))
             db.commit()
             return AgentRunResult(
                 trace_id=trace.id,
                 status="completed",
                 workflow_type=workflow_name.value,
-                message=workflow_result.message,
-                blocked=False,
-                safety_level=safety_result.safety_level.value,
+                message=message,
+                blocked=blocked,
+                safety_level=safety_level,
                 tool_calls_count=workflow_result.tool_calls_count,
-                generated_content=workflow_result.generated_content,
+                generated_content=generated_content,
             )
         except AgentWorkflowNotRegisteredError as exc:
             service.fail_trace(
