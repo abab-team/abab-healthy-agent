@@ -18,7 +18,7 @@ AgentToolCategory = Literal[
     "alert",
     "system",
 ]
-AgentToolAccessMode = Literal["read", "write", "draft", "admin"]
+AgentToolAccessMode = Literal["none", "read", "write", "draft", "admin"]
 AgentToolRiskLevel = Literal["low", "medium", "high", "critical"]
 AgentSafetyCategory = Literal[
     "general",

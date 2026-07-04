@@ -126,6 +126,18 @@ class AgentToolRegistryTestCase(unittest.TestCase):
 
         self.assertIs(self.registry.ensure_tool_allowed("fake.read_profile"), tool)
 
+    def test_system_none_access_tool_can_omit_business_permission(self) -> None:
+        tool = self.registry.register(
+            FakeTool(
+                category="system",
+                access_mode="none",
+                required_permission_type=None,
+                required_permission_action=None,
+            )
+        )
+
+        self.assertEqual(self.registry.list_tools_by_access_mode("none"), [tool])
+
     def test_registry_does_not_import_llm(self) -> None:
         sys.modules.pop("app.agent.llm_client", None)
 

@@ -23,6 +23,20 @@ SAFE_SAFETY_BLOCKED_MESSAGE = "Tool execution was blocked by the current safety 
 SAFE_TOOL_COMPLETED_MESSAGE = "Tool execution completed."
 
 PermissionChecker = Callable[..., Any]
+SENSITIVE_SUMMARY_KEYS = {
+    "access_token",
+    "api_key",
+    "file_path",
+    "key",
+    "password",
+    "password_hash",
+    "private_key",
+    "raw_extracted_text",
+    "refresh_token",
+    "secret",
+    "session_token",
+    "token",
+}
 
 
 class AgentToolExecutor:
@@ -228,6 +242,8 @@ def _safety_blocks_execution(safety_level: str | None) -> bool:
 
 
 def _access_mode(value: str) -> AgentToolAccessMode:
+    if value == "none":
+        return AgentToolAccessMode.READ
     if value == "admin":
         return AgentToolAccessMode.CONTROL
     return AgentToolAccessMode(value)
@@ -250,7 +266,16 @@ def _permission_summary(permission_result: Any) -> dict[str, Any]:
 def _summarize_mapping(value: dict[str, Any] | None) -> dict[str, Any] | None:
     if value is None:
         return None
-    return {str(key): _summarize_value(item) for key, item in value.items()}
+    summary: dict[str, Any] = {}
+    redacted_count = 0
+    for key, item in value.items():
+        key_text = str(key)
+        if _is_sensitive_summary_key(key_text):
+            redacted_count += 1
+            summary[f"redacted_field_{redacted_count}"] = {"type": "redacted", "reason": "sensitive_field"}
+            continue
+        summary[key_text] = _summarize_value(item)
+    return summary
 
 
 def _summarize_value(value: Any) -> dict[str, Any]:
@@ -267,8 +292,18 @@ def _summarize_value(value: Any) -> dict[str, Any]:
     if isinstance(value, (list, tuple, set)):
         return {"type": "list", "length": len(value)}
     if isinstance(value, dict):
-        return {"type": "dict", "keys": sorted(str(key) for key in value.keys())}
+        safe_keys = [str(key) for key in value.keys() if not _is_sensitive_summary_key(str(key))]
+        redacted_count = len(value) - len(safe_keys)
+        summary: dict[str, Any] = {"type": "dict", "keys": sorted(safe_keys)}
+        if redacted_count:
+            summary["redacted_fields"] = redacted_count
+        return summary
     return {"type": type(value).__name__}
+
+
+def _is_sensitive_summary_key(key: str) -> bool:
+    normalized = key.lower().replace("-", "_")
+    return normalized in SENSITIVE_SUMMARY_KEYS or normalized.endswith("_token") or normalized.endswith("_key")
 
 
 def _blocked_result(tool_name: str, tool_call_id, message: str, error_code: str) -> ToolExecutionResult:

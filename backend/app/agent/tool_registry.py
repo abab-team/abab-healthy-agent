@@ -21,7 +21,7 @@ VALID_CATEGORIES = {
     "alert",
     "system",
 }
-VALID_ACCESS_MODES = {"read", "write", "draft", "admin"}
+VALID_ACCESS_MODES = {"none", "read", "write", "draft", "admin"}
 VALID_RISK_LEVELS = {"low", "medium", "high", "critical"}
 PERMISSION_REQUIRED_ACCESS_MODES = {"write", "draft"}
 CONFIRMATION_REQUIRED_RISK_LEVELS = {"high", "critical"}

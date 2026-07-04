@@ -53,6 +53,18 @@ class AgentToolExecutorTestCase(unittest.TestCase):
         self.assertEqual(result.output_data, {"ok": True, "message": "safe response"})
         self.assertEqual(tool.execute_count, 1)
 
+    def test_system_none_access_tool_executes_without_business_permission(self) -> None:
+        tool = FakeTool(system_metadata("none_access_tool", access_mode="none"))
+        executor = self._executor(tool)
+
+        result = executor.execute(self.db, self._request("none_access_tool"))
+        call = service.list_tool_calls(self.db, trace_id=self.trace.id)[0]
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(tool.execute_count, 1)
+        self.assertEqual(self.permission_checker.call_count, 0)
+        self.assertFalse(call.permission_checked)
+
     def test_success_creates_completed_tool_call(self) -> None:
         executor = self._executor(FakeTool(system_metadata("safe_echo")))
 
@@ -220,6 +232,34 @@ class AgentToolExecutorTestCase(unittest.TestCase):
         self.assertNotIn("diagnosis is flu", summary_text.lower())
         self.assertNotIn("take 2 pills", summary_text.lower())
 
+    def test_input_summary_redacts_sensitive_fields(self) -> None:
+        executor = self._executor(FakeTool(system_metadata("safe_echo")))
+
+        executor.execute(
+            self.db,
+            self._request(
+                "safe_echo",
+                {
+                    "token": "secret-token-value",
+                    "password": "secret-password",
+                    "api_key": "secret-api-key",
+                    "file_path": "C:/Users/person/record.pdf",
+                    "raw_extracted_text": "full extracted medical text",
+                    "message": "hello",
+                },
+            ),
+        )
+        summary_text = str(service.list_tool_calls(self.db, trace_id=self.trace.id)[0].input_summary)
+
+        self.assertIn("redacted_field", summary_text)
+        self.assertNotIn("token", summary_text)
+        self.assertNotIn("password", summary_text)
+        self.assertNotIn("api_key", summary_text)
+        self.assertNotIn("file_path", summary_text)
+        self.assertNotIn("raw_extracted_text", summary_text)
+        self.assertNotIn("secret-token-value", summary_text)
+        self.assertNotIn("C:/Users", summary_text)
+
     def test_safety_level_blocks_execution(self) -> None:
         tool = FakeTool(system_metadata("safe_echo"))
         executor = self._executor(tool)
@@ -297,12 +337,18 @@ class FakePermissionResult:
         self.safe_message = "safe permission message"
 
 
-def system_metadata(name: str, *, enabled: bool = True, requires_confirmation: bool = False) -> AgentToolMetadata:
+def system_metadata(
+    name: str,
+    *,
+    access_mode: str = "read",
+    enabled: bool = True,
+    requires_confirmation: bool = False,
+) -> AgentToolMetadata:
     return AgentToolMetadata(
         name=name,
         description="Unit-test system tool.",
         category="system",
-        access_mode="read",
+        access_mode=access_mode,
         risk_level="low",
         requires_confirmation=requires_confirmation,
         enabled=enabled,
