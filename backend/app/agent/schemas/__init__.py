@@ -119,3 +119,28 @@ class AgentToolMetadata:
     input_schema_name: str | None = None
     output_schema_name: str | None = None
     safety_notes: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ToolExecutionRequest:
+    trace_id: UUID
+    tool_name: str
+    actor_user_id: UUID
+    target_user_id: UUID
+    input_data: dict
+    family_id: UUID | None = None
+    confirmed: bool = False
+    safety_level: str | None = None
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
+class ToolExecutionResult:
+    tool_name: str
+    status: str
+    blocked: bool
+    requires_confirmation: bool
+    message: str
+    output_data: dict | None = None
+    tool_call_id: UUID | None = None
+    error_code: str | None = None

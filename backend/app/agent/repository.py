@@ -6,8 +6,16 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.agent.enums import AgentSafetyLevel, AgentTraceStatus, AgentTriggerType, AgentWorkflowName
-from app.agent.models import AgentSafetyCheck, AgentTrace
+from app.agent.enums import (
+    AgentSafetyLevel,
+    AgentToolAccessMode,
+    AgentToolCallStatus,
+    AgentToolRiskLevel,
+    AgentTraceStatus,
+    AgentTriggerType,
+    AgentWorkflowName,
+)
+from app.agent.models import AgentSafetyCheck, AgentToolCall, AgentTrace
 
 
 def create_trace(
@@ -146,3 +154,139 @@ def list_safety_checks(db: Session, *, request_id: str | None = None, workflow_n
     if workflow_name is not None:
         stmt = stmt.where(AgentSafetyCheck.workflow_name == workflow_name)
     return list(db.scalars(stmt.order_by(AgentSafetyCheck.created_at.asc())))
+
+
+def create_tool_call(
+    db: Session,
+    *,
+    request_id: str,
+    workflow_name: AgentWorkflowName,
+    tool_name: str,
+    access_mode: AgentToolAccessMode,
+    risk_level: AgentToolRiskLevel,
+    current_user_id: UUID,
+    target_user_id: UUID | None,
+    input_summary: dict | None = None,
+    permission_checked: bool = False,
+    permission_result: dict | None = None,
+    status: AgentToolCallStatus = AgentToolCallStatus.SKIPPED,
+) -> AgentToolCall:
+    tool_call = AgentToolCall(
+        request_id=request_id,
+        workflow_name=workflow_name,
+        tool_name=tool_name,
+        access_mode=access_mode,
+        risk_level=risk_level,
+        current_user_id=current_user_id,
+        target_user_id=target_user_id,
+        permission_checked=permission_checked,
+        permission_result=permission_result,
+        input_summary=input_summary,
+        status=status,
+    )
+    db.add(tool_call)
+    db.flush()
+    return tool_call
+
+
+def get_tool_call(db: Session, tool_call_id: UUID) -> AgentToolCall | None:
+    return db.get(AgentToolCall, tool_call_id)
+
+
+def mark_tool_call_completed(
+    db: Session,
+    tool_call_id: UUID,
+    *,
+    output_summary: dict | None = None,
+    duration_ms: int | None = None,
+) -> AgentToolCall | None:
+    return _mark_tool_call(
+        db,
+        tool_call_id,
+        status=AgentToolCallStatus.SUCCESS,
+        output_summary=output_summary,
+        duration_ms=duration_ms,
+    )
+
+
+def mark_tool_call_failed(
+    db: Session,
+    tool_call_id: UUID,
+    *,
+    error_type: str,
+    error_message: str,
+    output_summary: dict | None = None,
+    duration_ms: int | None = None,
+) -> AgentToolCall | None:
+    return _mark_tool_call(
+        db,
+        tool_call_id,
+        status=AgentToolCallStatus.FAILED,
+        error_type=error_type,
+        error_message=error_message,
+        output_summary=output_summary,
+        duration_ms=duration_ms,
+    )
+
+
+def mark_tool_call_blocked(
+    db: Session,
+    tool_call_id: UUID,
+    *,
+    status: AgentToolCallStatus,
+    error_type: str,
+    error_message: str,
+    permission_checked: bool | None = None,
+    permission_result: dict | None = None,
+    output_summary: dict | None = None,
+    duration_ms: int | None = None,
+) -> AgentToolCall | None:
+    return _mark_tool_call(
+        db,
+        tool_call_id,
+        status=status,
+        error_type=error_type,
+        error_message=error_message,
+        permission_checked=permission_checked,
+        permission_result=permission_result,
+        output_summary=output_summary,
+        duration_ms=duration_ms,
+    )
+
+
+def list_tool_calls_by_trace(db: Session, trace_id: UUID) -> list[AgentToolCall]:
+    trace = get_trace(db, trace_id)
+    if trace is None:
+        return []
+    stmt = select(AgentToolCall).where(AgentToolCall.request_id == trace.request_id)
+    return list(db.scalars(stmt.order_by(AgentToolCall.created_at.asc())))
+
+
+def _mark_tool_call(
+    db: Session,
+    tool_call_id: UUID,
+    *,
+    status: AgentToolCallStatus,
+    error_type: str | None = None,
+    error_message: str | None = None,
+    permission_checked: bool | None = None,
+    permission_result: dict | None = None,
+    output_summary: dict | None = None,
+    duration_ms: int | None = None,
+) -> AgentToolCall | None:
+    tool_call = get_tool_call(db, tool_call_id)
+    if tool_call is None:
+        return None
+    tool_call.status = status
+    tool_call.error_type = error_type
+    tool_call.error_message = error_message
+    if permission_checked is not None:
+        tool_call.permission_checked = permission_checked
+    if permission_result is not None:
+        tool_call.permission_result = permission_result
+    if output_summary is not None:
+        tool_call.output_summary = output_summary
+    if duration_ms is not None:
+        tool_call.duration_ms = duration_ms
+    db.flush()
+    return tool_call
