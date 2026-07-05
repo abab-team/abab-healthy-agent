@@ -86,6 +86,16 @@ class AgentRuntimeTestCase(unittest.TestCase):
         trace = service.get_trace(self.db, result.trace_id)
         self.assertEqual(trace.status, AgentTraceStatus.FAILED)
 
+    def test_unknown_workflow_string_returns_safe_error(self) -> None:
+        result = AgentRuntime().run(self.db, self._request("hello", workflow_type="unknown_workflow"))
+
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.workflow_type, "unknown_workflow")
+        self.assertTrue(result.blocked)
+        self.assertNotIn("Traceback", result.message)
+        trace = service.get_trace(self.db, result.trace_id)
+        self.assertEqual(trace.status, AgentTraceStatus.FAILED)
+
     def test_runtime_failure_marks_trace_failed(self) -> None:
         registry = AgentWorkflowRegistry()
         registry.register(FailingWorkflow())

@@ -22,7 +22,7 @@ class AgentRuntime:
 
     def run(self, db: Session, request: AgentRunRequest) -> AgentRunResult:
         request_id = request.request_id or str(uuid4())
-        workflow_name, requested_workflow = _coerce_workflow_name(request.workflow_type)
+        workflow_name, requested_workflow, workflow_is_registered_name = _coerce_workflow_name(request.workflow_type)
         trace = service.start_trace(
             db,
             request_id=request_id,
@@ -67,6 +67,8 @@ class AgentRuntime:
                     generated_content=None,
                 )
 
+            if not workflow_is_registered_name:
+                raise AgentWorkflowNotRegisteredError("workflow handler is not registered")
             handler = self.registry.get(workflow_name)
             workflow_result = handler.run(
                 AgentWorkflowContext(
@@ -135,14 +137,14 @@ class AgentRuntime:
 AgentHarness = AgentRuntime
 
 
-def _coerce_workflow_name(workflow_type: AgentWorkflowName | str) -> tuple[AgentWorkflowName, str]:
+def _coerce_workflow_name(workflow_type: AgentWorkflowName | str) -> tuple[AgentWorkflowName, str, bool]:
     if isinstance(workflow_type, AgentWorkflowName):
-        return workflow_type, workflow_type.value
+        return workflow_type, workflow_type.value, True
     requested = str(workflow_type)
     try:
-        return AgentWorkflowName(requested), requested
+        return AgentWorkflowName(requested), requested, True
     except ValueError:
-        return AgentWorkflowName.CHAT_WORKFLOW, requested
+        return AgentWorkflowName.CHAT_WORKFLOW, requested, False
 
 
 def _input_summary(user_message: str, workflow_type: str) -> str:
