@@ -86,9 +86,9 @@ def create_family_member_alert(
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ):
-    # Current permissions model has alerts:view but no alerts:create field.
-    # Phase 05.C uses alerts:view plus active family membership; a later permission phase can split create.
-    _require_permission(db, current_user_id, family_id, target_user_id, "alerts", "view")
+    # Phase 08.A split alert creation from alerts:view. Family alert writes now
+    # require alerts:create / can_create_alerts while preserving the route path.
+    _require_permission(db, current_user_id, family_id, target_user_id, "alerts", "create")
     return _create_alert(db, user_id=target_user_id, family_id=family_id, created_by_user_id=current_user_id, payload=payload)
 
 

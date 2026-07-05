@@ -33,6 +33,7 @@ class PermissionsApiTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertGreaterEqual(len(response.json()), 2)
+        self.assertIn("can_create_alerts", response.json()[0])
         self.assertNotIn("health_metrics", response.text)
 
     def test_get_single_member_permissions_success(self) -> None:
@@ -43,6 +44,7 @@ class PermissionsApiTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["user_id"], self.father["id"])
+        self.assertIn("can_create_alerts", response.json())
 
     def test_patch_permissions_updates_documents_and_records_audit(self) -> None:
         before = count_permission_audit_logs()
@@ -83,6 +85,52 @@ class PermissionsApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["allowed"])
         self.assertNotIn("体检报告", response.json()["safe_message"])
+
+    def test_alerts_create_permission_can_be_updated_and_checked(self) -> None:
+        update_response = client.patch(
+            f"/api/v1/families/{self.family['id']}/members/{self.father['id']}/permissions",
+            headers=auth_headers(self.owner["id"]),
+            json={
+                "share_all": False,
+                "can_view_alerts": True,
+                "can_create_alerts": False,
+                "reason": "API alert create test",
+            },
+        )
+        denied_response = client.post(
+            f"/api/v1/families/{self.family['id']}/permissions/check",
+            headers=auth_headers(self.owner["id"]),
+            json={"target_user_id": self.father["id"], "permission_type": "alerts", "action": "create"},
+        )
+        view_response = client.post(
+            f"/api/v1/families/{self.family['id']}/permissions/check",
+            headers=auth_headers(self.owner["id"]),
+            json={"target_user_id": self.father["id"], "permission_type": "alerts", "action": "view"},
+        )
+
+        self.assertEqual(update_response.status_code, 200)
+        self.assertFalse(update_response.json()["can_create_alerts"])
+        self.assertEqual(denied_response.status_code, 200)
+        self.assertFalse(denied_response.json()["allowed"])
+        self.assertEqual(denied_response.json()["reason"], "create_not_allowed")
+        self.assertEqual(view_response.status_code, 200)
+        self.assertTrue(view_response.json()["allowed"])
+
+        allow_response = client.patch(
+            f"/api/v1/families/{self.family['id']}/members/{self.father['id']}/permissions",
+            headers=auth_headers(self.owner["id"]),
+            json={"can_create_alerts": True, "reason": "allow alert create"},
+        )
+        allowed_response = client.post(
+            f"/api/v1/families/{self.family['id']}/permissions/check",
+            headers=auth_headers(self.owner["id"]),
+            json={"target_user_id": self.father["id"], "permission_type": "alerts", "action": "create"},
+        )
+
+        self.assertEqual(allow_response.status_code, 200)
+        self.assertTrue(allow_response.json()["can_create_alerts"])
+        self.assertEqual(allowed_response.status_code, 200)
+        self.assertTrue(allowed_response.json()["allowed"])
 
     def test_denied_safe_message_does_not_reveal_data_existence(self) -> None:
         response = client.post(

@@ -99,6 +99,13 @@ class MemberSharePermission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         default=False,
     )
+    # Phase 08.A: alerts:create is now an independent permission for Agent tools
+    # and no longer relies on the Phase 07 temporary alerts:view bridge.
+    can_create_alerts: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
     # 字段说明：can_view_memory_summary 映射数据库字段或关系，用于保存该业务对象的一部分状态。
     can_view_memory_summary: Mapped[bool] = mapped_column(
         Boolean,

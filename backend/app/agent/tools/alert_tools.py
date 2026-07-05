@@ -26,7 +26,7 @@ class AlertCreateTool(AgentTool):
         output_schema_name="AlertCreateOutput",
         safety_notes=(
             "Creates reminders only; does not create diagnosis, treatment plan, prescription, dosage, or medication-change advice.",
-            "Until a dedicated alerts:create permission exists, the executor checks alerts:view plus family membership.",
+            "Phase 08.A uses the dedicated alerts:create permission backed by can_create_alerts.",
         ),
     )
 

@@ -22,6 +22,7 @@ class PermissionResponse(BaseModel):
     can_view_medical_events: bool
     can_view_documents: bool
     can_view_alerts: bool
+    can_create_alerts: bool
     can_view_memory_summary: bool
     can_create_symptom_records: bool
     can_create_metric_records: bool
@@ -45,6 +46,7 @@ class PermissionUpdateRequest(BaseModel):
     can_view_medical_events: bool | None = None
     can_view_documents: bool | None = None
     can_view_alerts: bool | None = None
+    can_create_alerts: bool | None = None
     can_view_memory_summary: bool | None = None
     can_create_symptom_records: bool | None = None
     can_create_metric_records: bool | None = None
@@ -86,6 +88,7 @@ def permission_response(permission: MemberSharePermission) -> PermissionResponse
         can_view_medical_events=permission.can_view_medical_events,
         can_view_documents=permission.can_view_documents,
         can_view_alerts=permission.can_view_alerts,
+        can_create_alerts=permission.can_create_alerts,
         can_view_memory_summary=permission.can_view_memory_summary,
         can_create_symptom_records=permission.can_create_symptom_records,
         can_create_metric_records=permission.can_create_metric_records,

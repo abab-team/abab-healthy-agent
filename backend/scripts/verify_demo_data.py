@@ -75,6 +75,16 @@ def main() -> None:
             )
             if family_id
             else 0,
+            "permissions_with_alert_create": session.scalar(
+                select(func.count())
+                .select_from(MemberSharePermission)
+                .where(
+                    MemberSharePermission.family_id == family_id,
+                    MemberSharePermission.can_create_alerts.is_(True),
+                ),
+            )
+            if family_id
+            else 0,
             "health_profiles": session.scalar(
                 select(func.count()).select_from(HealthProfile).where(HealthProfile.user_id.in_(user_ids)),
             )
@@ -129,6 +139,7 @@ def main() -> None:
         "demo_family": 1,
         "family_members": 3,
         "permissions": 3,
+        "permissions_with_alert_create": 3,
         "health_profiles": 3,
         "father_blood_pressure_records": 10,
         "mother_symptom_records": 2,

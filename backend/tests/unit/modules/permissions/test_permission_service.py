@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import unittest
 
+from app.db.base import Base
 from app.db.session import SessionLocal
+from app.db.session import engine
 from app.modules.family import service as family_service
 from app.modules.identity import service as identity_service
 from app.modules.permissions import service as permission_service
@@ -27,6 +29,9 @@ class PermissionServiceTestCase(unittest.TestCase):
         # 1. 接收上游传入的数据或上下文。
         # 2. 完成本函数职责范围内的处理。
         # 3. 将结果返回给调用方，继续由上层流程编排。
+        engine.dispose()
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
         self.db = SessionLocal()
         self.gala = identity_service.create_user(
             self.db,
@@ -84,6 +89,7 @@ class PermissionServiceTestCase(unittest.TestCase):
         # 3. 将结果返回给调用方，继续由上层流程编排。
         self.db.rollback()
         self.db.close()
+        engine.dispose()
 
     # 函数职责：测试流程，覆盖一条关键业务行为或边界条件。
     # 业务边界：测试应固定输入输出，帮助后续重构时发现回归问题。
@@ -272,6 +278,61 @@ class PermissionServiceTestCase(unittest.TestCase):
         self.assertFalse(export_result.allowed)
         self.assertEqual(export_result.reason, "export_not_allowed")
         self.assertTrue(generate_result.allowed)
+
+    def test_alerts_create_uses_dedicated_permission(self) -> None:
+        permission_service.update_share_permission(
+            self.db,
+            actor_user_id=self.father.id,
+            family_id=self.family.id,
+            target_user_id=self.father.id,
+            updates={
+                "share_all": False,
+                "can_view_alerts": True,
+                "can_create_alerts": False,
+            },
+            reason="test alert create field",
+        )
+
+        denied = permission_service.check_member_permission(
+            self.db,
+            current_user_id=self.gala.id,
+            family_id=self.family.id,
+            target_user_id=self.father.id,
+            permission_type="alerts",
+            action="create",
+        )
+        allowed_view = permission_service.check_member_permission(
+            self.db,
+            current_user_id=self.gala.id,
+            family_id=self.family.id,
+            target_user_id=self.father.id,
+            permission_type="alerts",
+            action="view",
+        )
+
+        self.assertFalse(denied.allowed)
+        self.assertEqual(denied.reason, "create_not_allowed")
+        self.assertTrue(allowed_view.allowed)
+
+        permission_service.update_share_permission(
+            self.db,
+            actor_user_id=self.father.id,
+            family_id=self.family.id,
+            target_user_id=self.father.id,
+            updates={"can_create_alerts": True},
+            reason="allow alert create",
+        )
+        allowed_create = permission_service.check_member_permission(
+            self.db,
+            current_user_id=self.gala.id,
+            family_id=self.family.id,
+            target_user_id=self.father.id,
+            permission_type="alerts",
+            action="create",
+        )
+
+        self.assertTrue(allowed_create.allowed)
+        self.assertEqual(allowed_create.reason, "specific_permission_allowed")
 
 
 # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。

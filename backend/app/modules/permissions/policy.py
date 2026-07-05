@@ -24,6 +24,7 @@ CREATE_PERMISSION_FIELDS = {
     "metrics": "can_create_metric_records",
     "documents": "can_upload_documents",
     "medical_events": "can_create_medical_events",
+    "alerts": "can_create_alerts",
 }
 
 GENERATE_PERMISSION_FIELDS = {

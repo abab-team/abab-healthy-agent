@@ -301,6 +301,32 @@ class WriteDraftToolsTestCase(unittest.TestCase):
         self.assertEqual(self.db.query(HealthRecordDraft).count(), 1)
         self.assertEqual(self.db.query(Alert).count(), 1)
 
+    def test_alert_create_requires_dedicated_create_permission_not_view(self) -> None:
+        permissions_service.update_share_permission(
+            self.db,
+            actor_user_id=self.actor.id,
+            family_id=self.family.id,
+            target_user_id=self.target.id,
+            updates={
+                "share_all": False,
+                "can_view_alerts": True,
+                "can_create_alerts": False,
+            },
+        )
+
+        result = self.executor.execute(
+            self.db,
+            self._request("alerts.create", self._alert_payload(), confirmed=True),
+        )
+        call = agent_service.list_tool_calls(self.db, trace_id=self.trace.id)[0]
+
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(result.error_code, "permission_denied")
+        self.assertEqual(call.status, AgentToolCallStatus.BLOCKED_BY_PERMISSION)
+        self.assertEqual(call.permission_result["permission_type"], "alerts")
+        self.assertEqual(call.permission_result["action"], "create")
+        self.assertEqual(self.db.query(Alert).count(), 0)
+
     def test_family_permission_denied_blocks_without_target_data(self) -> None:
         permissions_service.update_share_permission(
             self.db,
@@ -329,7 +355,7 @@ class WriteDraftToolsTestCase(unittest.TestCase):
             actor_user_id=self.actor.id,
             family_id=self.family.id,
             target_user_id=self.target.id,
-            updates={"share_all": False, "can_view_alerts": False},
+            updates={"share_all": False, "can_create_alerts": False},
         )
         self.executor.execute(self.db, self._request("alerts.create", self._alert_payload(), confirmed=True))
         calls = agent_service.list_tool_calls(self.db, trace_id=self.trace.id)

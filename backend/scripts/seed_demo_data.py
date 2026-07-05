@@ -244,6 +244,7 @@ def seed_permissions(session: Session, family: Family, users: dict[str, User]) -
         "can_view_medical_events": True,
         "can_view_documents": True,
         "can_view_alerts": True,
+        "can_create_alerts": True,
         "can_view_memory_summary": True,
         "can_create_symptom_records": True,
         "can_create_metric_records": True,

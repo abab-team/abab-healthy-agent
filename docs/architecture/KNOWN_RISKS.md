@@ -16,13 +16,12 @@
 
 ## Phase 07 Closeout 记录
 
-1. `alerts:create` 当前是临时权限桥接。
-   - Phase 07.G 引入 `alerts.create` Agent tool，用于在用户确认后创建提醒。
-   - 当前权限模型已有 `alerts:view`，但没有专门的 `can_create_alerts` 或 `alerts:create` 权限字段。
-   - 现阶段只在 Tool Executor 权限入口做窄映射：tool metadata 仍声明 `alerts:create`，实际检查临时映射到 `alerts:view` 加 family membership。
-   - 该映射不得污染其他 permission_type，也不得扩散到 API 层、service 层或模型层。
-   - 后续 Phase 08 或 schema review 需要评估是否增加专门 `can_create_alerts` 或 `alerts:create` 权限字段，并通过 migration 显式落地。
-   - 本阶段只记录风险，不修改 models 或 migration。
+1. `alerts:create` 临时权限桥接已在 Phase 08.A 收口。
+   - Phase 07.G 曾临时将 `alerts:create` 在 Tool Executor 权限入口窄映射到 `alerts:view`。
+   - Phase 08.A 已新增独立 `member_share_permissions.can_create_alerts` 字段和 migration。
+   - Tool metadata 继续声明 `alerts:create`，Permissions policy 现在映射到 `can_create_alerts`。
+   - Tool Executor 已移除 `alerts:create -> alerts:view` 临时桥接。
+   - 后续风险降级为兼容性观察：任何新 alert 写入入口都必须显式使用 `alerts:create`，不得重新依赖 `alerts:view`。
 
 2. `health_metrics` 与 `blood_pressure_records` 仍没有 `family_id` 字段。
    - 当前策略仍是 user-owned facts + family permission access。

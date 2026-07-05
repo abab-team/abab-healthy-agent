@@ -280,12 +280,8 @@ def _permission_type_for_check(permission_type: str) -> str:
 
 
 def _permission_action_for_check(permission_type: str, action: str) -> str:
-    # Phase 07.G temporary bridge: the database permission schema has alert view
-    # sharing but no can_create_alerts flag yet. Tool metadata still declares
-    # alerts:create; the executor checks family membership and alerts:view until
-    # a later schema review adds a dedicated alerts:create permission.
-    if permission_type == "alerts" and action == "create":
-        return "view"
+    # Phase 08.A: alerts:create now maps to the independent can_create_alerts
+    # permission; the Phase 07 alerts:view bridge has been removed.
     return action
 
 
