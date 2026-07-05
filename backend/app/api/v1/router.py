@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.modules.agent.api import router as agent_router
 from app.modules.alerts.api import router as alerts_router
 from app.modules.document_center.api import router as document_center_router
 from app.modules.document_processing.api import router as document_processing_router
@@ -25,3 +26,4 @@ api_v1_router.include_router(document_center_router)
 api_v1_router.include_router(document_processing_router)
 api_v1_router.include_router(reports_router)
 api_v1_router.include_router(alerts_router)
+api_v1_router.include_router(agent_router)
