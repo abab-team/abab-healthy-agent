@@ -381,8 +381,22 @@ def _is_safe_daily_health_brief_output(text: str, lowered: str) -> bool:
         "stop your medication",
         "increase your dose",
         "decrease your dose",
+        "prescription",
+        "dosage",
+        "dose",
+        "medication change",
+        "stop medication",
         "the diagnosis is",
         "i diagnose",
+        "诊断结论",
+        "诊断是",
+        "诊断为",
+        "处方",
+        "剂量",
+        "停药",
+        "换药",
+        "用药建议",
+        "一定没事",
     )
     return not any(term in lowered or term in text for term in unsafe_terms)
 

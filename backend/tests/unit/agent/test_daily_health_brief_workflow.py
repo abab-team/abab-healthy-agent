@@ -15,6 +15,7 @@ os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{TEST_DB_PATH.as_posi
 from app.agent import service as agent_service  # noqa: E402
 from app.agent.enums import AgentTraceStatus, AgentWorkflowName  # noqa: E402
 from app.agent.runtime import AgentRuntime  # noqa: E402
+from app.agent.safety import AgentSafetyPolicy  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
 from app.agent.workflows import AgentWorkflowRegistry, default_workflow_registry  # noqa: E402
 from app.agent.workflows.daily_health_brief import DailyHealthBriefWorkflow  # noqa: E402
@@ -209,6 +210,37 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertIn("请联系医生或当地急救服务", content)
         for term in UNSAFE_OUTPUT_TERMS:
             self.assertNotIn(term, content)
+
+    def test_daily_health_brief_safety_exception_does_not_allow_medical_advice(self) -> None:
+        content = "\n".join(
+            [
+                "根据系统内记录，已为你整理最近 7 天的健康简报：",
+                "系统内暂无相关记录。",
+                "本简报不能替代医生诊断或治疗建议。",
+                "如有不适或紧急情况，请联系医生或当地急救服务。",
+                "处方建议：停药并调整剂量。",
+            ]
+        )
+
+        decision = AgentSafetyPolicy().evaluate_output(content, "daily_health_brief")
+
+        self.assertTrue(decision.blocked)
+        self.assertEqual(decision.reason_code, "unsafe_medical_output")
+
+    def test_safety_exception_does_not_apply_to_other_workflows(self) -> None:
+        content = "\n".join(
+            [
+                "根据系统内记录，已为你整理最近 7 天的健康简报：",
+                "系统内暂无相关记录。",
+                "本简报不能替代医生诊断或治疗建议。",
+                "如有不适或紧急情况，请联系医生或当地急救服务。",
+            ]
+        )
+
+        decision = AgentSafetyPolicy().evaluate_output(content, "chat_workflow")
+
+        self.assertTrue(decision.blocked)
+        self.assertEqual(decision.reason_code, "unsafe_medical_output")
 
     def test_workflow_does_not_call_llm_or_directly_access_repository_or_db(self) -> None:
         sys.modules.pop("app.agent.llm_client", None)
