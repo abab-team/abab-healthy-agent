@@ -31,10 +31,12 @@ SENSITIVE_SUMMARY_KEYS = {
     "password",
     "password_hash",
     "private_key",
+    "raw_text",
     "raw_extracted_text",
     "refresh_token",
     "secret",
     "session_token",
+    "symptom_text",
     "token",
 }
 

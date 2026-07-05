@@ -356,6 +356,8 @@ class WriteDraftToolsTestCase(unittest.TestCase):
         call = agent_service.list_tool_calls(self.db, trace_id=self.trace.id)[0]
         combined = f"{result.output_data} {call.input_summary} {call.output_summary}".lower()
 
+        self.assertNotIn("raw_text", combined)
+        self.assertNotIn("记录症状，不需要回显全文", combined)
         self.assertNotIn("file_path", combined)
         self.assertNotIn("raw_extracted_text", combined)
         self.assertNotIn("secret-token", combined)

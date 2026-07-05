@@ -37,7 +37,7 @@ class SymptomDraftCreateTool(AgentTool):
         return {
             "raw_text": clean_text,
             "target_display_name": _optional_short_text(payload.get("target_display_name")),
-            "extracted_json": _safe_symptom_draft_json(extracted_json, clean_text),
+            "extracted_json": _safe_symptom_draft_json(extracted_json),
             "missing_fields": _optional_string_list(payload.get("missing_fields")),
             "safety_flags": _optional_string_list(payload.get("safety_flags")),
         }
@@ -134,9 +134,9 @@ def _optional_string_list(value: Any) -> list[str] | None:
     return [sanitize_required_text(item, max_length=120) for item in value]
 
 
-def _safe_symptom_draft_json(value: Any, raw_text: str) -> dict[str, Any]:
+def _safe_symptom_draft_json(value: Any) -> dict[str, Any]:
     if value is None:
-        return {"source": "agent_tool", "raw_text_excerpt": raw_text[:120]}
+        return {"source": "agent_tool"}
     if not isinstance(value, dict):
         raise ValueError("extracted_json must be a dict")
     value.setdefault("source", "agent_tool")

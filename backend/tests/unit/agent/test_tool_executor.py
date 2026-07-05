@@ -74,7 +74,8 @@ class AgentToolExecutorTestCase(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0].id, result.tool_call_id)
         self.assertEqual(calls[0].status, AgentToolCallStatus.SUCCESS)
-        self.assertIn("raw_text", calls[0].input_summary)
+        self.assertNotIn("raw_text", str(calls[0].input_summary))
+        self.assertNotIn("long health note", str(calls[0].input_summary))
 
     def test_disabled_tool_does_not_execute(self) -> None:
         tool = FakeTool(system_metadata("disabled_tool", enabled=False))
