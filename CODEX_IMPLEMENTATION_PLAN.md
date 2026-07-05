@@ -32,6 +32,35 @@
 
 ---
 
+## 当前实施进度说明
+
+本小节记录当前代码实际进度，用于避免后续 Phase 误判或重复实现。原始 Phase 计划仍保留，实际进度映射以 `docs/architecture/PHASE_PROGRESS.md` 为准。
+
+```text
+Phase 00-06 已完成。
+Phase 07 已完成并通过 Final Review。
+当前 Phase 07 实际覆盖了原 Phase 07 Health Agent Harness，以及部分原 Phase 08 Agent Tools 能力。
+```
+
+当前已具备：
+
+```text
+Agent Harness Runtime
+Tool Registry
+Agent Safety Policy
+Tool Executor
+agent_traces / agent_safety_checks / agent_tool_calls 基础记录
+第一批只读健康 Agent Tools
+写入类 draft Agent Tools
+daily_health_brief 确定性 workflow
+```
+
+Phase 08 接下来不应重复实现已有 Tool Registry、Tool Executor、已完成只读工具或已完成写入类 draft tools。Phase 08 应以“补齐缺失 Agent Tools、整理工具边界、为 Agent API 做准备”为目标。
+
+Phase 09 LLM Client 与 Phase 10 LangGraph Workflows 暂不提前实现。任何 LLM、LangGraph、RAG、OCR/upload、前端或正式 Agent API 工作都必须等待对应 Phase 明确启动。
+
+---
+
 ## 1. 项目最终目标
 
 最终要落地的是一个成品级家庭健康 Agent 系统，包含：

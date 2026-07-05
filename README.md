@@ -1,6 +1,6 @@
 # Family Health Agent
 
-Family Health Agent 是一个面向家庭长期使用的健康档案、家庭健康共享与 AI 健康管家系统。项目当前处于 Phase 00：仓库与工程规范阶段，只提供成品级目录骨架和工程约束，不包含可运行后端实现。
+Family Health Agent 是一个面向家庭长期使用的健康档案、家庭健康共享与 AI 健康管家系统。项目当前已完成到 Phase 07 Final Review，不再处于 Phase 00。后端已经具备可运行的模块化单体基础、核心业务闭环、API 权限闭环、API 安全加固和 Agent Harness 基础能力。
 
 ## 项目定位
 
@@ -85,7 +85,39 @@ Phase 17: 部署与运维
 Phase 18: 移动端 / 设备 / 通知扩展
 ```
 
-当前阶段不启动 FastAPI、不创建数据库模型、不写业务代码。
+当前实际进度：
+
+- Phase 00-06 已完成。
+- Phase 07 已完成并通过 Final Review。
+- Phase 07 实际覆盖了原 Phase 07 Harness，以及部分原 Phase 08 Agent Tools 能力。
+- 下一阶段准备正式进入 Phase 08：Agent Tools 补齐与收口。
+
+当前后端已有：
+
+- 数据模型与 Alembic migration。
+- deterministic demo 数据与验证脚本。
+- 核心业务模块的 service / repository。
+- 基础 API 与 family member API。
+- 家庭权限闭环、data access logs 与统一错误响应。
+- API 输入校验、敏感字段拦截与安全清洗。
+- Agent Harness Runtime。
+- Tool Registry 与 Tool Executor。
+- 第一批只读 Agent tools。
+- 写入类 draft Agent tools。
+- `daily_health_brief` 确定性 workflow。
+- trace / safety_check / agent_tool_calls 基础记录。
+
+当前未完成：
+
+- Agent API。
+- LLM Client。
+- LangGraph workflows。
+- Web 前端。
+- 移动端。
+- 真实上传 / OCR / RAG。
+- 面向生产的认证 / JWT。
+
+Phase 08 不应重复实现已有 Tool Registry、Tool Executor 或已完成的 read/write draft tools。Phase 08 应先做工具缺口 review、补齐必要 tools、整理权限与 schema 风险，并为后续 Agent API 最小入口做准备。
 
 ## 如何阅读实施计划
 
@@ -103,14 +135,16 @@ Phase 18: 移动端 / 设备 / 通知扩展
 
 ## 本地命令
 
-当前 Makefile 只提供占位命令：
+常用 Makefile 命令：
 
 ```text
 make help
 make dev
+make backend-dev
 make test
 make lint
 make format
+make migrate
+make seed
+make verify-demo
 ```
-
-这些命令暂不启动真实服务；Phase 01 后再接入后端启动、测试和检查逻辑。
