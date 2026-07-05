@@ -1,137 +1,132 @@
 # Family Health Agent
 
-Family Health Agent 是一个面向家庭长期使用的健康档案、家庭健康共享与 AI 健康管家系统。项目当前已完成到 Phase 07 Final Review，不再处于 Phase 00。后端已经具备可运行的模块化单体基础、核心业务闭环、API 权限闭环、API 安全加固和 Agent Harness 基础能力。
+Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前已完成到 **Phase 08 Final Review**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、第一批受控 Agent workflow 和 Agent API 最小入口已经可验证运行。
 
-## 项目定位
+本项目不是医疗诊断系统。系统只做生活健康管理、资料整理、趋势提醒和就医沟通辅助，不输出医学诊断、处方建议、药物剂量建议、停药/换药建议，也不把“系统内无记录”表达成“现实没有问题”。
 
-本项目用于管理长期健康档案、健康指标、血压记录、症状随手记、医疗事件时间线、资料中心、日报提醒与受控 AI 管家能力。
+## 当前阶段
 
-医疗边界：系统只做生活健康管理、资料整理、趋势提醒和就医沟通辅助，不做医学诊断、不做处方建议、不做药物剂量建议，也不替代医生。
+当前状态：
+
+- Phase 00-08 已完成。
+- Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
+- 当前不是完整产品，仍缺少正式前端、真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG 和生产部署收口。
+- 下一阶段调整为 **Phase 09：可用前端 / 调试页面**，优先把已有后端 API 与 Agent API 变成可操作、可验收的产品闭环。
+
+## 已具备能力
+
+后端当前已有：
+
+- 数据模型、Alembic migration、demo seed 与 verify 脚本。
+- identity、family、permissions、health_profile、health_data、health_record、medical_timeline、document、reports、alerts、audit 等模块化业务基础。
+- 普通业务 API 与 family member API。
+- 家庭权限闭环、data access logs、统一错误响应。
+- API 输入校验、敏感字段拦截、file_path 安全校验与响应脱敏。
+- Agent Runtime、Safety Policy、Tool Registry、Tool Executor。
+- agent_traces、agent_safety_checks、agent_tool_calls 记录与查询。
+- 只读健康 Agent tools 与写入类 draft Agent tools。
+- 4 个受控 Agent workflow：
+  - `daily_health_brief`
+  - `symptom_draft_create`
+  - `medical_event_draft_create`
+  - `alert_create`
+- Agent API：
+  - `POST /api/v1/agent/runs`
+  - `GET /api/v1/agent/runs/{trace_id}`
+  - `GET /api/v1/agent/runs/{trace_id}/tool-calls`
+  - `GET /api/v1/agent/runs/{trace_id}/safety-checks`
+
+## 未完成能力
+
+当前尚未完成：
+
+- 正式 Web 前端。
+- 移动端。
+- 真实 Auth/JWT 登录体系。
+- LLM Client。
+- LangGraph workflow。
+- OCR / upload / RAG。
+- 生产部署、真实通知、真实设备接入。
+- 通用 tool execution API。当前刻意不开放任意 `tool_name` / `input_data` 执行。
+
+## 重要说明
+
+当前不是“产品只有 4 个功能”。当前只是 **Agent API 对外开放了 4 个受控 workflow**。产品功能、普通 API、Agent Tool、Agent Workflow、前端页面是不同层级，后续会分别按功能覆盖矩阵推进。
+
+功能覆盖与后续 Phase 映射请阅读：
+
+- `docs/architecture/FEATURE_COVERAGE_MATRIX.md`
+- `docs/frontend/FRONTEND_MVP_SCOPE.md`
+- `docs/architecture/PHASE_PROGRESS.md`
+- `docs/architecture/PHASE_08_SCOPE_RECONCILIATION.md`
 
 ## 架构原则
 
 - Monorepo。
 - 模块化单体后端。
 - 多前端入口预留。
-- Agent Core 独立域。
-- 业务事实归 `backend/app/modules/`。
-- Agent 不直接访问数据库，只能通过受控工具调用业务 service。
-- 家人数据访问必须经过家庭与权限检查。
-- AI 草稿必须用户确认后才能写入正式健康档案。
+- Agent Core 独立于业务模块。
+- 业务事实放在 `backend/app/modules/`。
+- Agent 不直接访问数据库，只能通过受控 Tool 调用业务 service。
+- 家人数据访问必须经过 `family_id` 与权限检查。
+- 写入类 Agent Tool 必须经过 confirmation。
+- 未确认草稿不能成为正式健康事实。
 
 ## 目录结构
 
 ```text
 family-health-agent/
-├─ apps/
-├─ backend/
-├─ packages/
-├─ infra/
-├─ docs/
-├─ prompts/
-├─ datasets/
-├─ tools/
-├─ docker-compose.yml
-├─ docker-compose.dev.yml
-├─ .env.example
-├─ README.md
-└─ Makefile
+|-- apps/
+|-- backend/
+|-- packages/
+|-- infra/
+|-- docs/
+|-- prompts/
+|-- datasets/
+|-- tools/
+|-- docker-compose.yml
+|-- docker-compose.dev.yml
+|-- .env.example
+|-- README.md
+`-- Makefile
 ```
 
 后端核心结构：
 
 ```text
 backend/
-├─ app/
-│  ├─ core/
-│  ├─ db/
-│  ├─ api/
-│  ├─ modules/
-│  ├─ agent/
-│  ├─ integrations/
-│  ├─ jobs/
-│  ├─ workers/
-│  ├─ common/
-│  └─ utils/
-├─ alembic/
-├─ tests/
-├─ scripts/
-└─ storage/
+|-- app/
+|   |-- core/
+|   |-- db/
+|   |-- api/
+|   |-- modules/
+|   |-- agent/
+|   |-- integrations/
+|   |-- jobs/
+|   |-- workers/
+|   |-- common/
+|   `-- utils/
+|-- alembic/
+|-- tests/
+|-- scripts/
+`-- storage/
 ```
 
-## 开发阶段
+## 调整后的阶段顺序
 
-开发必须严格按 `CODEX_IMPLEMENTATION_PLAN.md` 的 Phase 顺序执行：
+原始阶段计划仍保留在 `CODEX_IMPLEMENTATION_PLAN.md`。基于当前实际进度，Phase 08 后的执行顺序调整为：
 
 ```text
-Phase 00: 仓库与工程规范
-Phase 01: 后端基础设施
-Phase 02: 数据库模型与 Alembic
-Phase 03: Seed Demo Data
-Phase 04: 核心业务模块 Service 层
-Phase 05: 基础 API 层
-Phase 06: 权限系统闭环
-Phase 07: Health Agent Harness
-Phase 08: Agent Tools
-Phase 09: LLM Client 与 Prompt 管理
-Phase 10: LangGraph Workflows
-Phase 11: 日报与提醒系统
-Phase 12: 文档中心与资料处理
-Phase 13: 知识库 / RAG
-Phase 14: 导出与分享
-Phase 15: Web 前端
-Phase 16: 测试体系
-Phase 17: 部署与运维
-Phase 18: 移动端 / 设备 / 通知扩展
+Phase 09: 可用前端 / 调试页面
+Phase 10: LLM Client 最小封装
+Phase 11: LLM 安全增强 Agent 输出
+Phase 12: LangGraph Workflows
+Phase 13: 文件上传 / OCR / 文档处理增强
+Phase 14: RAG / 健康知识库
+Phase 15: 真实 Auth / 部署 / 产品化收口
 ```
 
-当前实际进度：
-
-- Phase 00-06 已完成。
-- Phase 07 已完成并通过 Final Review。
-- Phase 07 实际覆盖了原 Phase 07 Harness，以及部分原 Phase 08 Agent Tools 能力。
-- 下一阶段准备正式进入 Phase 08：Agent Tools 补齐与收口。
-
-当前后端已有：
-
-- 数据模型与 Alembic migration。
-- deterministic demo 数据与验证脚本。
-- 核心业务模块的 service / repository。
-- 基础 API 与 family member API。
-- 家庭权限闭环、data access logs 与统一错误响应。
-- API 输入校验、敏感字段拦截与安全清洗。
-- Agent Harness Runtime。
-- Tool Registry 与 Tool Executor。
-- 第一批只读 Agent tools。
-- 写入类 draft Agent tools。
-- `daily_health_brief` 确定性 workflow。
-- trace / safety_check / agent_tool_calls 基础记录。
-
-当前未完成：
-
-- Agent API。
-- LLM Client。
-- LangGraph workflows。
-- Web 前端。
-- 移动端。
-- 真实上传 / OCR / RAG。
-- 面向生产的认证 / JWT。
-
-Phase 08 不应重复实现已有 Tool Registry、Tool Executor 或已完成的 read/write draft tools。Phase 08 应先做工具缺口 review、补齐必要 tools、整理权限与 schema 风险，并为后续 Agent API 最小入口做准备。
-
-## 如何阅读实施计划
-
-开始任何开发前先阅读：
-
-1. `AGENTS.md`
-2. `CODEX_IMPLEMENTATION_PLAN.md`
-3. `docs/architecture/CODEX_IMPLEMENTATION_PLAN_v1.0.md`
-4. `docs/architecture/家庭健康Agent_项目架构设计_v1.0.md`
-5. `docs/architecture/DEVELOPMENT_RULES.md`
-6. `docs/architecture/MODULE_BOUNDARIES.md`
-7. `docs/architecture/NO_GO_RULES.md`
-
-阅读顺序以项目约束和安全边界为先，再执行对应 Phase 的任务。不得提前实现后续 Phase。
+Phase 09 优先做可用前端 / 调试页面，是为了更快验证已有普通 API、Agent API、权限、草稿确认、trace/tool_calls/safety_checks 的产品闭环。LLM 与 LangGraph 后移，避免在没有可操作界面的情况下继续堆叠不可见能力。
 
 ## 本地命令
 
@@ -148,3 +143,5 @@ make migrate
 make seed
 make verify-demo
 ```
+
+任何开发任务开始前必须先阅读 `AGENTS.md`、`CODEX_IMPLEMENTATION_PLAN.md` 与相关架构文档，并严格遵守当前 Phase 范围。

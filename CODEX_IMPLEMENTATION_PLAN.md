@@ -2571,3 +2571,19 @@ Phase XX+1: ...
 ```
 
 这样你可以逐步验收，而不是让 Codex 一口气乱做完整项目。
+
+## Phase 08 后开发顺序调整说明
+
+本小节记录 Phase 08 Final Review 后的实际执行顺序调整。原始 Phase 计划仍保留，本文不删除、不重写原计划；后续执行时应同时参考 `docs/architecture/PHASE_PROGRESS.md`、`docs/architecture/FEATURE_COVERAGE_MATRIX.md` 与本说明。
+
+1. 原计划中 Phase 09/10 偏向 LLM Client 与 LangGraph。
+2. 当前实际情况是：后端核心业务、权限闭环、Agent Harness、Tool Executor、Agent API MVP 与 4 个受控 Agent workflow 已经成型，但缺少可操作前端。
+3. 为了更快验证产品闭环，Phase 09 调整为“可用前端 / 调试页面”。
+4. LLM Client 后移到 Phase 10。
+5. LLM 安全增强 Agent 输出放到 Phase 11。
+6. LangGraph Workflows 放到 Phase 12。
+7. OCR/upload 与文档处理增强放到 Phase 13。
+8. RAG / 健康知识库放到 Phase 14。
+9. 真实 Auth / 部署 / 产品化收口放到 Phase 15；如果后续外部试用需要真实鉴权，可在 Phase 09 后单独评估是否提前。
+
+本调整不是废弃原计划，而是基于当前实现状态进行执行顺序优化。Phase 09 前端优先的目标，是让现有普通 API、Agent API、权限、confirmation、trace/tool_calls/safety_checks 先被用户和开发者看见、操作和验收。

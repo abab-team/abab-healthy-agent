@@ -88,3 +88,35 @@ Phase 08 只做 Agent Tools 补齐与收口，不应提前实现：
 5. 为 Agent API 最小入口准备契约，但不实现 Agent API。
 
 Phase 08 完成标准应以“工具边界稳定、缺口清晰、权限声明明确、可安全接入 Agent API”为准，而不是引入 LLM 或 LangGraph。
+
+## Phase 08 Final Scope
+
+Phase 08 已完成并通过 Final Review。最终范围如下：
+
+1. Phase 08.A：Alert 权限收口。
+   - 新增独立 `can_create_alerts` 权限。
+   - `alerts:create` 不再桥接 `alerts:view`。
+   - permissions model / migration / schema / policy / API / seed / verify 已对齐。
+2. Phase 08.B：Agent API 最小入口。
+   - 新增 `POST /api/v1/agent/runs`。
+   - 新增 trace / tool_calls / safety_checks 查询接口。
+   - 第一版支持 `daily_health_brief`。
+3. Phase 08.C：受控草稿入口。
+   - 新增 `symptom_draft_create`。
+   - 新增 `medical_event_draft_create`。
+   - 只创建 pending draft，不创建正式健康事实。
+4. Phase 08.D：受控提醒入口。
+   - 新增 `alert_create`。
+   - 只创建普通 alert。
+   - 不实现急救报警、不自动联系医院/家人/紧急联系人。
+
+Phase 08 没有实现所有产品功能。它完成的是第一批受控 Agent API workflow 和权限/确认/审计链路收口。当前对外开放的 Agent workflow 只有：
+
+- `daily_health_brief`
+- `symptom_draft_create`
+- `medical_event_draft_create`
+- `alert_create`
+
+更多产品功能、普通 API、Agent Tool、Agent Workflow 与前端页面的关系，继续在 `docs/architecture/FEATURE_COVERAGE_MATRIX.md` 中追踪。
+
+Phase 08 后不应直接进入 LLM 或 LangGraph。下一步建议进入 Phase 09：可用前端 / 调试页面，用于验证已有后端 API、Agent API、权限、confirmation、trace/tool_calls/safety_checks 的可操作闭环。

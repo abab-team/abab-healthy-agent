@@ -33,3 +33,20 @@
    - 当前不能在同一用户、同一天、不同 family context 下保存多份独立 daily report。
    - 如果未来需要 family context daily report，需要单独 schema review 与 migration。
    - 本阶段只记录风险，不修改 models 或 migration。
+
+## Phase 08 Closeout 记录
+
+1. Demo Header Auth 风险。
+   - 当前 API 仍使用 `X-Current-User-Id` 作为开发调试身份入口。
+   - Phase 09 前端 MVP 可以使用 demo 用户切换页验证产品闭环，但必须明确标注为开发调试模式。
+   - 该机制不能用于生产环境，真实 Auth/JWT 需要在后续 Phase 15 或外部试用前单独收口。
+
+2. 前端阶段风险。
+   - Phase 09 目标是可用前端 / 调试页面，不是商业级完整 UI。
+   - 前端不得开放通用 tool execution，不得允许用户直接输入任意 `tool_name` / `input_data`。
+   - 前端必须明确区分 pending draft 与正式健康事实，并展示 confirmation 边界。
+
+3. LLM 后移风险。
+   - Phase 09 优先做前端闭环，LLM Client 后移到 Phase 10。
+   - 在 LLM 接入前，Agent 输出继续以确定性 workflow 和安全策略为准。
+   - 后续 LLM 接入不得绕过 Safety Policy、Tool Executor、权限、confirmation 和 trace。
