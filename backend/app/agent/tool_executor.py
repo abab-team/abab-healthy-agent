@@ -152,6 +152,7 @@ class AgentToolExecutor:
                 {
                     **validated_input,
                     "_db": db,
+                    "_actor_user_id": request.actor_user_id,
                     "_target_user_id": request.target_user_id,
                     "_family_id": request.family_id,
                 }
@@ -225,7 +226,7 @@ class AgentToolExecutor:
             family_id=request.family_id,
             target_user_id=request.target_user_id,
             permission_type=_permission_type_for_check(metadata.required_permission_type),
-            action=metadata.required_permission_action,
+            action=_permission_action_for_check(metadata.required_permission_type, metadata.required_permission_action),
         )
 
 
@@ -274,6 +275,16 @@ def _permission_type_for_check(permission_type: str) -> str:
     if permission_type == "health_profile":
         return "profile"
     return permission_type
+
+
+def _permission_action_for_check(permission_type: str, action: str) -> str:
+    # Phase 07.G temporary bridge: the database permission schema has alert view
+    # sharing but no can_create_alerts flag yet. Tool metadata still declares
+    # alerts:create; the executor checks family membership and alerts:view until
+    # a later schema review adds a dedicated alerts:create permission.
+    if permission_type == "alerts" and action == "create":
+        return "view"
+    return action
 
 
 def _summarize_mapping(value: dict[str, Any] | None) -> dict[str, Any] | None:
