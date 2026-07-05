@@ -4,6 +4,7 @@ import inspect
 import unittest
 
 from backend.tests.api.helpers import (
+    SessionLocal,
     add_member,
     auth_headers,
     client,
@@ -14,6 +15,9 @@ from backend.tests.api.helpers import (
 )
 
 from app.modules.agent import api as agent_api
+from app.modules.document_processing.models import MedicalEventDraft
+from app.modules.health_record.models import HealthRecordDraft, SymptomRecord
+from app.modules.medical_timeline.models import MedicalEvent
 
 
 UNSAFE_TERMS = (
@@ -120,6 +124,144 @@ class AgentApiTestCase(unittest.TestCase):
         self.assertNotIn(self.target["email"], response.text)
         self.assertNotIn("target secret", response.text.lower())
 
+    def test_symptom_draft_create_unconfirmed_does_not_write_draft(self) -> None:
+        before = self._draft_counts()
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="symptom_draft_create",
+                user_message="Please create a pending symptom draft.",
+                confirmation=False,
+                workflow_payload={"raw_text": "Record a mild symptom note."},
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["workflow_type"], "symptom_draft_create")
+        self.assertIn("requires_confirmation", body["generated_content"])
+        self.assertEqual(body["tool_calls_count"], 1)
+        self.assertEqual(self._draft_counts(), before)
+
+    def test_symptom_draft_create_confirmed_creates_pending_draft_only(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="symptom_draft_create",
+                user_message="Please create a pending symptom draft.",
+                confirmation=True,
+                workflow_payload={"raw_text": "Record a mild symptom note."},
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["status"], "completed")
+        self.assertIn("draft_id=", body["generated_content"])
+        self.assertIn("formal_record_created=false", body["generated_content"])
+        counts = self._draft_counts()
+        self.assertEqual(counts["health_record_drafts"], 1)
+        self.assertEqual(counts["symptom_records"], 0)
+        for term in UNSAFE_TERMS + ("record a mild symptom note", "symptom_text"):
+            self.assertNotIn(term, response.text.lower())
+
+    def test_medical_event_draft_create_unconfirmed_does_not_write_draft(self) -> None:
+        before = self._draft_counts()
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="medical_event_draft_create",
+                user_message="Please create a pending event draft.",
+                confirmation=False,
+                workflow_payload={"draft_title": "Follow-up note", "summary": "User-provided follow-up note."},
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["workflow_type"], "medical_event_draft_create")
+        self.assertIn("requires_confirmation", body["generated_content"])
+        self.assertEqual(body["tool_calls_count"], 1)
+        self.assertEqual(self._draft_counts(), before)
+
+    def test_medical_event_draft_create_confirmed_creates_pending_draft_only(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="medical_event_draft_create",
+                user_message="Please create a pending event draft.",
+                confirmation=True,
+                workflow_payload={"draft_title": "Follow-up note", "summary": "User-provided follow-up note."},
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["status"], "completed")
+        self.assertIn("draft_id=", body["generated_content"])
+        self.assertIn("formal_event_created=false", body["generated_content"])
+        counts = self._draft_counts()
+        self.assertEqual(counts["medical_event_drafts"], 1)
+        self.assertEqual(counts["medical_events"], 0)
+        for term in UNSAFE_TERMS + ("user-provided follow-up note",):
+            self.assertNotIn(term, response.text.lower())
+
+    def test_family_permission_denied_blocks_draft_workflow(self) -> None:
+        patch_response = client.patch(
+            f"/api/v1/families/{self.family['id']}/members/{self.target['id']}/permissions",
+            headers=auth_headers(self.actor["id"]),
+            json={
+                "share_all": False,
+                "can_create_symptom_records": False,
+                "reason": "agent draft denied test",
+            },
+        )
+        self.assertEqual(patch_response.status_code, 200)
+
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.target["id"],
+                family_id=self.family["id"],
+                workflow_type="symptom_draft_create",
+                user_message="Please create a pending symptom draft.",
+                confirmation=True,
+                workflow_payload={"raw_text": "target secret symptom"},
+            ),
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("blocked", response.json()["generated_content"].lower())
+        self.assertEqual(self._draft_counts()["health_record_drafts"], 0)
+        self.assertNotIn("target secret symptom", response.text.lower())
+
+    def test_family_permission_allowed_draft_workflow_can_execute(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.target["id"],
+                family_id=self.family["id"],
+                workflow_type="symptom_draft_create",
+                user_message="Please create a pending symptom draft.",
+                confirmation=True,
+                workflow_payload={"raw_text": "Family member draft note."},
+            ),
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["workflow_type"], "symptom_draft_create")
+        self.assertEqual(self._draft_counts()["health_record_drafts"], 1)
+
     def test_get_run_tool_calls_and_safety_checks_for_owner(self) -> None:
         run_response = client.post(
             "/api/v1/agent/runs",
@@ -199,6 +341,16 @@ class AgentApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()["detail"]["code"], "validation_error")
 
+    def test_agent_runs_reject_direct_alert_create_workflow(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(target_user_id=self.actor["id"], workflow_type="alerts.create"),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["detail"]["code"], "invalid_request")
+
     def test_agent_api_does_not_expose_generic_tool_execution_or_direct_imports(self) -> None:
         route_paths = {route.path for route in agent_api.router.routes}
         source = inspect.getsource(agent_api)
@@ -219,16 +371,30 @@ class AgentApiTestCase(unittest.TestCase):
         family_id: str | None = None,
         workflow_type: str = "daily_health_brief",
         user_message: str = "Please summarize my system records.",
-    ) -> dict[str, str]:
+        confirmation: bool = False,
+        workflow_payload: dict | None = None,
+    ) -> dict:
         payload = {
             "target_user_id": target_user_id,
             "workflow_type": workflow_type,
             "user_message": user_message,
             "source": "api_test",
+            "confirmation": confirmation,
         }
         if family_id is not None:
             payload["family_id"] = family_id
+        if workflow_payload is not None:
+            payload["workflow_payload"] = workflow_payload
         return payload
+
+    def _draft_counts(self) -> dict[str, int]:
+        with SessionLocal() as db:
+            return {
+                "health_record_drafts": db.query(HealthRecordDraft).count(),
+                "symptom_records": db.query(SymptomRecord).count(),
+                "medical_event_drafts": db.query(MedicalEventDraft).count(),
+                "medical_events": db.query(MedicalEvent).count(),
+            }
 
 
 if __name__ == "__main__":

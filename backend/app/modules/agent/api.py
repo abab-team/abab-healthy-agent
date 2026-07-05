@@ -11,7 +11,7 @@ from app.agent.schemas import AgentRunRequest
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.api.errors import raise_bad_request, raise_not_found
 from app.modules.agent.api_schemas import (
-    ALLOWED_WORKFLOW_TYPE,
+    ALLOWED_WORKFLOW_TYPES,
     AgentRunCreateRequest,
     AgentRunResponse,
     AgentSafetyCheckResponse,
@@ -21,6 +21,7 @@ from app.modules.agent.api_schemas import (
     agent_safety_check_response,
     agent_tool_call_response,
     agent_trace_response,
+    workflow_payload_for_runtime,
 )
 
 
@@ -33,10 +34,14 @@ def create_agent_run(
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ) -> AgentRunResponse:
-    if payload.workflow_type != ALLOWED_WORKFLOW_TYPE:
-        raise_bad_request("Only daily_health_brief workflow is available in this phase.")
+    if payload.workflow_type not in ALLOWED_WORKFLOW_TYPES:
+        raise_bad_request("Requested agent workflow is not available in this phase.")
     if payload.target_user_id != current_user_id and payload.family_id is None:
         raise_bad_request("family_id is required for family member agent runs.")
+    try:
+        workflow_payload = workflow_payload_for_runtime(payload)
+    except ValueError as exc:
+        raise_bad_request(str(exc))
     result = AgentRuntime().run(
         db,
         AgentRunRequest(
@@ -46,6 +51,8 @@ def create_agent_run(
             workflow_type=payload.workflow_type,
             user_message=payload.user_message,
             source=payload.source,
+            confirmation=payload.confirmation,
+            workflow_payload=workflow_payload,
         ),
     )
     return agent_run_response(result)
@@ -87,4 +94,3 @@ def _get_owned_trace_or_404(db: Session, trace_id: UUID, current_user_id: UUID):
     if trace is None or trace.current_user_id != current_user_id:
         raise_not_found()
     return trace
-

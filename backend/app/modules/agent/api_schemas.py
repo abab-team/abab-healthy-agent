@@ -6,7 +6,19 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.api.validators import STRICT_MODEL_CONFIG, optional_text, required_text
+from app.api.validators import (
+    Department,
+    HospitalOrOrg,
+    JsonDict,
+    OptionalTitle,
+    RawText,
+    STRICT_MODEL_CONFIG,
+    ShortText,
+    StringList,
+    SummaryText,
+    optional_text,
+    required_text,
+)
 from app.agent.models import AgentSafetyCheck, AgentToolCall, AgentTrace
 from app.agent.schemas import AgentRunResult
 
@@ -14,7 +26,14 @@ from app.agent.schemas import AgentRunResult
 AgentUserMessage = Annotated[str, required_text(2000), Field(min_length=1, max_length=2000)]
 AgentWorkflowType = Annotated[str, required_text(64), Field(min_length=1, max_length=64)]
 AgentSource = Annotated[str | None, optional_text(100)]
-ALLOWED_WORKFLOW_TYPE = "daily_health_brief"
+DAILY_HEALTH_BRIEF_WORKFLOW = "daily_health_brief"
+SYMPTOM_DRAFT_CREATE_WORKFLOW = "symptom_draft_create"
+MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW = "medical_event_draft_create"
+ALLOWED_WORKFLOW_TYPES = {
+    DAILY_HEALTH_BRIEF_WORKFLOW,
+    SYMPTOM_DRAFT_CREATE_WORKFLOW,
+    MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW,
+}
 SENSITIVE_KEYS = {
     "access_token",
     "api_key",
@@ -41,6 +60,48 @@ class AgentRunCreateRequest(BaseModel):
     workflow_type: AgentWorkflowType
     user_message: AgentUserMessage
     source: AgentSource = None
+    confirmation: bool = False
+    workflow_payload: dict[str, Any] | None = None
+
+
+class SymptomDraftWorkflowPayload(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    raw_text: RawText | None = None
+    target_display_name: ShortText = None
+    extracted_json: JsonDict = None
+    missing_fields: StringList = None
+    safety_flags: StringList = None
+
+
+class MedicalEventDraftWorkflowPayload(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    draft_title: OptionalTitle = None
+    title: OptionalTitle = None
+    summary: SummaryText = None
+    draft_event_type: ShortText = None
+    event_date: ShortText = None
+    hospital_or_org: HospitalOrOrg = None
+    department: Department = None
+    draft_json: JsonDict = None
+    source_document_id: UUID | None = None
+    extraction_result_id: UUID | None = None
+    missing_fields: StringList = None
+    safety_flags: StringList = None
+
+
+def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, Any] | None:
+    raw_payload = payload.workflow_payload or {}
+    if payload.workflow_type == DAILY_HEALTH_BRIEF_WORKFLOW:
+        if raw_payload:
+            raise ValueError("workflow_payload is not supported for daily_health_brief")
+        return None
+    if payload.workflow_type == SYMPTOM_DRAFT_CREATE_WORKFLOW:
+        return SymptomDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
+    if payload.workflow_type == MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW:
+        return MedicalEventDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
+    raise ValueError("workflow_type is not available")
 
 
 class AgentRunResponse(BaseModel):

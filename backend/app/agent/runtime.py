@@ -13,6 +13,10 @@ from app.agent.workflows import AgentWorkflowRegistry, default_workflow_registry
 
 SAFE_FAILED_MESSAGE = "Agent runtime could not execute this workflow safely in the current phase."
 SAFE_BLOCKED_MESSAGE = "Agent runtime blocked this request before workflow execution."
+CONTROLLED_WORKFLOW_ALIASES = {
+    "symptom_draft_create": AgentWorkflowName.FREE_TEXT_RECORD_WORKFLOW,
+    "medical_event_draft_create": AgentWorkflowName.DOCUMENT_EXTRACT_WORKFLOW,
+}
 
 
 class AgentRuntime:
@@ -105,7 +109,7 @@ class AgentRuntime:
             return AgentRunResult(
                 trace_id=trace.id,
                 status="completed",
-                workflow_type=workflow_name.value,
+                workflow_type=requested_workflow,
                 message=message,
                 blocked=blocked,
                 safety_level=safety_level,
@@ -141,6 +145,8 @@ def _coerce_workflow_name(workflow_type: AgentWorkflowName | str) -> tuple[Agent
     if isinstance(workflow_type, AgentWorkflowName):
         return workflow_type, workflow_type.value, True
     requested = str(workflow_type)
+    if requested in CONTROLLED_WORKFLOW_ALIASES:
+        return CONTROLLED_WORKFLOW_ALIASES[requested], requested, True
     try:
         return AgentWorkflowName(requested), requested, True
     except ValueError:

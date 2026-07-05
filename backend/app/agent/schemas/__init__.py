@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -49,6 +49,8 @@ class AgentRunRequest:
     source: str | None = None
     request_id: str | None = None
     session_id: str | None = None
+    confirmation: bool = False
+    workflow_payload: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
