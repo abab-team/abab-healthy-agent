@@ -169,6 +169,32 @@ class AgentApiTestCase(unittest.TestCase):
         for term in UNSAFE_TERMS + ("record a mild symptom note", "symptom_text"):
             self.assertNotIn(term, response.text.lower())
 
+    def test_draft_trace_and_safety_responses_show_requested_workflow_type(self) -> None:
+        run_response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="symptom_draft_create",
+                user_message="Please create a pending symptom draft.",
+                confirmation=True,
+                workflow_payload={"raw_text": "Record a mild symptom note."},
+            ),
+        )
+        trace_id = run_response.json()["trace_id"]
+
+        trace_response = client.get(f"/api/v1/agent/runs/{trace_id}", headers=auth_headers(self.actor["id"]))
+        safety_response = client.get(
+            f"/api/v1/agent/runs/{trace_id}/safety-checks",
+            headers=auth_headers(self.actor["id"]),
+        )
+
+        self.assertEqual(trace_response.status_code, 200)
+        self.assertEqual(trace_response.json()["workflow_type"], "symptom_draft_create")
+        self.assertEqual(safety_response.status_code, 200)
+        self.assertTrue(safety_response.json())
+        self.assertTrue(all(item["workflow_type"] == "symptom_draft_create" for item in safety_response.json()))
+
     def test_medical_event_draft_create_unconfirmed_does_not_write_draft(self) -> None:
         before = self._draft_counts()
         response = client.post(

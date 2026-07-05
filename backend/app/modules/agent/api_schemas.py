@@ -179,7 +179,7 @@ def agent_trace_response(trace: AgentTrace) -> AgentTraceResponse:
     return AgentTraceResponse(
         trace_id=trace.id,
         request_id=trace.request_id,
-        workflow_type=trace.workflow_name.value,
+        workflow_type=_workflow_type_for_response(trace.workflow_name.value, trace.raw_input_summary),
         status=trace.status.value,
         target_user_id=trace.target_user_id,
         family_id=trace.current_family_id,
@@ -211,10 +211,10 @@ def agent_tool_call_response(tool_call: AgentToolCall) -> AgentToolCallResponse:
     )
 
 
-def agent_safety_check_response(check: AgentSafetyCheck) -> AgentSafetyCheckResponse:
+def agent_safety_check_response(check: AgentSafetyCheck, *, workflow_type: str | None = None) -> AgentSafetyCheckResponse:
     return AgentSafetyCheckResponse(
         id=check.id,
-        workflow_type=check.workflow_name.value,
+        workflow_type=workflow_type or check.workflow_name.value,
         intent=_safe_text(check.intent, max_length=100),
         safety_level=check.safety_level.value,
         safety_flags=check.safety_flags,
@@ -270,3 +270,15 @@ def _is_sensitive_key(key: str) -> bool:
 def _contains_sensitive_marker(text: str) -> bool:
     lowered = text.lower()
     return any(marker in lowered for marker in SENSITIVE_KEYS)
+
+
+def _workflow_type_for_response(stored_workflow_type: str, raw_input_summary: str | None) -> str:
+    if raw_input_summary is None:
+        return stored_workflow_type
+    prefix = "workflow="
+    if not raw_input_summary.startswith(prefix):
+        return stored_workflow_type
+    requested = raw_input_summary[len(prefix) :].split(";", 1)[0].strip()
+    if requested in ALLOWED_WORKFLOW_TYPES:
+        return requested
+    return stored_workflow_type

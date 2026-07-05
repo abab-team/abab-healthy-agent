@@ -86,7 +86,8 @@ def list_agent_run_safety_checks(
 ) -> list[AgentSafetyCheckResponse]:
     trace = _get_owned_trace_or_404(db, trace_id, current_user_id)
     checks = agent_service.list_safety_checks(db, request_id=trace.request_id, workflow_name=trace.workflow_name)
-    return [agent_safety_check_response(check) for check in checks]
+    response_workflow_type = agent_trace_response(trace).workflow_type
+    return [agent_safety_check_response(check, workflow_type=response_workflow_type) for check in checks]
 
 
 def _get_owned_trace_or_404(db: Session, trace_id: UUID, current_user_id: UUID):
