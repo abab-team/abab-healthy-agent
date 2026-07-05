@@ -12,10 +12,13 @@ from app.api.validators import (
     JsonDict,
     OptionalTitle,
     RawText,
+    RequiredAlertText,
     STRICT_MODEL_CONFIG,
     ShortText,
     StringList,
     SummaryText,
+    SuggestedAction,
+    TriggerReason,
     optional_text,
     required_text,
 )
@@ -29,10 +32,12 @@ AgentSource = Annotated[str | None, optional_text(100)]
 DAILY_HEALTH_BRIEF_WORKFLOW = "daily_health_brief"
 SYMPTOM_DRAFT_CREATE_WORKFLOW = "symptom_draft_create"
 MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW = "medical_event_draft_create"
+ALERT_CREATE_WORKFLOW = "alert_create"
 ALLOWED_WORKFLOW_TYPES = {
     DAILY_HEALTH_BRIEF_WORKFLOW,
     SYMPTOM_DRAFT_CREATE_WORKFLOW,
     MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW,
+    ALERT_CREATE_WORKFLOW,
 }
 SENSITIVE_KEYS = {
     "access_token",
@@ -91,6 +96,24 @@ class MedicalEventDraftWorkflowPayload(BaseModel):
     safety_flags: StringList = None
 
 
+class AlertCreateWorkflowPayload(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    title: OptionalTitle = None
+    message: RequiredAlertText | None = None
+    description: RequiredAlertText | None = None
+    alert_type: ShortText = None
+    level: ShortText = None
+    suggested_action: SuggestedAction = None
+    trigger_reason: TriggerReason = None
+    related_entity_type: ShortText = None
+    related_entity_id: UUID | None = None
+    due_at: ShortText = None
+    remind_at: ShortText = None
+    scheduled_at: ShortText = None
+    source: ShortText = None
+
+
 def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, Any] | None:
     raw_payload = payload.workflow_payload or {}
     if payload.workflow_type == DAILY_HEALTH_BRIEF_WORKFLOW:
@@ -101,6 +124,8 @@ def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, An
         return SymptomDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
     if payload.workflow_type == MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW:
         return MedicalEventDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
+    if payload.workflow_type == ALERT_CREATE_WORKFLOW:
+        return _alert_payload_for_runtime(AlertCreateWorkflowPayload.model_validate(raw_payload))
     raise ValueError("workflow_type is not available")
 
 
@@ -282,3 +307,33 @@ def _workflow_type_for_response(stored_workflow_type: str, raw_input_summary: st
     if requested in ALLOWED_WORKFLOW_TYPES:
         return requested
     return stored_workflow_type
+
+
+def _alert_payload_for_runtime(payload: AlertCreateWorkflowPayload) -> dict[str, Any]:
+    message = payload.message or payload.description
+    if not payload.title:
+        raise ValueError("title is required for alert_create")
+    if not message:
+        raise ValueError("message or description is required for alert_create")
+    alert_type = payload.alert_type
+    level = payload.level
+    if alert_type and alert_type.lower() == "emergency":
+        raise ValueError("emergency alerting is not available through alert_create")
+    if level and level.lower() == "urgent":
+        raise ValueError("urgent emergency alerting is not available through alert_create")
+    due_at = payload.due_at or payload.remind_at or payload.scheduled_at
+    result: dict[str, Any] = {
+        "title": payload.title,
+        "message": message,
+    }
+    optional_values = {
+        "alert_type": alert_type,
+        "level": level,
+        "suggested_action": payload.suggested_action,
+        "trigger_reason": payload.trigger_reason,
+        "related_entity_type": payload.related_entity_type,
+        "related_entity_id": str(payload.related_entity_id) if payload.related_entity_id else None,
+        "due_at": due_at,
+    }
+    result.update({key: value for key, value in optional_values.items() if value is not None})
+    return result

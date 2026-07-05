@@ -5,6 +5,7 @@ from typing import Protocol
 from app.agent.enums import AgentWorkflowName
 from app.agent.exceptions import AgentWorkflowNotRegisteredError
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult
+from app.agent.workflows.alert_create import AlertCreateWorkflow
 from app.agent.workflows.daily_health_brief import DailyHealthBriefWorkflow
 from app.agent.workflows.medical_event_draft_create import MedicalEventDraftCreateWorkflow
 from app.agent.workflows.symptom_draft_create import SymptomDraftCreateWorkflow
@@ -51,4 +52,5 @@ def default_workflow_registry() -> AgentWorkflowRegistry:
     registry.register(DailyHealthBriefWorkflow())
     registry.register(SymptomDraftCreateWorkflow())
     registry.register(MedicalEventDraftCreateWorkflow())
+    registry.register(AlertCreateWorkflow())
     return registry

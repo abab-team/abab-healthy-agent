@@ -15,6 +15,7 @@ from backend.tests.api.helpers import (
 )
 
 from app.modules.agent import api as agent_api
+from app.modules.alerts.models import Alert
 from app.modules.document_processing.models import MedicalEventDraft
 from app.modules.health_record.models import HealthRecordDraft, SymptomRecord
 from app.modules.medical_timeline.models import MedicalEvent
@@ -377,6 +378,129 @@ class AgentApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"]["code"], "invalid_request")
 
+    def test_alert_create_unconfirmed_does_not_create_alert(self) -> None:
+        before = self._draft_counts()
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="alert_create",
+                user_message="Please create a regular follow-up reminder.",
+                confirmation=False,
+                workflow_payload=self._alert_payload(),
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["workflow_type"], "alert_create")
+        self.assertIn("requires_confirmation", body["generated_content"])
+        self.assertEqual(body["tool_calls_count"], 1)
+        self.assertEqual(self._draft_counts(), before)
+
+    def test_alert_create_confirmed_creates_alert(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="alert_create",
+                user_message="Please create a regular follow-up reminder.",
+                confirmation=True,
+                workflow_payload=self._alert_payload(),
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["status"], "completed")
+        self.assertIn("alert_id=", body["generated_content"])
+        self.assertIn("external_dispatch=false", body["generated_content"])
+        self.assertEqual(self._draft_counts()["alerts"], 1)
+        for term in UNSAFE_TERMS + ("prepare materials before the planned visit",):
+            self.assertNotIn(term, response.text.lower())
+
+    def test_alert_create_requires_create_permission_not_view(self) -> None:
+        patch_response = client.patch(
+            f"/api/v1/families/{self.family['id']}/members/{self.target['id']}/permissions",
+            headers=auth_headers(self.actor["id"]),
+            json={
+                "share_all": False,
+                "can_view_alerts": True,
+                "can_create_alerts": False,
+                "reason": "agent alert denied test",
+            },
+        )
+        self.assertEqual(patch_response.status_code, 200)
+
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.target["id"],
+                family_id=self.family["id"],
+                workflow_type="alert_create",
+                user_message="Please create a regular follow-up reminder.",
+                confirmation=True,
+                workflow_payload=self._alert_payload(),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("blocked", response.json()["generated_content"].lower())
+        self.assertEqual(self._draft_counts()["alerts"], 0)
+
+    def test_alert_create_family_permission_allowed_can_execute(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.target["id"],
+                family_id=self.family["id"],
+                workflow_type="alert_create",
+                user_message="Please create a regular follow-up reminder.",
+                confirmation=True,
+                workflow_payload=self._alert_payload(),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["workflow_type"], "alert_create")
+        self.assertEqual(self._draft_counts()["alerts"], 1)
+
+    def test_alert_create_high_risk_request_does_not_create_alert(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="alert_create",
+                user_message="I have chest pain and may hurt myself, create an emergency alarm.",
+                confirmation=True,
+                workflow_payload=self._alert_payload(),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["status"], "blocked")
+        self.assertEqual(response.json()["tool_calls_count"], 0)
+        self.assertEqual(self._draft_counts()["alerts"], 0)
+        self.assertNotIn("emergency alarm", response.text.lower())
+
+    def test_alert_create_rejects_generic_execution_payload_fields(self) -> None:
+        payload = self._payload(
+            target_user_id=self.actor["id"],
+            workflow_type="alert_create",
+            confirmation=True,
+            workflow_payload={**self._alert_payload(), "tool_name": "alerts.create", "input_data": {"title": "bad"}},
+        )
+
+        response = client.post("/api/v1/agent/runs", headers=auth_headers(self.actor["id"]), json=payload)
+
+        self.assertIn(response.status_code, {400, 422})
+        self.assertIn(response.json()["detail"]["code"], {"invalid_request", "validation_error"})
+
     def test_agent_api_does_not_expose_generic_tool_execution_or_direct_imports(self) -> None:
         route_paths = {route.path for route in agent_api.router.routes}
         source = inspect.getsource(agent_api)
@@ -413,6 +537,15 @@ class AgentApiTestCase(unittest.TestCase):
             payload["workflow_payload"] = workflow_payload
         return payload
 
+    def _alert_payload(self) -> dict:
+        return {
+            "title": "Follow-up reminder",
+            "description": "Prepare materials before the planned visit.",
+            "alert_type": "medical_follow_up",
+            "level": "info",
+            "suggested_action": "Review system records before the appointment.",
+        }
+
     def _draft_counts(self) -> dict[str, int]:
         with SessionLocal() as db:
             return {
@@ -420,6 +553,7 @@ class AgentApiTestCase(unittest.TestCase):
                 "symptom_records": db.query(SymptomRecord).count(),
                 "medical_event_drafts": db.query(MedicalEventDraft).count(),
                 "medical_events": db.query(MedicalEvent).count(),
+                "alerts": db.query(Alert).count(),
             }
 
 

@@ -16,6 +16,7 @@ SAFE_BLOCKED_MESSAGE = "Agent runtime blocked this request before workflow execu
 CONTROLLED_WORKFLOW_ALIASES = {
     "symptom_draft_create": AgentWorkflowName.FREE_TEXT_RECORD_WORKFLOW,
     "medical_event_draft_create": AgentWorkflowName.DOCUMENT_EXTRACT_WORKFLOW,
+    "alert_create": AgentWorkflowName.DOCTOR_VISIT_SUMMARY_WORKFLOW,
 }
 
 
