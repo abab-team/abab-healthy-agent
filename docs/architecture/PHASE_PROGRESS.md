@@ -111,3 +111,25 @@ Phase 09 已开始执行可用前端 / 调试页面方向。
 - Phase 09.2：移动端静态交互与 API 契约准备。
 
 Phase 09.2 仍不接真实后端 API，不实现 Auth/JWT，不调用 LLM，不实现 LangGraph/OCR/upload/RAG。正式 FastAPI 接入预计放在 Phase 09.3。
+
+## Phase 09.3.A 更新
+
+Phase 09.3.A：前端 API Client 基础与只读 Demo 数据接入已开始。
+
+当前完成范围：
+
+- `apps/mobile` 新增 `apiConfig`、`apiClient`、`backendApi`、`dataProvider`。
+- 支持 `EXPO_PUBLIC_DATA_MODE=mock/api`，默认 mock。
+- API mode 需要显式配置 `EXPO_PUBLIC_API_BASE_URL`。
+- 使用 `X-Current-User-Id` demo header，不实现 Auth/JWT。
+- 首页、家庭、成员详情、设置开发者区、AI 管家、今日简报、Agent Run 详情开始接入只读 demo 数据或 Agent 安全摘要。
+- `daily_health_brief` 可通过移动端 provider 调用 `POST /api/v1/agent/runs`。
+
+仍未完成：
+
+- 写入类 workflow 真实接入。
+- 真实 Auth/JWT。
+- LLM、LangGraph、OCR/upload/RAG。
+- 后端新功能或模型变更。
+
+下一步建议：Phase 09.3.A Lightweight Review。

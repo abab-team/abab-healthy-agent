@@ -4,24 +4,34 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { ReminderCard } from "@/components/cards/ReminderCard";
 import { SafetyNotice } from "@/components/common/SafetyNotice";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { SectionHeader } from "@/components/common/SectionHeader";
+import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
-import { agentRun, members, reminders, todos } from "@/constants/mockData";
-import { mockApi } from "@/lib/mockApi";
+import { members, reminders, todos } from "@/constants/mockData";
+import { useDemoSession } from "@/hooks/useDemoSession";
+import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
+import type { AgentRunResponse } from "@/types/api";
 
 export default function AgentBriefScreen() {
-  const [status, setStatus] = useState("已加载 daily_health_brief mock 内容");
+  const session = useDemoSession();
+  const provider = getDataProvider(session.currentUserId);
+  const [run, setRun] = useState<AgentRunResponse | null>(null);
+  const [status, setStatus] = useState("尚未生成，本页不会自动请求写入类 workflow。");
   const [loading, setLoading] = useState(false);
 
   async function refreshBrief() {
     setLoading(true);
-    setStatus("正在模拟生成简报...");
-    await mockApi.getAgentBrief();
+    setStatus("正在生成系统内健康简报...");
+    const result = await provider.runDailyHealthBrief(session.currentUserId);
     setLoading(false);
-    setStatus("简报 mock 已刷新，未请求后端。");
+    if (result.ok && result.data) {
+      setRun(result.data);
+      setStatus("简报已生成。");
+    } else {
+      setStatus(result.error?.message ?? "生成失败，请检查 API 配置。");
+    }
   }
 
   return (
@@ -32,11 +42,13 @@ export default function AgentBriefScreen() {
 
       <CardBase>
         <SectionHeader title="根据系统内记录" />
-        <Text style={styles.paragraph}>已为你整理最近 7 天的家庭健康记录摘要。</Text>
+        <Text style={styles.paragraph}>
+          {run?.generated_content ?? "点击下方按钮后，api mode 会调用后端 daily_health_brief；mock mode 会返回本地模拟简报。"}
+        </Text>
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="成员摘要" />
+        <SectionHeader title="成员摘要" action="mock 展示" />
         {members.map((member) => (
           <Text key={member.id} style={styles.line}>
             {member.name}：{member.status}
@@ -45,14 +57,14 @@ export default function AgentBriefScreen() {
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="今日待办" />
+        <SectionHeader title="今日待办" action="mock 展示" />
         {todos.map((todo) => (
           <Text key={todo.id} style={styles.line}>{todo.title}</Text>
         ))}
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="提醒" />
+        <SectionHeader title="提醒" action="mock 展示" />
         {reminders.map((reminder) => (
           <ReminderCard key={reminder.id} {...reminder} />
         ))}
@@ -63,9 +75,9 @@ export default function AgentBriefScreen() {
           如有不适或紧急情况，请联系医生或当地急救服务。本简报只整理系统内已有记录。
         </Text>
         <Pressable style={styles.button} onPress={refreshBrief}>
-          <Text style={styles.buttonText}>重新生成 mock 简报</Text>
+          <Text style={styles.buttonText}>{loading ? "生成中..." : "生成今日健康简报"}</Text>
         </Pressable>
-        <Link href={routes.agentRun(agentRun.id)} style={styles.linkButton}>
+        <Link href={routes.agentRun(run?.trace_id ?? "run-12")} style={styles.linkButton}>
           查看 Agent Run 详情
         </Link>
       </CardBase>
@@ -74,24 +86,6 @@ export default function AgentBriefScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: "900",
-    paddingTop: 8
-  },
-  paragraph: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: 10
-  },
-  line: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "700",
-    paddingVertical: 8
-  },
   button: {
     backgroundColor: colors.primary,
     borderRadius: 999,
@@ -104,6 +98,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center"
   },
+  line: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    paddingVertical: 8
+  },
   linkButton: {
     borderColor: colors.primary,
     borderRadius: 999,
@@ -115,5 +115,17 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingVertical: 12,
     textAlign: "center"
+  },
+  paragraph: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 10
+  },
+  title: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: "900",
+    paddingTop: 8
   }
 });

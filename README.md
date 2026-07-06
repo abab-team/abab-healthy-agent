@@ -10,9 +10,9 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 
 - Phase 00-08 已完成。
 - Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
-- Phase 09 已开始移动端可用前端方向；Phase 09.1 已完成 Expo 静态 UI 原型，Phase 09.2 正在推进静态交互与 API 契约准备。
+- Phase 09 已开始移动端可用前端方向；Phase 09.1 已完成 Expo 静态 UI 原型，Phase 09.2 已完成静态交互与 API 契约准备，Phase 09.3.A 已开始接入只读 demo API 与 `daily_health_brief`。
 - 当前不是完整产品，仍缺少正式前端、真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG 和生产部署收口。
-- 下一阶段调整为 **Phase 09：可用前端 / 调试页面**，优先把已有后端 API 与 Agent API 变成可操作、可验收的产品闭环。
+- 当前阶段为 **Phase 09.3.A：前端 API Client 基础与只读 Demo 数据接入**。默认仍使用 mock 数据，切换 `EXPO_PUBLIC_DATA_MODE=api` 后才请求 FastAPI。
 
 ## 已具备能力
 
@@ -42,13 +42,24 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 当前尚未完成：
 
 - 正式 Web 前端。
-- 移动端真实 API 联调与发布。
+- 移动端完整真实 API 联调与发布。
 - 真实 Auth/JWT 登录体系。
 - LLM Client。
 - LangGraph workflow。
 - OCR / upload / RAG。
 - 生产部署、真实通知、真实设备接入。
 - 通用 tool execution API。当前刻意不开放任意 `tool_name` / `input_data` 执行。
+
+## 移动端 API 接入状态
+
+`apps/mobile` 当前支持两种数据模式：
+
+- `EXPO_PUBLIC_DATA_MODE=mock`：默认模式，全部使用本地 mock。
+- `EXPO_PUBLIC_DATA_MODE=api`：Phase 09.3.A 只接入只读 demo 数据、`GET /health` 与 `daily_health_brief`。
+
+手机真机访问电脑上的 FastAPI 不能使用 `localhost` 或 `127.0.0.1`，需要配置电脑局域网 IP，例如 `http://192.168.x.x:8000`。当前仍使用开发调试 header `X-Current-User-Id`，不是正式 Auth/JWT。
+
+写入类 workflow（`symptom_draft_create`、`medical_event_draft_create`、`alert_create`）在移动端仍保持 mock，不连接真实后端。
 
 ## 重要说明
 

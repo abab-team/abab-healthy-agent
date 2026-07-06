@@ -19,7 +19,7 @@ import type {
   HealthRecordDraft
 } from "@/types/api";
 
-function wait<T>(data: T, delay = 380): Promise<ApiResult<T>> {
+function wait<T>(data: T, delay = 260): Promise<ApiResult<T>> {
   return new Promise((resolve) => {
     setTimeout(() => resolve({ ok: true, data }), delay);
   });
@@ -53,59 +53,59 @@ export const mockApi = {
   createSymptomDraftPreview(input: { target_user_id: string; description: string }) {
     return wait<HealthRecordDraft>({
       id: "draft-preview-symptom",
-      target_user_id: input.target_user_id,
-      title: "症状草稿预览",
+      status: "pending",
       summary: input.description.trim() || "请补充症状描述后再生成草稿预览。",
-      status: "pending"
+      target_user_id: input.target_user_id,
+      title: "症状草稿预览"
     });
   },
 
   createSymptomDraftConfirmed(input: { target_user_id: string; description: string }) {
     return wait<AgentRunResponse>({
-      trace_id: "run-symptom-draft-preview",
+      generated_content: `已生成待确认症状草稿：${input.description.trim()}`,
       status: "completed",
-      workflow_type: "symptom_draft_create",
-      generated_content: `已生成待确认症状草稿：${input.description.trim()}`
+      trace_id: "run-symptom-draft-preview",
+      workflow_type: "symptom_draft_create"
     });
   },
 
   createAlertPreview(input: { target_user_id: string; title: string; reminder_type: string; scheduled_at: string }) {
     return wait<Alert>({
       id: "alert-preview",
-      target_user_id: input.target_user_id,
-      title: input.title.trim() || "请填写提醒标题",
       reminder_type: input.reminder_type,
       scheduled_at: input.scheduled_at,
-      status: "preview"
+      status: "preview",
+      target_user_id: input.target_user_id,
+      title: input.title.trim() || "请填写提醒标题"
     });
   },
 
   createAlertConfirmed(input: { target_user_id: string; title: string; reminder_type: string; scheduled_at: string }) {
     return wait<AgentRunResponse>({
-      trace_id: "run-alert-create-preview",
+      generated_content: `已创建普通健康提醒：${input.title.trim()} · ${input.scheduled_at}`,
       status: "completed",
-      workflow_type: "alert_create",
-      generated_content: `已创建普通健康提醒：${input.title.trim()} · ${input.scheduled_at}`
+      trace_id: "run-alert-create-preview",
+      workflow_type: "alert_create"
     });
   },
 
   runAgentWorkflow(request: AgentRunRequest) {
     return wait<AgentRunResponse>({
-      trace_id: request.workflow_type === "daily_health_brief" ? agentRun.id : "run-mock-preview",
+      generated_content: request.user_message || "根据系统内记录生成的 mock 结果。",
       status: request.confirmation === false ? "preview" : "completed",
-      workflow_type: request.workflow_type,
-      generated_content: request.user_message || "根据系统内记录生成的 mock 结果。"
+      trace_id: request.workflow_type === "daily_health_brief" ? agentRun.id : "run-mock-preview",
+      workflow_type: request.workflow_type
     });
   },
 
   getAgentRun(id: string) {
     return wait<AgentRunDetail>({
-      trace_id: id,
-      status: "completed",
-      workflow_type: "daily_health_brief",
       generated_content: agentRun.generatedContent,
+      safety_checks: safetyChecks as AgentSafetyCheckSummary[],
+      status: "completed",
       tool_calls: toolCalls as AgentToolCallSummary[],
-      safety_checks: safetyChecks as AgentSafetyCheckSummary[]
+      trace_id: id,
+      workflow_type: "daily_health_brief"
     });
   }
 };

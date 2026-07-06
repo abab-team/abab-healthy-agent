@@ -1,6 +1,15 @@
 # Frontend API Mapping
 
-本文档记录 Phase 09 前端与后端 API 的对接计划。Phase 09.2 只准备 API 契约、mock API 与交互状态，不请求真实后端。
+本文档记录 Phase 09 前端与后端 API 的对接计划。Phase 09.3.A 已开始接入前端 API Client，但范围仅限只读 demo 数据与 `daily_health_brief`。
+
+## Phase 09.3.A 状态
+
+- 新增 `apiConfig` / `apiClient` / `backendApi` / `dataProvider`，支持 `mock` 与 `api` 数据模式。
+- 默认仍为 `EXPO_PUBLIC_DATA_MODE=mock`。
+- `api` 模式需要显式配置 `EXPO_PUBLIC_API_BASE_URL`，不提供硬编码 localhost 默认值。
+- 当前仍使用 `X-Current-User-Id` demo header，不是 Auth/JWT。
+- 当前只接入只读 family / member / health summary 数据、`GET /health`、`daily_health_brief` 与 Agent run 安全摘要查询。
+- 写入类 workflow 仍保持 mock，不请求真实后端。
 
 ## Phase 09.2 状态
 
@@ -18,7 +27,7 @@ Phase 09.3 才允许把 `mockApi` 替换或包裹为真实 FastAPI 请求。
 真机访问本机后端时不能使用 `localhost` 或 `127.0.0.1`，应使用电脑局域网 IP，例如：
 
 ```text
-http://192.168.x.x:8000/api/v1
+http://192.168.x.x:8000
 ```
 
 当前后端仍使用开发调试身份入口：
@@ -36,12 +45,37 @@ X-Current-User-Id: <demo_user_id>
 | 首页 | `getCurrentUser`, `getFamilyOverview`, `getAgentBrief` | identity / family / agent runs |
 | 家庭页 | `getFamilyOverview`, `getMemberDetail` | family member APIs |
 | 成员详情 | `getMemberDetail` | family member profile / health summary APIs |
-| 草稿页 | `getDrafts`, `updateDraftStatus` | health record draft APIs |
-| 创建症状草稿 | `createSymptomDraftPreview`, `createSymptomDraftConfirmed` | `POST /api/v1/agent/runs` |
-| 创建健康事件草稿 | mock local state | `POST /api/v1/agent/runs` |
-| 创建提醒 | `createAlertPreview`, `createAlertConfirmed` | `POST /api/v1/agent/runs` |
-| 今日健康简报 | `getAgentBrief` | `POST /api/v1/agent/runs` |
-| Agent Run 详情 | `getAgentRun` | Agent trace / tool-calls / safety-checks APIs |
+| 草稿页 | `getDrafts`, `updateDraftStatus` | Phase 09.3.A 仍为 mock |
+| 创建症状草稿 | `createSymptomDraftPreview`, `createSymptomDraftConfirmed` | Phase 09.3.A 仍为 mock |
+| 创建健康事件草稿 | mock local state | Phase 09.3.A 仍为 mock |
+| 创建提醒 | `createAlertPreview`, `createAlertConfirmed` | Phase 09.3.A 仍为 mock |
+| 今日健康简报 | `getAgentBrief` | `POST /api/v1/agent/runs` with `daily_health_brief` |
+| Agent Run 详情 | `getAgentRun` | `GET /api/v1/agent/runs/{trace_id}` + tool-calls + safety-checks |
+
+## Phase 09.3.A 已接 API
+
+- `/health`
+- `/api/v1/families`
+- `/api/v1/families/{family_id}/members`
+- `/api/v1/families/{family_id}/permissions`
+- `/api/v1/health-profile/me`
+- `/api/v1/families/{family_id}/members/{target_user_id}/health-profile`
+- `/api/v1/health-data/me/blood-pressure/summary`
+- `/api/v1/families/{family_id}/members/{target_user_id}/health-data/blood-pressure/summary`
+- `/api/v1/health-records/me/symptoms/summary`
+- `/api/v1/families/{family_id}/members/{target_user_id}/health-records/symptoms/summary`
+- `/api/v1/families/{family_id}/members/{target_user_id}/alerts/active`
+- `/api/v1/agent/runs`，仅 `daily_health_brief`
+- `/api/v1/agent/runs/{trace_id}`
+- `/api/v1/agent/runs/{trace_id}/tool-calls`
+- `/api/v1/agent/runs/{trace_id}/safety-checks`
+
+## Phase 09.3.A 仍为 mock / 后端缺口
+
+- 今日待办与最近动态仍无统一聚合 API。
+- 草稿列表与草稿状态更新仍为 mock。
+- 写入类 Agent workflow 暂不接真实后端。
+- 健康摘要展示仍需要后续统一 response view model。
 
 ## Agent Workflow Confirmation
 

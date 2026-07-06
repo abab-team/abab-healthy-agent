@@ -1,6 +1,24 @@
 # API Contract Checklist
 
-本文档用于 Phase 09.3 正式接入 FastAPI 前的契约核对。Phase 09.2 只完成 mock API 与 TypeScript 类型准备。
+本文档用于 Phase 09.3 正式接入 FastAPI 的契约核对。Phase 09.3.A 已完成 API Client 基础接入，但只开放只读 demo 数据与 `daily_health_brief`。
+
+## Phase 09.3.A 已对齐
+
+- API base URL 通过 `EXPO_PUBLIC_API_BASE_URL` 注入，无硬编码 localhost 默认值。
+- 数据模式通过 `EXPO_PUBLIC_DATA_MODE=mock/api` 切换，默认 mock。
+- API mode 使用 `X-Current-User-Id` demo header。
+- `AgentRunRequest.workflow_type` 仍为受控 union，不允许任意 string。
+- `tool_name` / `input_data` 仍为 `never`，前端不开放通用 tool execution。
+- `POST /api/v1/agent/runs` 当前仅在 provider 中用于 `daily_health_brief`。
+- Agent Run 详情只展示 trace、tool_calls、safety_checks 安全摘要。
+
+## Phase 09.3.A 未对齐 / 后续处理
+
+- 写入类 workflow：`symptom_draft_create`、`medical_event_draft_create`、`alert_create` 仍为 mock。
+- 草稿确认、修改、暂不处理仍为本地状态。
+- 首页今日待办、最近动态仍使用 mock 聚合。
+- 家庭权限概览仍是静态摘要，后续需要前端 view model。
+- 后端 demo user UUID 需要由 seed 后的真实数据或环境变量提供，前端不自行猜测身份。
 
 ## 接入前必须确认
 
@@ -23,6 +41,8 @@
 | 创建提醒 | `POST /api/v1/agent/runs` with `alert_create` |
 | 今日健康简报 | `POST /api/v1/agent/runs` with `daily_health_brief` |
 | Agent Run 详情 | trace、tool_calls、safety_checks 查询 |
+
+Phase 09.3.A 中，只有今日健康简报实际请求 Agent API；草稿和提醒写入仍等待后续 Phase。
 
 ## Agent Run Request
 

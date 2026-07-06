@@ -4,10 +4,9 @@ import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { colors } from "@/constants/colors";
-import { MemberId } from "@/constants/mockData";
 
 type FamilyMemberCardProps = {
-  id: MemberId;
+  id: string;
   avatar: string;
   name: string;
   relation: string;

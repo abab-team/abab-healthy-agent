@@ -78,6 +78,14 @@ export type Alert = {
   status: "preview" | "created" | "active";
 };
 
+export type ReminderSummary = {
+  id: string;
+  title: string;
+  time: string;
+  member: string;
+  note: string;
+};
+
 export type AgentWorkflowType =
   | "daily_health_brief"
   | "symptom_draft_create"
@@ -100,6 +108,10 @@ export type AgentRunResponse = {
   trace_id: string;
   status: "completed" | "blocked" | "failed" | "preview";
   workflow_type: AgentWorkflowType;
+  message?: string;
+  blocked?: boolean;
+  safety_level?: string;
+  tool_calls_count?: number;
   generated_content: string;
 };
 
@@ -120,4 +132,29 @@ export type AgentSafetyCheckSummary = {
   stage: "input" | "output";
   status: "passed" | "caution" | "blocked";
   summary: string;
+};
+
+export type DataMode = "mock" | "api";
+
+export type HealthStatus = {
+  status: string;
+  service: string;
+};
+
+export type ApiFamilyOverview = {
+  family: Family;
+  members: FamilyMember[];
+  reminders: ReminderSummary[];
+  source: DataMode;
+  mockSections: string[];
+};
+
+export type ApiMemberDetail = {
+  member: FamilyMember;
+  profile?: HealthProfile;
+  bloodPressureSummary?: Record<string, unknown>;
+  symptomSummary?: Record<string, unknown>;
+  activeAlerts?: Alert[];
+  source: DataMode;
+  mockSections: string[];
 };

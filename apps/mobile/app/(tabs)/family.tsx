@@ -7,10 +7,19 @@ import { PermissionSummaryCard } from "@/components/cards/PermissionSummaryCard"
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
-import { family, members } from "@/constants/mockData";
+import { members as mockMembers } from "@/constants/mockData";
+import { useApiResource } from "@/hooks/useApiResource";
+import { useDemoSession } from "@/hooks/useDemoSession";
+import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
 
 export default function FamilyScreen() {
+  const session = useDemoSession();
+  const provider = getDataProvider(session.currentUserId);
+  const overview = useApiResource(() => provider.getFamilyOverview(), [session.currentUserId]);
+  const familyName = overview.data?.family.name ?? "幸福一家";
+  const members = overview.data?.members ?? [];
+
   return (
     <AppScreen>
       <View style={styles.header}>
@@ -22,26 +31,39 @@ export default function FamilyScreen() {
 
       <CardBase style={styles.hero}>
         <View>
-          <Text style={styles.familyName}>{family.name}</Text>
-          <Text style={styles.familySummary}>{family.summary}</Text>
-          <Text style={styles.avatars}>{members.map((member) => member.avatar).join("  ")}  ＋</Text>
+          <Text style={styles.familyName}>{familyName}</Text>
+          <Text style={styles.familySummary}>
+            {members.length || mockMembers.length} 位成员 · 家庭共享权限用于保护家人健康记录
+          </Text>
+          <Text style={styles.avatars}>{mockMembers.map((member) => member.avatar).join("  ")}  ＋</Text>
         </View>
         <Ionicons name="home-outline" size={74} color="#8dddc9" />
       </CardBase>
 
-      {members.filter((member) => member.id !== "me").concat(members.filter((member) => member.id === "me")).map((member) => (
+      {overview.error ? <Text style={styles.error}>API 暂不可用：{overview.error}</Text> : null}
+      {(members.length > 0 ? members : mockMembers.map((member) => ({
+        display_name: member.name,
+        family_id: "family-demo",
+        id: member.id,
+        relationship_label: member.relation,
+        share_status: member.shareStatus,
+        user_id: member.id
+      }))).map((member, index) => (
         <FamilyMemberCard
           key={member.id}
-          id={member.id}
-          avatar={member.avatar}
-          name={member.name}
-          relation={member.relation}
-          recentRecord={member.recentRecord}
-          shareStatus={member.shareStatus}
+          avatar={mockMembers[index]?.avatar ?? "👤"}
+          id={member.user_id}
+          name={member.display_name}
+          recentRecord={overview.data?.source === "api" ? "系统内记录摘要 · 后端只读接口" : mockMembers[index]?.recentRecord ?? "mock 记录"}
+          relation={member.relationship_label}
+          shareStatus={member.share_status}
         />
       ))}
 
       <PermissionSummaryCard />
+      <Text style={styles.hint}>
+        {session.dataMode === "api" ? "成员与家庭信息来自后端；权限明细入口仍为静态摘要。" : "当前为 mock 数据模式。"}
+      </Text>
 
       <Link href={routes.inviteMember}>
         <CardBase style={styles.inviteCard}>
@@ -58,23 +80,14 @@ export default function FamilyScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: 8
+  avatars: {
+    fontSize: 30,
+    marginTop: 18
   },
-  title: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: "900"
-  },
-  hero: {
-    alignItems: "center",
-    backgroundColor: "#dff8ef",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 150
+  error: {
+    color: colors.warning,
+    fontSize: 13,
+    lineHeight: 20
   },
   familyName: {
     color: colors.text,
@@ -86,9 +99,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8
   },
-  avatars: {
-    fontSize: 30,
-    marginTop: 18
+  header: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 8
+  },
+  hero: {
+    alignItems: "center",
+    backgroundColor: "#dff8ef",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 150
+  },
+  hint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginHorizontal: 4
   },
   inviteCard: {
     alignItems: "center",
@@ -98,14 +125,19 @@ const styles = StyleSheet.create({
   inviteCopy: {
     flex: 1
   },
+  inviteText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 4
+  },
   inviteTitle: {
     color: colors.text,
     fontSize: 17,
     fontWeight: "800"
   },
-  inviteText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 4
+  title: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: "900"
   }
 });
