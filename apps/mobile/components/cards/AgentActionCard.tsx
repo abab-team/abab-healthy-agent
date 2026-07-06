@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link } from "expo-router";
+import type { Href } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { colors } from "@/constants/colors";
 
 type AgentActionCardProps = {
   title: string;
   description: string;
-  href: string;
+  href: Href;
   icon: keyof typeof Ionicons.glyphMap;
   tone?: "mint" | "blue" | "orange" | "purple";
 };

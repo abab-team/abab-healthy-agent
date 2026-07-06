@@ -88,7 +88,7 @@ export const quickActions = [
   { id: "symptom", label: "记录症状", icon: "sad-outline", href: "/create-symptom-draft" },
   { id: "alert", label: "创建提醒", icon: "calendar-outline", href: "/create-alert" },
   { id: "event", label: "添加健康事件", icon: "documents-outline", href: "/create-symptom-draft" }
-];
+] as const;
 
 export const agentActions = [
   {
@@ -127,7 +127,7 @@ export const agentActions = [
     icon: "notifications-outline",
     tone: "orange"
   }
-];
+] as const;
 
 export const pendingDrafts = [
   {
