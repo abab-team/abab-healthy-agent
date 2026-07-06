@@ -63,7 +63,7 @@ export default function SettingsScreen() {
       <CardBase>
         <Text style={styles.sectionTitle}>关于 App</Text>
         <Text style={styles.about}>
-          本 App 用于家庭日常健康记录、整理与提醒，不提供医疗诊断、处方、剂量或急救服务。
+          本 App 用于家庭日常健康记录、整理与提醒，不提供医疗判断、具体用药方案或急救服务。
         </Text>
       </CardBase>
     </AppScreen>
