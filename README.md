@@ -61,6 +61,8 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 
 写入类 workflow（`symptom_draft_create`、`medical_event_draft_create`、`alert_create`）在移动端仍保持 mock，不连接真实后端。
 
+Phase 09.3.B 已补充移动端与后端 smoke runbook，并在本机通过临时 SQLite smoke DB 验证 `/health`、`daily_health_brief`、Agent run / tool_calls / safety_checks 查询。详见 `docs/frontend/MOBILE_BACKEND_SMOKE_RUNBOOK.md`。
+
 ## 重要说明
 
 当前不是“产品只有 4 个功能”。当前只是 **Agent API 对外开放了 4 个受控 workflow**。产品功能、普通 API、Agent Tool、Agent Workflow、前端页面是不同层级，后续会分别按功能覆盖矩阵推进。

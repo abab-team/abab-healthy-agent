@@ -133,3 +133,29 @@ Phase 09.3.A：前端 API Client 基础与只读 Demo 数据接入已开始。
 - 后端新功能或模型变更。
 
 下一步建议：Phase 09.3.A Lightweight Review。
+
+## Phase 09.3.B 更新
+
+Phase 09.3.B：前后端联调环境与 Smoke Runbook 收口已执行。
+
+新增：
+
+- `docs/frontend/MOBILE_BACKEND_SMOKE_RUNBOOK.md`
+- `scripts/smoke/mobile_backend_smoke.ps1`
+
+验证结果：
+
+- 系统 Python 3.11 的 `pip` 损坏，无法直接作为后端依赖安装入口。
+- Docker Desktop engine 未运行，PostgreSQL compose smoke 未完成。
+- 使用 Codex bundled Python + 临时 `.venv-smoke` + SQLite smoke DB 绕开本机环境问题。
+- Alembic migration、demo seed、demo verify、`GET /health`、`daily_health_brief`、run/tool_calls/safety_checks 查询均已通过 smoke。
+- 移动端 `api` mode Web dev server 可启动并返回 HTTP 200。
+
+边界保持：
+
+- 写入类 workflow 仍未接入移动端真实后端。
+- 未实现 Auth/JWT。
+- 未实现 LLM、LangGraph、OCR/upload/RAG。
+- 未修改后端业务代码、API 路由、模型或 migration。
+
+下一步建议：Phase 09.3.C，围绕移动端只读 API 体验打磨与真机联调确认，不进入写入 workflow。

@@ -77,6 +77,28 @@ X-Current-User-Id: <demo_user_id>
 - 写入类 Agent workflow 暂不接真实后端。
 - 健康摘要展示仍需要后续统一 response view model。
 
+## Phase 09.3.B Smoke Mapping
+
+本阶段新增 `docs/frontend/MOBILE_BACKEND_SMOKE_RUNBOOK.md`，用于验证 09.3.A 已接入接口。
+
+已完成 smoke：
+
+| 能力 | Smoke 结果 |
+| --- | --- |
+| `/health` | 200 |
+| Alembic migration | 临时 SQLite smoke DB 通过 |
+| demo seed / verify | 通过 |
+| `daily_health_brief` | `completed` |
+| Agent run detail | 可查询 |
+| Agent tool_calls | 5 条 |
+| Agent safety_checks | 2 条 |
+| mobile api mode Web 启动 | HTTP 200 |
+
+未完成 / 待确认：
+
+- Docker PostgreSQL 路径因 Docker Desktop engine 未运行未完成。
+- 真机 Expo Go 需要用户按 runbook 配置电脑局域网 IP 后验证。
+
 ## Agent Workflow Confirmation
 
 Agent API 只允许白名单 workflow：

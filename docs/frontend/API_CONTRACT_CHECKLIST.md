@@ -44,6 +44,31 @@
 
 Phase 09.3.A 中，只有今日健康简报实际请求 Agent API；草稿和提醒写入仍等待后续 Phase。
 
+## Phase 09.3.B Smoke Checklist
+
+已验证：
+
+- 后端依赖可通过 Codex bundled Python + 临时 `.venv-smoke` 安装。
+- SQLite smoke DB 可运行 Alembic migration 到 head。
+- `seed_demo_data.py` 与 `verify_demo_data.py` 可在 smoke DB 上通过。
+- `GET /health` 返回 200。
+- `POST /api/v1/agent/runs` with `workflow_type=daily_health_brief` 返回 `completed`。
+- Agent run detail / tool-calls / safety-checks 查询可用。
+- 移动端 `EXPO_PUBLIC_DATA_MODE=api` Web dev server 可启动。
+
+环境说明：
+
+- 系统 Python `pip` 当前损坏，错误为 `No module named 'pip._vendor.rich.console'`。
+- Docker Desktop engine 当前未运行，PostgreSQL compose 路径未完成。
+- PostgreSQL 正式联调仍建议按 runbook 启动 Docker Desktop 后执行。
+
+仍禁止：
+
+- `symptom_draft_create` 真实调用。
+- `medical_event_draft_create` 真实调用。
+- `alert_create` 真实调用。
+- 通用 `tool_name` / `input_data`。
+
 ## Agent Run Request
 
 必须支持：

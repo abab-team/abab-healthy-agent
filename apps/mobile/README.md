@@ -79,6 +79,21 @@ http://192.168.x.x:8000
 
 移动端不会开放通用 tool execution，不允许用户直接传 `tool_name` 或 `input_data`。
 
+## Phase 09.3.B Smoke 结果
+
+Phase 09.3.B 已补充前后端联调 runbook：`docs/frontend/MOBILE_BACKEND_SMOKE_RUNBOOK.md`。
+
+本机验证结论：
+
+- 系统 Python 3.11 的 `pip` 损坏，无法直接安装后端依赖。
+- Docker CLI 可用，但 Docker Desktop engine 未运行，因此无法启动 PostgreSQL 容器。
+- 使用 Codex bundled Python 创建临时 `.venv-smoke`，并用临时 SQLite smoke DB 完成后端 smoke。
+- `GET /health` 返回 200。
+- `daily_health_brief` 返回 `completed`，可查询 5 条 tool calls 与 2 条 safety checks。
+- 移动端 `api` mode Web 预览可启动并返回 HTTP 200。
+
+写入类 workflow 仍未接入真实后端。
+
 ## Expo Go 预览
 
 ```bash
