@@ -61,7 +61,7 @@ export default function AgentRunDetailScreen() {
 
       <CardBase>
         <Text style={styles.line}>
-          本页只展示安全摘要，不展示敏感原文、文件路径、抽取全文、密钥、traceback 或 SQL。
+          本页只展示安全摘要，不展示敏感原文、文件路径、抽取全文、密钥、错误堆栈或数据库语句。
         </Text>
       </CardBase>
     </AppScreen>
