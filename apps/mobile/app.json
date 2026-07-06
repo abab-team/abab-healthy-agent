@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Family Health Agent",
+    "slug": "family-health-agent-mobile",
+    "scheme": "familyhealth",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
+  }
+}
