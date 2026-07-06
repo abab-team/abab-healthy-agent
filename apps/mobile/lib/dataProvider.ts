@@ -5,10 +5,13 @@ import { mockApi } from "@/lib/mockApi";
 import type {
   AgentRunDetail,
   AgentRunResponse,
+  AlertCreateInput,
   ApiFamilyOverview,
   ApiMemberDetail,
   ApiResult,
-  HealthStatus
+  HealthStatus,
+  MedicalEventDraftInput,
+  SymptomDraftInput
 } from "@/types/api";
 
 function ok<T>(data: T): ApiResult<T> {
@@ -137,6 +140,12 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           workflow_type: "daily_health_brief"
         });
       },
+      createSymptomDraftPreview: (input: SymptomDraftInput) => mockApi.createSymptomDraftPreview(input),
+      createSymptomDraftConfirmed: (input: SymptomDraftInput) => mockApi.createSymptomDraftConfirmed(input),
+      createMedicalEventDraftPreview: (input: MedicalEventDraftInput) => mockApi.createMedicalEventDraftPreview(input),
+      createMedicalEventDraftConfirmed: (input: MedicalEventDraftInput) => mockApi.createMedicalEventDraftConfirmed(input),
+      createAlertPreview: (input: AlertCreateInput) => mockApi.createAlertPreview(input),
+      createAlertConfirmed: (input: AlertCreateInput) => mockApi.createAlertConfirmed(input),
       getAgentRun: (id: string) => mockApi.getAgentRun(id)
     };
   }
@@ -154,6 +163,48 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
     runDailyHealthBrief: async (targetUserId = currentUserId, familyId?: string) => {
       try {
         return ok(await backendApi.runDailyHealthBrief({ currentUserId, familyId, targetUserId }));
+      } catch (error) {
+        return fail<AgentRunResponse>(error);
+      }
+    },
+    createSymptomDraftPreview: async (input: SymptomDraftInput) => {
+      try {
+        return ok(await backendApi.createSymptomDraftPreview({ ...input, currentUserId }));
+      } catch (error) {
+        return fail<AgentRunResponse>(error);
+      }
+    },
+    createSymptomDraftConfirmed: async (input: SymptomDraftInput) => {
+      try {
+        return ok(await backendApi.createSymptomDraftConfirmed({ ...input, currentUserId }));
+      } catch (error) {
+        return fail<AgentRunResponse>(error);
+      }
+    },
+    createMedicalEventDraftPreview: async (input: MedicalEventDraftInput) => {
+      try {
+        return ok(await backendApi.createMedicalEventDraftPreview({ ...input, currentUserId }));
+      } catch (error) {
+        return fail<AgentRunResponse>(error);
+      }
+    },
+    createMedicalEventDraftConfirmed: async (input: MedicalEventDraftInput) => {
+      try {
+        return ok(await backendApi.createMedicalEventDraftConfirmed({ ...input, currentUserId }));
+      } catch (error) {
+        return fail<AgentRunResponse>(error);
+      }
+    },
+    createAlertPreview: async (input: AlertCreateInput) => {
+      try {
+        return ok(await backendApi.createAlertPreview({ ...input, currentUserId }));
+      } catch (error) {
+        return fail<AgentRunResponse>(error);
+      }
+    },
+    createAlertConfirmed: async (input: AlertCreateInput) => {
+      try {
+        return ok(await backendApi.createAlertConfirmed({ ...input, currentUserId }));
       } catch (error) {
         return fail<AgentRunResponse>(error);
       }

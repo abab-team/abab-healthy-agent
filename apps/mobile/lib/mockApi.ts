@@ -9,14 +9,14 @@ import {
 } from "@/constants/mockData";
 import type {
   AgentRunDetail,
-  AgentRunRequest,
   AgentRunResponse,
   AgentSafetyCheckSummary,
   AgentToolCallSummary,
-  Alert,
+  AlertCreateInput,
   ApiResult,
   DraftStatus,
-  HealthRecordDraft
+  MedicalEventDraftInput,
+  SymptomDraftInput
 } from "@/types/api";
 
 function wait<T>(data: T, delay = 260): Promise<ApiResult<T>> {
@@ -50,51 +50,63 @@ export const mockApi = {
     return wait(agentRun);
   },
 
-  createSymptomDraftPreview(input: { target_user_id: string; description: string }) {
-    return wait<HealthRecordDraft>({
-      id: "draft-preview-symptom",
-      status: "pending",
-      summary: input.description.trim() || "请补充症状描述后再生成草稿预览。",
-      target_user_id: input.target_user_id,
-      title: "症状草稿预览"
+  createSymptomDraftPreview(input: SymptomDraftInput) {
+    return wait<AgentRunResponse>({
+      generated_content: input.description.trim()
+        ? "mock 已生成症状草稿预览；confirmation=false 不会写入。"
+        : "请补充症状描述后再生成草稿预览。",
+      status: "preview",
+      trace_id: "run-symptom-draft-preview",
+      workflow_type: "symptom_draft_create"
     });
   },
 
-  createSymptomDraftConfirmed(input: { target_user_id: string; description: string }) {
+  createSymptomDraftConfirmed(input: SymptomDraftInput) {
     return wait<AgentRunResponse>({
-      generated_content: `已生成待确认症状草稿：${input.description.trim()}`,
+      generated_content: "mock 已生成待确认症状草稿；真实提交需要 api mode。",
       status: "completed",
       trace_id: "run-symptom-draft-preview",
       workflow_type: "symptom_draft_create"
     });
   },
 
-  createAlertPreview(input: { target_user_id: string; title: string; reminder_type: string; scheduled_at: string }) {
-    return wait<Alert>({
-      id: "alert-preview",
-      reminder_type: input.reminder_type,
-      scheduled_at: input.scheduled_at,
+  createMedicalEventDraftPreview(input: MedicalEventDraftInput) {
+    return wait<AgentRunResponse>({
+      generated_content: input.summary.trim()
+        ? "mock 已生成健康事件草稿预览；confirmation=false 不会写入。"
+        : "请补充健康事项内容后再生成草稿预览。",
       status: "preview",
-      target_user_id: input.target_user_id,
-      title: input.title.trim() || "请填写提醒标题"
+      trace_id: "run-medical-event-draft-preview",
+      workflow_type: "medical_event_draft_create"
     });
   },
 
-  createAlertConfirmed(input: { target_user_id: string; title: string; reminder_type: string; scheduled_at: string }) {
+  createMedicalEventDraftConfirmed(_input: MedicalEventDraftInput) {
     return wait<AgentRunResponse>({
-      generated_content: `已创建普通健康提醒：${input.title.trim()} · ${input.scheduled_at}`,
+      generated_content: "mock 已生成待确认健康事件草稿；真实提交需要 api mode。",
       status: "completed",
+      trace_id: "run-medical-event-draft-preview",
+      workflow_type: "medical_event_draft_create"
+    });
+  },
+
+  createAlertPreview(input: AlertCreateInput) {
+    return wait<AgentRunResponse>({
+      generated_content: input.title.trim()
+        ? "mock 已生成普通健康提醒预览；confirmation=false 不会写入。"
+        : "请填写提醒标题后再生成预览。",
+      status: "preview",
       trace_id: "run-alert-create-preview",
       workflow_type: "alert_create"
     });
   },
 
-  runAgentWorkflow(request: AgentRunRequest) {
+  createAlertConfirmed(_input: AlertCreateInput) {
     return wait<AgentRunResponse>({
-      generated_content: request.user_message || "根据系统内记录生成的 mock 结果。",
-      status: request.confirmation === false ? "preview" : "completed",
-      trace_id: request.workflow_type === "daily_health_brief" ? agentRun.id : "run-mock-preview",
-      workflow_type: request.workflow_type
+      generated_content: "mock 已创建普通健康提醒；真实提交需要 api mode。",
+      status: "completed",
+      trace_id: "run-alert-create-preview",
+      workflow_type: "alert_create"
     });
   },
 

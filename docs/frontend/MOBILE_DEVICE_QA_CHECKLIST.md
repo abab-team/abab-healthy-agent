@@ -70,7 +70,22 @@ API mode 检查：
 - 今日待办、最近动态等聚合缺口应显示 mock / 待接入。
 - AI 管家页生成今日健康简报后展示 trace_id。
 - Agent Run 详情展示 run / tool calls / safety checks 安全摘要。
-- 写入类页面仍显示 mock，不真实提交。
+- 创建症状草稿页在 api mode 下可执行 preview / confirm，并显示 trace_id。
+- 创建健康事件草稿页在 api mode 下可执行 preview / confirm，并显示 trace_id。
+- 创建提醒页在 api mode 下可执行 preview / confirm，并显示 trace_id。
+- 草稿列表页仍为 mock，真实列表和正式确认入库后续实现。
+
+## Phase 09.3.D 写入页 QA
+
+逐页检查：
+
+- 页面顶部显示当前是 mock mode 还是 API Agent workflow。
+- preview 文案明确 `confirmation=false`，不会写入。
+- confirm 文案明确 `confirmation=true`，只创建待确认草稿或普通健康提醒。
+- 权限、safety 或网络失败时显示错误，不显示成成功。
+- 成功后可进入 Agent Run 详情。
+- Agent Run 详情不展示敏感原文、文件路径、抽取全文、密钥、错误堆栈或数据库语句。
+- 创建提醒页明确提醒不是急救，且不提供紧急服务。
 
 ## 如果扫码失败
 

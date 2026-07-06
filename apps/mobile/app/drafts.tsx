@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
+import { MockDataBadge } from "@/components/common/MockDataBadge";
 import { SafetyNotice } from "@/components/common/SafetyNotice";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -40,6 +41,7 @@ export default function DraftsScreen() {
     <AppScreen>
       <Text style={styles.title}>待确认草稿</Text>
       <SafetyNotice text="草稿确认后才会进入正式记录；当前为静态 mock，不是真实提交。" />
+      <MockDataBadge label="草稿列表真实接入后续实现" />
       <StatusBadge label={message} tone="plain" />
 
       {drafts.map((draft) => (

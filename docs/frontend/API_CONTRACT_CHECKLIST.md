@@ -120,3 +120,31 @@ Phase 09.3.A 中，只有今日健康简报实际请求 Agent API；草稿和提
 - 草稿需要确认。
 - 普通健康提醒不是急救。
 - 内容不替代医生建议。
+
+## Phase 09.3.D 写入类 Workflow 契约
+
+Phase 09.3.D 已接入以下受控 workflow：
+
+- `symptom_draft_create`
+- `medical_event_draft_create`
+- `alert_create`
+
+契约要求：
+
+- 所有调用必须走 `POST /api/v1/agent/runs`。
+- `preview` 必须使用 `confirmation=false`，不得显示为已写入。
+- `confirm` 必须使用 `confirmation=true`。
+- `symptom_draft_create` confirm 后只创建待确认症状草稿。
+- `medical_event_draft_create` confirm 后只创建待确认健康事件草稿。
+- `alert_create` confirm 后只创建普通健康提醒。
+- 页面不得传 `tool_name` 或 `input_data`。
+- 前端不得开放通用 tool execution。
+- 错误必须显示为权限、safety、网络或后端错误，不得静默 fallback 成真实成功。
+- Agent Run 详情继续只展示 trace、tool_calls、safety_checks 安全摘要。
+
+仍未接入：
+
+- 草稿列表真实查询。
+- 草稿正式确认入库。
+- 真实 Auth/JWT。
+- LLM、LangGraph、OCR/upload/RAG。

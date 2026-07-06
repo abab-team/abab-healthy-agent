@@ -92,17 +92,65 @@ export type AgentWorkflowType =
   | "medical_event_draft_create"
   | "alert_create";
 
-export type AgentRunRequest = {
+type AgentRunBaseRequest = {
   target_user_id: string;
   family_id?: string;
-  workflow_type: AgentWorkflowType;
   user_message: string;
   confirmation?: boolean;
-  workflow_payload?: Record<string, unknown>;
   source?: string;
   tool_name?: never;
   input_data?: never;
 };
+
+export type SymptomDraftWorkflowPayload = {
+  raw_text: string;
+  target_display_name?: string;
+  missing_fields?: string[];
+  safety_flags?: string[];
+};
+
+export type MedicalEventDraftWorkflowPayload = {
+  title?: string;
+  draft_title?: string;
+  summary: string;
+  draft_event_type?: string;
+  event_date?: string;
+  hospital_or_org?: string;
+  department?: string;
+  missing_fields?: string[];
+  safety_flags?: string[];
+};
+
+export type AlertCreateWorkflowPayload = {
+  title: string;
+  message: string;
+  alert_type?: string;
+  level?: string;
+  suggested_action?: string;
+  trigger_reason?: string;
+  due_at?: string;
+  remind_at?: string;
+  scheduled_at?: string;
+  source?: string;
+};
+
+export type AgentRunRequest =
+  | (AgentRunBaseRequest & {
+      workflow_type: "daily_health_brief";
+      workflow_payload?: never;
+    })
+  | (AgentRunBaseRequest & {
+      workflow_type: "symptom_draft_create";
+      workflow_payload: SymptomDraftWorkflowPayload;
+    })
+  | (AgentRunBaseRequest & {
+      workflow_type: "medical_event_draft_create";
+      workflow_payload: MedicalEventDraftWorkflowPayload;
+    })
+  | (AgentRunBaseRequest & {
+      workflow_type: "alert_create";
+      workflow_payload: AlertCreateWorkflowPayload;
+    });
 
 export type AgentRunResponse = {
   trace_id: string;
@@ -157,4 +205,31 @@ export type ApiMemberDetail = {
   activeAlerts?: Alert[];
   source: DataMode;
   mockSections: string[];
+};
+
+export type ControlledWorkflowInput = {
+  targetUserId: string;
+  familyId?: string;
+};
+
+export type SymptomDraftInput = ControlledWorkflowInput & {
+  description: string;
+  targetDisplayName?: string;
+};
+
+export type MedicalEventDraftInput = ControlledWorkflowInput & {
+  title: string;
+  summary: string;
+  eventType?: string;
+  eventDate?: string;
+  hospitalOrOrg?: string;
+  department?: string;
+};
+
+export type AlertCreateInput = ControlledWorkflowInput & {
+  title: string;
+  message: string;
+  alertType?: string;
+  level?: string;
+  scheduledAt?: string;
 };

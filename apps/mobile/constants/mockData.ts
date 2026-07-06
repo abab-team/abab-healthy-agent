@@ -87,7 +87,7 @@ export const quickActions = [
   { id: "bp", label: "记录血压", icon: "pulse-outline", href: "/create-symptom-draft" },
   { id: "symptom", label: "记录症状", icon: "sad-outline", href: "/create-symptom-draft" },
   { id: "alert", label: "创建提醒", icon: "calendar-outline", href: "/create-alert" },
-  { id: "event", label: "添加健康事件", icon: "documents-outline", href: "/create-symptom-draft" }
+  { id: "event", label: "添加健康事件", icon: "documents-outline", href: "/create-health-event-draft" }
 ] as const;
 
 export const agentActions = [

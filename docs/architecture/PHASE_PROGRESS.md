@@ -185,3 +185,35 @@ Phase 09.3.C：移动端只读 API 体验打磨与真机联调确认已执行。
 - PostgreSQL/Docker 路径仍待 Docker Desktop engine 可用后复验。
 
 下一步建议：Phase 09.3.C Lightweight Review。
+
+## Phase 09.3.D 更新
+
+Phase 09.3.D：移动端写入类 Agent workflow 受控接入已执行。
+
+完成范围：
+
+- `apps/mobile` 在 `api` mode 下接入 `symptom_draft_create`。
+- `apps/mobile` 在 `api` mode 下接入 `medical_event_draft_create`。
+- `apps/mobile` 在 `api` mode 下接入 `alert_create`。
+- 3 个写入类 workflow 均只通过 `POST /api/v1/agent/runs` 固定 workflow 调用。
+- preview 使用 `confirmation=false`，页面明确不会写入。
+- confirm 使用 `confirmation=true`，只创建待确认草稿或普通健康提醒。
+- Agent Run 详情可查看写入 workflow 的 trace、tool_calls、safety_checks 安全摘要。
+- 新增写入 workflow smoke 脚本：`scripts/smoke/mobile_write_workflows_smoke.ps1`。
+
+边界保持：
+
+- 未开放通用 tool execution。
+- 未允许页面传 `tool_name` 或 `input_data`。
+- 草稿列表和正式确认入库仍未真实接入。
+- 未实现真实 Auth/JWT。
+- 未调用 LLM。
+- 未实现 LangGraph/OCR/upload/RAG。
+- 未修改后端业务代码、后端 API、模型或 migration。
+
+剩余事项：
+
+- 真机 Expo Go 需要用户按 QA checklist 手动视觉走查。
+- PostgreSQL/Docker 路径仍待 Docker Desktop engine 可用后复验。
+
+下一步建议：Phase 09.3.D Lightweight Review。

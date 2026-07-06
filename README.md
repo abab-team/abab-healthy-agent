@@ -10,9 +10,9 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 
 - Phase 00-08 已完成。
 - Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
-- Phase 09 已开始移动端可用前端方向；Phase 09.1 已完成 Expo 静态 UI 原型，Phase 09.2 已完成静态交互与 API 契约准备，Phase 09.3.A 已开始接入只读 demo API 与 `daily_health_brief`。
+- Phase 09 已开始移动端可用前端方向；Phase 09.1 已完成 Expo 静态 UI 原型，Phase 09.2 已完成静态交互与 API 契约准备，Phase 09.3.D 已接入移动端受控写入类 Agent workflow。
 - 当前不是完整产品，仍缺少正式前端、真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG 和生产部署收口。
-- 当前阶段为 **Phase 09.3.A：前端 API Client 基础与只读 Demo 数据接入**。默认仍使用 mock 数据，切换 `EXPO_PUBLIC_DATA_MODE=api` 后才请求 FastAPI。
+- 当前阶段为 **Phase 09.3.D：移动端写入类 Agent workflow 受控接入**。默认仍使用 mock 数据，切换 `EXPO_PUBLIC_DATA_MODE=api` 后才请求 FastAPI。
 
 ## 已具备能力
 
@@ -55,15 +55,23 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 `apps/mobile` 当前支持两种数据模式：
 
 - `EXPO_PUBLIC_DATA_MODE=mock`：默认模式，全部使用本地 mock。
-- `EXPO_PUBLIC_DATA_MODE=api`：Phase 09.3.A 只接入只读 demo 数据、`GET /health` 与 `daily_health_brief`。
+- `EXPO_PUBLIC_DATA_MODE=api`：接入只读 demo 数据、`GET /health`、`daily_health_brief` 与 3 个受控写入类 workflow。
 
 手机真机访问电脑上的 FastAPI 不能使用 `localhost` 或 `127.0.0.1`，需要配置电脑局域网 IP，例如 `http://192.168.x.x:8000`。当前仍使用开发调试 header `X-Current-User-Id`，不是正式 Auth/JWT。
 
-写入类 workflow（`symptom_draft_create`、`medical_event_draft_create`、`alert_create`）在移动端仍保持 mock，不连接真实后端。
+写入类 workflow（`symptom_draft_create`、`medical_event_draft_create`、`alert_create`）在移动端 `api` mode 下已连接真实 Agent API，但仍只通过固定 workflow 调用，不开放通用 tool execution，不允许页面传 `tool_name` 或 `input_data`。
 
 Phase 09.3.B 已补充移动端与后端 smoke runbook，并在本机通过临时 SQLite smoke DB 验证 `/health`、`daily_health_brief`、Agent run / tool_calls / safety_checks 查询。详见 `docs/frontend/MOBILE_BACKEND_SMOKE_RUNBOOK.md`。
 
 Phase 09.3.C 已补充移动端只读 API 模式的 loading/error/empty 状态和 API/mock/待接入标识，并新增真机 QA 清单：`docs/frontend/MOBILE_DEVICE_QA_CHECKLIST.md`。
+
+Phase 09.3.D 已补充写入类 workflow 的 preview / confirm 接入：
+
+- `symptom_draft_create`：预览不写入，确认后创建待确认症状草稿。
+- `medical_event_draft_create`：预览不写入，确认后创建待确认健康事件草稿。
+- `alert_create`：预览不写入，确认后创建普通健康提醒。
+
+草稿列表和正式确认入库仍未真实接入，后续 Phase 再处理。
 
 ## 重要说明
 

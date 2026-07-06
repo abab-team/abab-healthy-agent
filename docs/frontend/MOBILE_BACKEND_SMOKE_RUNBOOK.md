@@ -185,12 +185,51 @@ npm run web
 - AI 管家页只触发 `daily_health_brief`。
 - Agent Run 详情只展示安全摘要。
 
-写入类页面仍为 mock：
+Phase 09.3.C 时写入类页面仍为 mock：
 
 - 创建症状草稿。
 - 创建健康事件草稿。
 - 创建提醒。
 - 草稿确认/修改/暂不处理。
+
+## Phase 09.3.D 写入类 Workflow Smoke
+
+Phase 09.3.D 新增：
+
+```powershell
+scripts/smoke/mobile_write_workflows_smoke.ps1
+```
+
+用途：
+
+- 验证 `/health`。
+- 验证 `symptom_draft_create` preview / confirm。
+- 验证 `medical_event_draft_create` preview / confirm。
+- 验证 `alert_create` preview / confirm。
+- 验证 run / tool_calls / safety_checks 查询。
+
+注意：
+
+- 该脚本只用于本地 demo DB。
+- confirm 步骤会创建测试草稿和普通提醒数据。
+- 不要连接生产数据库运行该脚本。
+- 脚本不修改后端业务代码，不新增后端 API。
+
+示例：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/mobile_write_workflows_smoke.ps1 `
+  -Python "<codex-bundled-python>" `
+  -Port 18003
+```
+
+移动端页面对应关系：
+
+- `/create-symptom-draft`：`symptom_draft_create`。
+- `/create-health-event-draft`：`medical_event_draft_create`。
+- `/create-alert`：`alert_create`。
+
+这些页面仍只通过 `POST /api/v1/agent/runs` 调用固定 workflow，不开放 `tool_name` 或 `input_data`。
 
 ## Expo Go 真机预览
 

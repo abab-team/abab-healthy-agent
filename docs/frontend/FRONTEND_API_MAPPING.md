@@ -146,3 +146,27 @@ Agent API 只允许白名单 workflow：
 - 过长敏感原文
 
 无记录时应写“系统内暂无相关记录”，不能写成现实身体结论。
+
+## Phase 09.3.D Controlled Write Workflow Mapping
+
+Phase 09.3.D 已在移动端 `api` mode 下接入 3 个写入类 Agent workflow。接入方式仍然是受控 workflow，不是通用 tool execution。
+
+| 页面 | API mode 调用 | preview | confirm | 说明 |
+| --- | --- | --- | --- | --- |
+| `/create-symptom-draft` | `POST /api/v1/agent/runs` with `symptom_draft_create` | `confirmation=false` | `confirmation=true` | confirm 后只创建待确认症状草稿，不创建正式记录。 |
+| `/create-health-event-draft` | `POST /api/v1/agent/runs` with `medical_event_draft_create` | `confirmation=false` | `confirmation=true` | confirm 后只创建待确认健康事件草稿，不创建正式事件。 |
+| `/create-alert` | `POST /api/v1/agent/runs` with `alert_create` | `confirmation=false` | `confirmation=true` | confirm 后只创建普通健康提醒，不提供紧急服务。 |
+
+前端仍禁止：
+
+- 页面传入 `tool_name`。
+- 页面传入 `input_data`。
+- 任意字符串 workflow。
+- 直接调用后端业务写入 API。
+
+仍未接入：
+
+- 草稿列表真实查询。
+- 草稿正式确认入库。
+- 真实 Auth/JWT。
+- LLM、LangGraph、OCR/upload/RAG。

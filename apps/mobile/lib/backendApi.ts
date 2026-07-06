@@ -4,11 +4,15 @@ import type {
   AgentSafetyCheckSummary,
   AgentToolCallSummary,
   Alert,
+  AlertCreateInput,
+  AgentRunRequest,
   BloodPressureRecord,
   Family,
   FamilyMember,
   HealthProfile,
   HealthStatus,
+  MedicalEventDraftInput,
+  SymptomDraftInput,
   SymptomRecord
 } from "@/types/api";
 
@@ -65,6 +69,10 @@ function summarizeMapping(value: Record<string, unknown> | null | undefined): st
   }
   const keys = Object.keys(value).filter((key) => !key.toLowerCase().includes("raw") && !key.toLowerCase().includes("path"));
   return keys.length > 0 ? keys.slice(0, 4).join(", ") : "安全摘要";
+}
+
+function postAgentRun(input: { currentUserId: string; body: AgentRunRequest }) {
+  return apiClient.post<AgentRunResponse>("/api/v1/agent/runs", input.body, input.currentUserId);
 }
 
 export const backendApi = {
@@ -139,17 +147,138 @@ export const backendApi = {
   },
 
   runDailyHealthBrief(input: { currentUserId: string; targetUserId: string; familyId?: string }) {
-    return apiClient.post<AgentRunResponse>(
-      "/api/v1/agent/runs",
-      {
+    return postAgentRun({
+      currentUserId: input.currentUserId,
+      body: {
         family_id: input.familyId,
         source: "mobile_phase_09_3_a",
         target_user_id: input.targetUserId,
         user_message: "请根据系统内记录生成今日健康简报。",
         workflow_type: "daily_health_brief"
-      },
-      input.currentUserId
-    );
+      }
+    });
+  },
+
+  createSymptomDraftPreview(input: SymptomDraftInput & { currentUserId: string }) {
+    return postAgentRun({
+      currentUserId: input.currentUserId,
+      body: {
+        confirmation: false,
+        family_id: input.familyId,
+        source: "mobile_phase_09_3_d",
+        target_user_id: input.targetUserId,
+        user_message: "请基于用户提供的健康记录内容生成待确认症状草稿预览。",
+        workflow_payload: {
+          raw_text: input.description,
+          target_display_name: input.targetDisplayName
+        },
+        workflow_type: "symptom_draft_create"
+      }
+    });
+  },
+
+  createSymptomDraftConfirmed(input: SymptomDraftInput & { currentUserId: string }) {
+    return postAgentRun({
+      currentUserId: input.currentUserId,
+      body: {
+        confirmation: true,
+        family_id: input.familyId,
+        source: "mobile_phase_09_3_d",
+        target_user_id: input.targetUserId,
+        user_message: "请基于用户确认的健康记录内容创建待确认症状草稿。",
+        workflow_payload: {
+          raw_text: input.description,
+          target_display_name: input.targetDisplayName
+        },
+        workflow_type: "symptom_draft_create"
+      }
+    });
+  },
+
+  createMedicalEventDraftPreview(input: MedicalEventDraftInput & { currentUserId: string }) {
+    return postAgentRun({
+      currentUserId: input.currentUserId,
+      body: {
+        confirmation: false,
+        family_id: input.familyId,
+        source: "mobile_phase_09_3_d",
+        target_user_id: input.targetUserId,
+        user_message: "请基于用户提供的健康事项内容生成待确认健康事件草稿预览。",
+        workflow_payload: {
+          department: input.department,
+          draft_event_type: input.eventType,
+          event_date: input.eventDate,
+          hospital_or_org: input.hospitalOrOrg,
+          summary: input.summary,
+          title: input.title
+        },
+        workflow_type: "medical_event_draft_create"
+      }
+    });
+  },
+
+  createMedicalEventDraftConfirmed(input: MedicalEventDraftInput & { currentUserId: string }) {
+    return postAgentRun({
+      currentUserId: input.currentUserId,
+      body: {
+        confirmation: true,
+        family_id: input.familyId,
+        source: "mobile_phase_09_3_d",
+        target_user_id: input.targetUserId,
+        user_message: "请基于用户确认的健康事项内容创建待确认健康事件草稿。",
+        workflow_payload: {
+          department: input.department,
+          draft_event_type: input.eventType,
+          event_date: input.eventDate,
+          hospital_or_org: input.hospitalOrOrg,
+          summary: input.summary,
+          title: input.title
+        },
+        workflow_type: "medical_event_draft_create"
+      }
+    });
+  },
+
+  createAlertPreview(input: AlertCreateInput & { currentUserId: string }) {
+    return postAgentRun({
+      currentUserId: input.currentUserId,
+      body: {
+        confirmation: false,
+        family_id: input.familyId,
+        source: "mobile_phase_09_3_d",
+        target_user_id: input.targetUserId,
+        user_message: "请基于用户提供的信息生成普通健康提醒预览。",
+        workflow_payload: {
+          alert_type: input.alertType ?? "medical_follow_up",
+          level: input.level ?? "info",
+          message: input.message,
+          scheduled_at: input.scheduledAt,
+          title: input.title
+        },
+        workflow_type: "alert_create"
+      }
+    });
+  },
+
+  createAlertConfirmed(input: AlertCreateInput & { currentUserId: string }) {
+    return postAgentRun({
+      currentUserId: input.currentUserId,
+      body: {
+        confirmation: true,
+        family_id: input.familyId,
+        source: "mobile_phase_09_3_d",
+        target_user_id: input.targetUserId,
+        user_message: "请基于用户确认的信息创建普通健康提醒。",
+        workflow_payload: {
+          alert_type: input.alertType ?? "medical_follow_up",
+          level: input.level ?? "info",
+          message: input.message,
+          scheduled_at: input.scheduledAt,
+          title: input.title
+        },
+        workflow_type: "alert_create"
+      }
+    });
   },
 
   getAgentRun(traceId: string, currentUserId: string) {
