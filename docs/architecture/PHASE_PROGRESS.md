@@ -96,3 +96,18 @@ Phase 08 实际完成内容：
 - `docs/architecture/FEATURE_COVERAGE_MATRIX.md`：产品功能、普通 API、Agent Tool、Agent Workflow、前端页面和后续 Phase 的覆盖矩阵。
 - `docs/frontend/FRONTEND_MVP_SCOPE.md`：Phase 09 前端 MVP / 调试页面范围。
 - `docs/architecture/KNOWN_RISKS.md`：当前风险与后续 schema/product review 事项。
+
+## Phase 09 更新
+
+Phase 09 已开始执行可用前端 / 调试页面方向。
+
+当前已完成：
+
+- Phase 09.1：`apps/mobile` Expo + React Native + TypeScript 静态 UI 原型。
+- Phase 09.1 Lightweight Review：修复 Expo Router typed routes 类型问题并通过前端验证。
+
+当前执行：
+
+- Phase 09.2：移动端静态交互与 API 契约准备。
+
+Phase 09.2 仍不接真实后端 API，不实现 Auth/JWT，不调用 LLM，不实现 LangGraph/OCR/upload/RAG。正式 FastAPI 接入预计放在 Phase 09.3。

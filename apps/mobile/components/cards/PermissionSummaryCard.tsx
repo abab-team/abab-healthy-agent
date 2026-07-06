@@ -1,35 +1,39 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Link } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { colors } from "@/constants/colors";
+import { routes } from "@/lib/routes";
 
 export function PermissionSummaryCard() {
   return (
-    <CardBase>
-      <View style={styles.header}>
-        <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
-        <View style={styles.copy}>
-          <Text style={styles.title}>共享权限概览</Text>
-          <Text style={styles.description}>家庭成员之间已授权共享部分健康记录。</Text>
+    <Link href={routes.permissionSettings}>
+      <CardBase>
+        <View style={styles.header}>
+          <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
+          <View style={styles.copy}>
+            <Text style={styles.title}>共享权限概览</Text>
+            <Text style={styles.description}>家庭成员之间已授权共享部分健康记录。</Text>
+          </View>
+          <StatusBadge label="查看详情" tone="mint" />
         </View>
-        <StatusBadge label="查看详情" tone="mint" />
-      </View>
-      <View style={styles.stats}>
-        <View style={styles.stat}>
-          <Text style={styles.value}>3</Text>
-          <Text style={styles.label}>成员总数</Text>
+        <View style={styles.stats}>
+          <View style={styles.stat}>
+            <Text style={styles.value}>3</Text>
+            <Text style={styles.label}>成员总数</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={styles.value}>6</Text>
+            <Text style={styles.label}>共享数据类目</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={styles.value}>已开启</Text>
+            <Text style={styles.label}>共享状态</Text>
+          </View>
         </View>
-        <View style={styles.stat}>
-          <Text style={styles.value}>6</Text>
-          <Text style={styles.label}>共享数据类目</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.value}>已开启</Text>
-          <Text style={styles.label}>共享状态</Text>
-        </View>
-      </View>
-    </CardBase>
+      </CardBase>
+    </Link>
   );
 }
 

@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { SettingsListItem } from "@/components/common/SettingsListItem";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -26,12 +26,13 @@ export default function SettingsScreen() {
       {settingsGroups.map((group, index) => (
         <CardBase key={index}>
           {group.map((item) => (
-            <SettingsListItem
-              key={item.title}
-              title={item.title}
-              description={item.description}
-              icon={item.icon as never}
-            />
+            <Pressable key={item.title} onPress={() => Alert.alert("Mock 设置", `${item.title} 当前为静态占位。`)}>
+              <SettingsListItem
+                title={item.title}
+                description={item.description}
+                icon={item.icon as never}
+              />
+            </Pressable>
           ))}
         </CardBase>
       ))}

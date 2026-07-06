@@ -114,7 +114,7 @@ export const agentActions = [
     workflowType: "medical_event_draft_create",
     title: "创建健康事件草稿",
     description: "整理记录生成事件草稿",
-    href: "/create-symptom-draft",
+    href: "/create-health-event-draft",
     icon: "calendar-number-outline",
     tone: "mint"
   },

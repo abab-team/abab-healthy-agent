@@ -17,6 +17,25 @@ Phase 09 的目标是：
 - 不做复杂权限后台。
 - 不把 demo header 伪装成正式 Auth/JWT。
 
+## Phase 09.2 移动端静态交互与 API 契约准备
+
+Phase 09.2 在 `apps/mobile` 内推进移动端静态交互，不接真实后端 API。
+
+本阶段完成目标：
+
+- 使用本地 mock API 模拟 loading / success / error / empty state。
+- 为草稿和提醒 workflow 展示 `confirmation=false` 预览与 `confirmation=true` 确认边界。
+- 准备 TypeScript API 契约类型，供 Phase 09.3 接入 FastAPI 时对照。
+- 明确移动端不得开放 `tool_name` / `input_data` 通用工具执行入口。
+
+Phase 09.2 不做：
+
+- 真实后端请求。
+- 真实 Auth/JWT。
+- LLM / LangGraph。
+- OCR/upload/RAG。
+- 推送通知。
+
 ## 最小页面范围
 
 Phase 09 建议包含以下页面：

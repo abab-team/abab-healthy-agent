@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { DraftReviewCard } from "@/components/cards/DraftReviewCard";
@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
 import { members, pendingDrafts, reminders } from "@/constants/mockData";
+import { routes } from "@/lib/routes";
 
 export default function MemberDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,6 +17,7 @@ export default function MemberDetailScreen() {
 
   return (
     <AppScreen>
+      <Link href={routes.family} style={styles.backLink}>‹ 返回家庭</Link>
       <CardBase style={styles.hero}>
         <Text style={styles.avatar}>{member.avatar}</Text>
         <View style={styles.copy}>
@@ -49,7 +51,9 @@ export default function MemberDetailScreen() {
 
       <CardBase>
         <SectionHeader title="待确认草稿" />
-        <DraftReviewCard {...pendingDrafts[0]} />
+        <Link href={routes.drafts}>
+          <DraftReviewCard {...pendingDrafts[0]} />
+        </Link>
       </CardBase>
 
       <PermissionSummaryCard />
@@ -63,6 +67,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 16,
     marginTop: 8
+  },
+  backLink: {
+    color: colors.primaryDark,
+    fontSize: 14,
+    fontWeight: "800",
+    paddingTop: 8
   },
   avatar: {
     fontSize: 56

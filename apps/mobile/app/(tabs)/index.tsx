@@ -1,3 +1,4 @@
+import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import { AgentBriefCard } from "@/components/cards/AgentBriefCard";
@@ -10,6 +11,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
 import { currentUser, members, recentActivities, todos } from "@/constants/mockData";
+import { routes } from "@/lib/routes";
 
 export default function HomeScreen() {
   return (
@@ -33,6 +35,7 @@ export default function HomeScreen() {
               status={member.status}
               secondaryStatus={member.id === "me" ? member.secondaryStatus : undefined}
               tone={member.cardTone as "mint" | "blue" | "orange"}
+              href={routes.member(member.id)}
             />
           ))}
         </View>
@@ -48,6 +51,7 @@ export default function HomeScreen() {
             action={todo.action}
             icon={todo.icon as keyof typeof Ionicons.glyphMap}
             tone={todo.tone as "mint" | "orange" | "purple"}
+            href={todo.id === "todo-draft" ? routes.drafts : routes.member(todo.id === "todo-review" ? "mom" : "dad")}
           />
         ))}
       </CardBase>
@@ -61,8 +65,10 @@ export default function HomeScreen() {
 
       <CardBase>
         <SectionHeader title="最近动态" action="查看全部 ›" />
-        {recentActivities.map((item) => (
-          <Text key={item} style={styles.activity}>{item}</Text>
+        {recentActivities.map((item, index) => (
+          <Link key={item} href={routes.activity(`activity-${index + 1}`)}>
+            <Text style={styles.activity}>{item}</Text>
+          </Link>
         ))}
       </CardBase>
     </AppScreen>

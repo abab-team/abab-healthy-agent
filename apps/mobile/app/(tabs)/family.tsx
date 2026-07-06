@@ -1,3 +1,4 @@
+import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
@@ -7,13 +8,16 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
 import { family, members } from "@/constants/mockData";
+import { routes } from "@/lib/routes";
 
 export default function FamilyScreen() {
   return (
     <AppScreen>
       <View style={styles.header}>
         <Text style={styles.title}>我的家庭</Text>
-        <StatusBadge label="+ 邀请成员" tone="mint" />
+        <Link href={routes.inviteMember}>
+          <StatusBadge label="+ 邀请成员" tone="mint" />
+        </Link>
       </View>
 
       <CardBase style={styles.hero}>
@@ -39,14 +43,16 @@ export default function FamilyScreen() {
 
       <PermissionSummaryCard />
 
-      <CardBase style={styles.inviteCard}>
-        <Ionicons name="person-add-outline" size={26} color={colors.primary} />
-        <View style={styles.inviteCopy}>
-          <Text style={styles.inviteTitle}>邀请成员</Text>
-          <Text style={styles.inviteText}>邀请家人加入，一起管理健康记录。</Text>
-        </View>
-        <StatusBadge label="去邀请" tone="mint" />
-      </CardBase>
+      <Link href={routes.inviteMember}>
+        <CardBase style={styles.inviteCard}>
+          <Ionicons name="person-add-outline" size={26} color={colors.primary} />
+          <View style={styles.inviteCopy}>
+            <Text style={styles.inviteTitle}>邀请成员</Text>
+            <Text style={styles.inviteText}>邀请家人加入，一起管理健康记录。</Text>
+          </View>
+          <StatusBadge label="去邀请" tone="mint" />
+        </CardBase>
+      </Link>
     </AppScreen>
   );
 }

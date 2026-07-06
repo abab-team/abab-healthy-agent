@@ -1,3 +1,5 @@
+import { Link } from "expo-router";
+import type { Href } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { colors } from "@/constants/colors";
@@ -6,10 +8,11 @@ type TraceDebugPanelProps = {
   run: string;
   toolCalls: number;
   safetyChecks: string;
+  href?: Href;
 };
 
-export function TraceDebugPanel({ run, toolCalls, safetyChecks }: TraceDebugPanelProps) {
-  return (
+export function TraceDebugPanel({ run, toolCalls, safetyChecks, href }: TraceDebugPanelProps) {
+  const panel = (
     <CardBase style={styles.panel}>
       <View style={styles.item}>
         <Text style={styles.value}>{run}</Text>
@@ -27,6 +30,8 @@ export function TraceDebugPanel({ run, toolCalls, safetyChecks }: TraceDebugPane
       </View>
     </CardBase>
   );
+
+  return href ? <Link href={href}>{panel}</Link> : panel;
 }
 
 const styles = StyleSheet.create({

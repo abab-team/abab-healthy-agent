@@ -10,6 +10,7 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 
 - Phase 00-08 已完成。
 - Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
+- Phase 09 已开始移动端可用前端方向；Phase 09.1 已完成 Expo 静态 UI 原型，Phase 09.2 正在推进静态交互与 API 契约准备。
 - 当前不是完整产品，仍缺少正式前端、真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG 和生产部署收口。
 - 下一阶段调整为 **Phase 09：可用前端 / 调试页面**，优先把已有后端 API 与 Agent API 变成可操作、可验收的产品闭环。
 
@@ -41,7 +42,7 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 当前尚未完成：
 
 - 正式 Web 前端。
-- 移动端。
+- 移动端真实 API 联调与发布。
 - 真实 Auth/JWT 登录体系。
 - LLM Client。
 - LangGraph workflow。

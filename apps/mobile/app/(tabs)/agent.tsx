@@ -1,3 +1,5 @@
+import { Link } from "expo-router";
+import type { Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import { AgentActionCard } from "@/components/cards/AgentActionCard";
@@ -10,6 +12,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
 import { agentActions, agentLogs, agentRun, pendingDrafts } from "@/constants/mockData";
+import { routes } from "@/lib/routes";
 
 export default function AgentScreen() {
   return (
@@ -37,7 +40,7 @@ export default function AgentScreen() {
               key={action.id}
               title={action.title}
               description={action.description}
-              href={action.href}
+              href={action.href as Href}
               icon={action.icon as keyof typeof Ionicons.glyphMap}
               tone={action.tone as "mint" | "blue" | "orange" | "purple"}
             />
@@ -48,27 +51,30 @@ export default function AgentScreen() {
       <CardBase>
         <SectionHeader title="待确认草稿" action="查看全部 ›" />
         {pendingDrafts.map((draft) => (
-          <DraftReviewCard
-            key={draft.id}
-            type={draft.type}
-            title={draft.title}
-            createdAt={draft.createdAt}
-            summary={draft.summary}
-          />
+          <Link key={draft.id} href={routes.drafts}>
+            <DraftReviewCard
+              type={draft.type}
+              title={draft.title}
+              createdAt={draft.createdAt}
+              summary={draft.summary}
+            />
+          </Link>
         ))}
       </CardBase>
 
       <CardBase>
         <SectionHeader title="AI 执行记录" action="查看全部 ›" />
         {agentLogs.map((log) => (
-          <View key={log.id} style={styles.logRow}>
-            <Ionicons name={log.status === "已完成" ? "checkmark-circle" : "time-outline"} size={22} color={log.status === "已完成" ? colors.primary : colors.warning} />
-            <View style={styles.logCopy}>
-              <Text style={styles.logTitle}>{log.title}</Text>
-              <Text style={styles.logTime}>{log.time}</Text>
+          <Link key={log.id} href={routes.agentRun(agentRun.id)}>
+            <View style={styles.logRow}>
+              <Ionicons name={log.status === "已完成" ? "checkmark-circle" : "time-outline"} size={22} color={log.status === "已完成" ? colors.primary : colors.warning} />
+              <View style={styles.logCopy}>
+                <Text style={styles.logTitle}>{log.title}</Text>
+                <Text style={styles.logTime}>{log.time}</Text>
+              </View>
+              <StatusBadge label={log.status} tone={log.status === "已完成" ? "mint" : "orange"} />
             </View>
-            <StatusBadge label={log.status} tone={log.status === "已完成" ? "mint" : "orange"} />
-          </View>
+          </Link>
         ))}
       </CardBase>
 
@@ -76,6 +82,7 @@ export default function AgentScreen() {
         run={agentRun.id.replace("run-", "Run ")}
         toolCalls={agentRun.toolCalls}
         safetyChecks={agentRun.safetyChecks}
+        href={routes.agentRun(agentRun.id)}
       />
     </AppScreen>
   );
