@@ -2,6 +2,7 @@ import { useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { TraceDebugPanel } from "@/components/cards/TraceDebugPanel";
+import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
@@ -31,7 +32,8 @@ export default function AgentRunDetailScreen() {
     <AppScreen>
       <Text style={styles.title}>Run 详情</Text>
       <StatusBadge label={session.dataMode === "api" ? "API 安全摘要" : "Mock 安全摘要"} tone="blue" />
-      {detail.error ? <Text style={styles.error}>API 暂不可用：{detail.error}</Text> : null}
+      {detail.loading ? <Text style={styles.line}>正在读取 run / tool calls / safety checks...</Text> : null}
+      {detail.error ? <ApiErrorState message={detail.error} /> : null}
       <TraceDebugPanel run={safeDetail.trace_id} toolCalls={safeDetail.tool_calls.length} safetyChecks="已脱敏" />
 
       <CardBase>
@@ -59,7 +61,7 @@ export default function AgentRunDetailScreen() {
 
       <CardBase>
         <Text style={styles.line}>
-          本页只展示安全摘要，不展示 raw_text、symptom_text、file_path、raw_extracted_text、token、password、api_key、traceback 或 SQL。
+          本页只展示安全摘要，不展示敏感原文、文件路径、抽取全文、密钥、错误堆栈或数据库语句。
         </Text>
       </CardBase>
     </AppScreen>
@@ -67,12 +69,6 @@ export default function AgentRunDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  error: {
-    color: colors.warning,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 10
-  },
   generated: {
     color: colors.text,
     fontSize: 14,

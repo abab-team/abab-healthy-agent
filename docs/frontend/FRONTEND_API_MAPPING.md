@@ -99,6 +99,21 @@ X-Current-User-Id: <demo_user_id>
 - Docker PostgreSQL 路径因 Docker Desktop engine 未运行未完成。
 - 真机 Expo Go 需要用户按 runbook 配置电脑局域网 IP 后验证。
 
+## Phase 09.3.C Experience Mapping
+
+Phase 09.3.C 不新增后端 API，仅打磨只读 API 前端体验：
+
+| 页面 | 打磨内容 |
+| --- | --- |
+| 首页 | 家庭成员 API 标识、mock 聚合标识、daily_health_brief loading/success/error/trace |
+| 家庭 | API 家庭/成员标识、empty/error 状态、权限概览 mock 标识 |
+| 成员详情 | API 摘要标识、mock 补位标识、empty/error 状态 |
+| AI 管家 | daily_health_brief 真实 API；写入卡片 mock / 不真实提交 |
+| Agent Run | run / tool calls / safety checks 安全摘要、empty/error 状态 |
+| 设置 | data mode、API Base URL、demo user id、health 状态、真机局域网提示 |
+
+真机 QA 清单：`docs/frontend/MOBILE_DEVICE_QA_CHECKLIST.md`。
+
 ## Agent Workflow Confirmation
 
 Agent API 只允许白名单 workflow：

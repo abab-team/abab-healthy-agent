@@ -19,7 +19,7 @@
 在项目根目录执行：
 
 ```powershell
-cd C:\Users\1\Desktop\family-health-agent
+cd <repo>
 copy .env.example .env
 docker compose -f docker-compose.dev.yml up -d postgres
 ```
@@ -70,8 +70,8 @@ Invoke-RestMethod http://127.0.0.1:8000/health
 当系统 `pip` 损坏或 Docker Desktop 不可用时，可用此路径完成本地 smoke。该路径只用于联调验证，不代表生产数据库方案。
 
 ```powershell
-cd C:\Users\1\Desktop\family-health-agent
-& "C:\Users\1\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" -m venv .venv-smoke
+cd <repo>
+& "<codex-bundled-python>" -m venv .venv-smoke
 .\.venv-smoke\Scripts\python.exe -m pip install "alembic>=1.16.0" "fastapi>=0.116.0,<0.117.0" "httpx>=0.28.0" "psycopg[binary]>=3.2.0" "pydantic-settings>=2.10.0" "SQLAlchemy>=2.0.0" "uvicorn[standard]>=0.35.0"
 ```
 
@@ -206,6 +206,12 @@ npm run web
 EXPO_PUBLIC_DATA_MODE=api
 EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:8000
 EXPO_PUBLIC_DEMO_USER_ID=<seed 后查询到的 Gala user_id>
+```
+
+真机视觉 QA 详见：
+
+```text
+docs/frontend/MOBILE_DEVICE_QA_CHECKLIST.md
 ```
 
 ## 常见问题

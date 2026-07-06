@@ -4,6 +4,9 @@ import { CardBase } from "@/components/cards/CardBase";
 import { DraftReviewCard } from "@/components/cards/DraftReviewCard";
 import { PermissionSummaryCard } from "@/components/cards/PermissionSummaryCard";
 import { ReminderCard } from "@/components/cards/ReminderCard";
+import { ApiErrorState } from "@/components/common/ApiErrorState";
+import { ApiModeBadge } from "@/components/common/ApiModeBadge";
+import { MockDataBadge } from "@/components/common/MockDataBadge";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
@@ -41,23 +44,27 @@ export default function MemberDetailScreen() {
         <View style={styles.copy}>
           <Text style={styles.name}>{member?.display_name ?? mockMember.name}</Text>
           <StatusBadge label={member?.relationship_label ?? mockMember.relation} tone="mint" />
+          <ApiModeBadge mode={detail.data?.source ?? session.dataMode} />
           <Text style={styles.meta}>最近记录：{mockMember.recentRecord}</Text>
           <Text style={styles.meta}>共享：{member?.share_status ?? mockMember.shareStatus}</Text>
         </View>
       </CardBase>
 
-      {detail.error ? <Text style={styles.error}>API 暂不可用：{detail.error}</Text> : null}
+      {detail.loading ? <Text style={styles.line}>正在读取成员只读摘要...</Text> : null}
+      {detail.error ? <ApiErrorState message={detail.error} /> : null}
 
       <CardBase>
         <SectionHeader title="近期记录" action={session.dataMode === "api" ? "API 只读 + mock 补位" : "mock"} />
         <Text style={styles.line}>
-          {formatSummary(detail.data?.symptomSummary, "根据系统内记录，最近有 3 条健康相关记录。")}
+          {formatSummary(detail.data?.symptomSummary, "系统内暂无相关 API 摘要，当前展示 mock 占位。")}
         </Text>
         <Text style={styles.line}>本页只做记录整理，不进行健康判断。</Text>
+        {detail.data?.mockSections.length ? <MockDataBadge label={`mock / 待接入：${detail.data.mockSections.join("、")}`} /> : null}
       </CardBase>
 
       <CardBase>
         <SectionHeader title="今日提醒" action={detail.data?.activeAlerts?.length ? "API" : "mock"} />
+        {!detail.data?.activeAlerts?.length ? <MockDataBadge /> : null}
         {reminders.slice(0, 1).map((reminder) => (
           <ReminderCard key={reminder.id} {...reminder} />
         ))}
@@ -69,12 +76,13 @@ export default function MemberDetailScreen() {
           <Text style={styles.trendText}>
             血压记录 · {formatSummary(detail.data?.bloodPressureSummary, "7 天内 4 条")}
           </Text>
-          <Text style={styles.trendText}>症状记录 · 不输出正常/异常等判断词</Text>
+          <Text style={styles.trendText}>症状记录 · 仅整理系统内摘要，不给健康判断</Text>
         </View>
       </CardBase>
 
       <CardBase>
         <SectionHeader title="待确认草稿" action="mock" />
+        <MockDataBadge label="mock / 不真实提交" />
         <Link href={routes.drafts}>
           <DraftReviewCard {...pendingDrafts[0]} />
         </Link>
@@ -98,11 +106,6 @@ const styles = StyleSheet.create({
   copy: {
     flex: 1,
     gap: 7
-  },
-  error: {
-    color: colors.warning,
-    fontSize: 13,
-    lineHeight: 20
   },
   hero: {
     alignItems: "center",

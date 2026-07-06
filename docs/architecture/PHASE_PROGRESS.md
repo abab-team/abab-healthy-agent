@@ -159,3 +159,29 @@ Phase 09.3.B：前后端联调环境与 Smoke Runbook 收口已执行。
 - 未修改后端业务代码、API 路由、模型或 migration。
 
 下一步建议：Phase 09.3.C，围绕移动端只读 API 体验打磨与真机联调确认，不进入写入 workflow。
+
+## Phase 09.3.C 更新
+
+Phase 09.3.C：移动端只读 API 体验打磨与真机联调确认已执行。
+
+完成范围：
+
+- 补充 API / mock / 待接入状态标识。
+- 补充 API loading / error / empty 展示。
+- 首页、家庭页、成员详情页、AI 管家页、Agent Run 详情页、设置页完成只读 API 体验打磨。
+- 新增 Expo Go 真机手动 QA 清单：`docs/frontend/MOBILE_DEVICE_QA_CHECKLIST.md`。
+
+边界保持：
+
+- 写入类 workflow 仍为 mock。
+- 未接入 `symptom_draft_create`、`medical_event_draft_create`、`alert_create` 的真实调用。
+- 未实现 Auth/JWT。
+- 未实现 LLM、LangGraph、OCR/upload/RAG。
+- 未修改后端业务代码、后端 API、模型或 migration。
+
+剩余事项：
+
+- 真机 Expo Go 需要用户按 QA checklist 手动视觉走查。
+- PostgreSQL/Docker 路径仍待 Docker Desktop engine 可用后复验。
+
+下一步建议：Phase 09.3.C Lightweight Review。

@@ -1,4 +1,5 @@
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { BackendStatusCard } from "@/components/common/BackendStatusCard";
 import { CardBase } from "@/components/cards/CardBase";
 import { SettingsListItem } from "@/components/common/SettingsListItem";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -30,18 +31,16 @@ export default function SettingsScreen() {
         </View>
       </CardBase>
 
-      <CardBase>
-        <Text style={styles.sectionTitle}>开发者调试</Text>
-        <Text style={styles.source}>Data Mode：{session.dataMode}</Text>
-        <Text style={styles.source}>API Base URL：{session.apiBaseUrl || "未配置，默认保持 mock"}</Text>
-        <Text style={styles.source}>X-Current-User-Id：{session.currentUserId || "未配置"}</Text>
-        <Text style={styles.source}>
-          /health：{health.loading ? "检查中" : health.error ? `失败：${health.error}` : `${health.data?.status} · ${health.data?.service}`}
-        </Text>
-        <Pressable style={styles.button} onPress={() => void health.reload()}>
-          <Text style={styles.buttonText}>刷新 /health</Text>
-        </Pressable>
-      </CardBase>
+      <BackendStatusCard
+        apiBaseUrl={session.apiBaseUrl}
+        currentUserId={session.currentUserId}
+        health={health.data}
+        healthError={health.error}
+        loading={health.loading}
+        mode={session.dataMode}
+        onRefresh={() => void health.reload()}
+        warnings={session.warnings}
+      />
 
       {settingsGroups.map((group, index) => (
         <CardBase key={index}>
@@ -78,18 +77,6 @@ const styles = StyleSheet.create({
   },
   avatar: {
     fontSize: 54
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    marginTop: 10,
-    paddingVertical: 10
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "800",
-    textAlign: "center"
   },
   sectionTitle: {
     color: colors.text,

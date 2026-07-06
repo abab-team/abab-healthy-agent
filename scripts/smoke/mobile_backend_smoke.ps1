@@ -7,7 +7,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 if (-not $DatabaseUrl) {
-  $db = (Resolve-Path "backend\storage\smoke_phase_09_3_b.db").Path -replace "\\", "/"
+  $dbPath = Join-Path (Resolve-Path "backend\storage").Path "smoke_phase_09_3_b.db"
+  $db = $dbPath -replace "\\", "/"
   $DatabaseUrl = "sqlite:///$db"
 }
 

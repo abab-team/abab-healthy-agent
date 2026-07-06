@@ -4,6 +4,9 @@ import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { FamilyMemberCard } from "@/components/cards/FamilyMemberCard";
 import { PermissionSummaryCard } from "@/components/cards/PermissionSummaryCard";
+import { ApiErrorState } from "@/components/common/ApiErrorState";
+import { ApiModeBadge } from "@/components/common/ApiModeBadge";
+import { MockDataBadge } from "@/components/common/MockDataBadge";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
@@ -35,12 +38,17 @@ export default function FamilyScreen() {
           <Text style={styles.familySummary}>
             {members.length || mockMembers.length} 位成员 · 家庭共享权限用于保护家人健康记录
           </Text>
+          <ApiModeBadge mode={overview.data?.source ?? session.dataMode} />
           <Text style={styles.avatars}>{mockMembers.map((member) => member.avatar).join("  ")}  ＋</Text>
         </View>
         <Ionicons name="home-outline" size={74} color="#8dddc9" />
       </CardBase>
 
-      {overview.error ? <Text style={styles.error}>API 暂不可用：{overview.error}</Text> : null}
+      {overview.loading ? <Text style={styles.hint}>正在读取家庭成员...</Text> : null}
+      {overview.error ? <ApiErrorState message={overview.error} /> : null}
+      {!overview.loading && !overview.error && members.length === 0 && session.dataMode === "api" ? (
+        <Text style={styles.hint}>系统内暂无家庭成员记录。</Text>
+      ) : null}
       {(members.length > 0 ? members : mockMembers.map((member) => ({
         display_name: member.name,
         family_id: "family-demo",
@@ -61,6 +69,7 @@ export default function FamilyScreen() {
       ))}
 
       <PermissionSummaryCard />
+      <MockDataBadge label="权限概览 mock / 后续接入明细" />
       <Text style={styles.hint}>
         {session.dataMode === "api" ? "成员与家庭信息来自后端；权限明细入口仍为静态摘要。" : "当前为 mock 数据模式。"}
       </Text>
@@ -83,11 +92,6 @@ const styles = StyleSheet.create({
   avatars: {
     fontSize: 30,
     marginTop: 18
-  },
-  error: {
-    color: colors.warning,
-    fontSize: 13,
-    lineHeight: 20
   },
   familyName: {
     color: colors.text,

@@ -94,6 +94,17 @@ Phase 09.3.B 已补充前后端联调 runbook：`docs/frontend/MOBILE_BACKEND_SM
 
 写入类 workflow 仍未接入真实后端。
 
+## Phase 09.3.C 体验打磨
+
+Phase 09.3.C 补充了只读 API 模式的 loading / error / empty 状态，以及 API / mock / 待接入标识。
+
+重点说明：
+
+- 首页、家庭、成员详情、AI 管家、Agent Run 详情会明确标注数据来源。
+- 设置页开发者调试区展示 data mode、API Base URL、`X-Current-User-Id`、`/health` 状态和真机访问提示。
+- 写入类 workflow 仍为 mock，不会真实提交。
+- 真机 Expo Go 手动 QA 请按 `docs/frontend/MOBILE_DEVICE_QA_CHECKLIST.md` 执行。
+
 ## Expo Go 预览
 
 ```bash

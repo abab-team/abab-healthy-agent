@@ -69,6 +69,15 @@ Phase 09.3.A 中，只有今日健康简报实际请求 Agent API；草稿和提
 - `alert_create` 真实调用。
 - 通用 `tool_name` / `input_data`。
 
+## Phase 09.3.C UI Contract
+
+- API mode 必须显示 loading / error / empty 状态。
+- 后端不可用时必须显示可理解的错误提示。
+- mock 数据、真实 API 数据、fallback 数据、待接入区域必须有明确标识。
+- 设置页必须显示 data mode、API Base URL、`X-Current-User-Id` 与 `/health` 状态。
+- 写入类页面仍为 mock，不触发真实后端 workflow。
+- 真机 QA 步骤记录在 `docs/frontend/MOBILE_DEVICE_QA_CHECKLIST.md`。
+
 ## Agent Run Request
 
 必须支持：

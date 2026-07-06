@@ -7,6 +7,9 @@ import { AgentActionCard } from "@/components/cards/AgentActionCard";
 import { CardBase } from "@/components/cards/CardBase";
 import { DraftReviewCard } from "@/components/cards/DraftReviewCard";
 import { TraceDebugPanel } from "@/components/cards/TraceDebugPanel";
+import { ApiErrorState } from "@/components/common/ApiErrorState";
+import { ApiModeBadge } from "@/components/common/ApiModeBadge";
+import { MockDataBadge } from "@/components/common/MockDataBadge";
 import { SafetyNotice } from "@/components/common/SafetyNotice";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -53,13 +56,14 @@ export default function AgentScreen() {
 
       <CardBase>
         <SectionHeader title="今天可以做什么？" action={session.dataMode === "api" ? "daily_health_brief 已接 API" : "mock"} />
+        <ApiModeBadge mode={session.dataMode} />
         <Text style={styles.description}>
           本阶段仅把今日健康简报接入后端；写入类草稿与提醒仍为 mock 交互，正式写入前仍需要确认。
         </Text>
         <Pressable style={styles.button} onPress={runDailyBrief}>
           <Text style={styles.buttonText}>{loading ? "生成中..." : "生成今日健康简报"}</Text>
         </Pressable>
-        {error ? <Text style={styles.error}>API 错误：{error}</Text> : null}
+        {error ? <ApiErrorState message={error} /> : null}
         {brief ? (
           <View style={styles.briefBox}>
             <Text style={styles.logTitle}>Trace：{brief.trace_id}</Text>
@@ -69,20 +73,27 @@ export default function AgentScreen() {
         ) : null}
         <View style={styles.recommendGrid}>
           {agentActions.map((action) => (
-            <AgentActionCard
-              key={action.id}
-              description={action.description}
-              href={action.href as Href}
-              icon={action.icon as keyof typeof Ionicons.glyphMap}
-              title={action.title}
-              tone={action.tone as "mint" | "blue" | "orange" | "purple"}
-            />
+            <View key={action.id} style={styles.actionWrap}>
+              <AgentActionCard
+                description={action.description}
+                href={action.href as Href}
+                icon={action.icon as keyof typeof Ionicons.glyphMap}
+                title={action.title}
+                tone={action.tone as "mint" | "blue" | "orange" | "purple"}
+              />
+              {action.workflowType === "daily_health_brief" ? (
+                <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API" : "mock"} />
+              ) : (
+                <MockDataBadge label="mock / 不真实提交" />
+              )}
+            </View>
           ))}
         </View>
       </CardBase>
 
       <CardBase>
         <SectionHeader title="待确认草稿" action="写入工作流仍为 mock ›" />
+        <MockDataBadge label="mock / 不真实提交" />
         {pendingDrafts.map((draft) => (
           <Link key={draft.id} href={routes.drafts}>
             <DraftReviewCard createdAt={draft.createdAt} summary={draft.summary} title={draft.title} type={draft.type} />
@@ -125,6 +136,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 62
   },
+  actionWrap: {
+    width: "48%"
+  },
   briefBox: {
     backgroundColor: colors.surfaceSoft,
     borderRadius: 14,
@@ -148,11 +162,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginTop: 8
-  },
-  error: {
-    color: colors.warning,
-    fontSize: 13,
-    marginTop: 10
   },
   header: {
     alignItems: "center",
