@@ -1,12 +1,14 @@
 # LLM Client Design
 
-本文档记录 Phase 10.A 的 LLM Client 最小封装，以及 Phase 10.B 对 `daily_health_brief` 的可选接入设计。
+本文档记录 Phase 10.A 的 LLM Client 最小封装、Phase 10.B 对 `daily_health_brief` 的可选接入设计，以及 Phase 10.C 的 LLM 输出安全与 fallback 收口。
 
 ## 目标
 
 Phase 10.A 只新增后端 LLM 底座，为后续 Agent workflow 可选接入 LLM 做准备。
 
 Phase 10.B 只把 LLM Client 可选接入 `daily_health_brief`。默认不启用 LLM，不接入其他 workflow，不调用 LangGraph/OCR/RAG。
+
+Phase 10.C 只强化 `daily_health_brief` 的 LLM prompt、安全输出、fallback、trace/debug 摘要和测试覆盖，不新增业务能力，不做真实在线 LLM smoke。
 
 ## Provider
 
@@ -72,9 +74,48 @@ LLM 输入不得包含：
 - LLM 配置错误。
 - LLM provider 调用失败或超时。
 - LLM 返回空内容。
+- LLM response schema 不完整。
 - LLM 输出被 Safety Policy 拦截。
 
 fallback 不应让 Agent API 失败，除非规则简报本身失败。
+
+Phase 10.C 将 fallback reason 收口为短枚举式安全摘要，例如：
+
+- `llm_disabled`
+- `daily_brief_use_llm_disabled`
+- `llm_configuration_error`
+- `llm_provider_error`
+- `llm_timeout`
+- `empty_llm_output`
+- `llm_response_invalid`
+- `llm_output_safety_blocked`
+
+这些 reason 不包含 API key、raw prompt、raw response、traceback、SQL、本机路径或健康原文。
+
+## Prompt 与输出安全
+
+`daily_health_brief` 的 LLM system prompt 必须明确：
+
+- 只根据系统内结构化记录整理健康简报。
+- 不替代医生。
+- 不做诊断、确诊、处方、剂量建议、停药或换药建议。
+- 不判断正常/异常/高风险/低风险。
+- 不承诺急救、报警或自动联系医院/家人。
+- 如遇紧急情况，应联系医生或当地急救服务。
+
+user prompt 只能包含只读 tools 输出后的结构化摘要，不得包含：
+
+- `raw_text`
+- `symptom_text`
+- `raw_extracted_text`
+- `file_path`
+- 原始长文本
+- API key / token / password
+- traceback / SQL / 本机路径
+
+LLM 输出如包含诊断、确诊、处方、剂量、停药、自动急救、自动报警、自动联系医院/家人、不用就医、一定没事、正常/异常、高风险/低风险等内容，必须回退到规则简报。unsafe LLM 原文不得返回给用户，也不得写入 trace/debug。
+
+Phase 10.C 会在 LLM 分支尝试后记录安全摘要到 `agent_safety_checks`，但只记录 `llm_used`、`fallback_used`、`fallback_reason`、`safety_filtered` 等摘要，不记录 prompt 全文或 LLM 原始响应。
 
 ## Client API
 
@@ -109,7 +150,9 @@ LLM Client 不负责：
 
 未来业务接入时，LLM 输出必须经过 Safety Policy，并继续遵守权限、confirmation、trace 和 Tool Executor 边界。
 
-Phase 10.B 中，`daily_health_brief` 的 LLM 输出会先经过 output safety 检查；不安全时回退规则简报。Runtime 仍会对最终输出再执行一次 output safety。
+Phase 10.B/10.C 中，`daily_health_brief` 的 LLM 输出会先经过 output safety 检查；不安全时回退规则简报。Runtime 仍会对最终输出再执行一次 output safety。
+
+当前只有 `daily_health_brief` 可选使用 LLM。`symptom_draft_create`、`medical_event_draft_create`、`alert_create` 和其他 workflow 尚未接入 LLM。
 
 ## 错误处理
 

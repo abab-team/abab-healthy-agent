@@ -100,3 +100,22 @@
 3. LLM 输入边界风险。
    - 当前只传递 tools 汇总后的结构化摘要。
    - 后续新增 LLM workflow 时必须继续禁止 raw_text、file_path、raw_extracted_text、token/password/key 进入 prompt。
+
+## Phase 10.C 记录
+
+1. `daily_health_brief` LLM 输出安全已做第一轮收口。
+   - LLM prompt 已明确禁止诊断、确诊、处方、剂量、停药、正常/异常、高风险/低风险判断，以及自动急救、报警或联系医院/家人承诺。
+   - LLM 输出如触发上述危险内容，会 fallback 到规则简报。
+   - unsafe LLM 原文不会返回给用户，也不会写入 trace/debug。
+
+2. LLM fallback reason 已收口为安全摘要。
+   - 当前允许记录 `llm_disabled`、`daily_brief_use_llm_disabled`、`llm_configuration_error`、`llm_provider_error`、`llm_timeout`、`empty_llm_output`、`llm_response_invalid`、`llm_output_safety_blocked` 等短 reason。
+   - 不记录 API key、raw prompt、raw response、raw_text、symptom_text、raw_extracted_text、file_path、token/password、traceback、SQL 或本机路径。
+
+3. 真实 provider 在线 smoke 尚未执行。
+   - Phase 10.C 不做真实在线 LLM smoke，不要求真实 API key。
+   - `openai_compatible` provider 仍需要后续在受控环境中使用真实配置单独验证。
+
+4. 其他 workflow 尚未接入 LLM。
+   - 当前只有 `daily_health_brief` 可选使用 LLM。
+   - 后续如接入草稿、提醒、问答或 LangGraph workflow，必须重新 review prompt、权限、Tool Executor、Safety Policy、trace/debug 与 fallback。

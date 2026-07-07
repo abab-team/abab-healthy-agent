@@ -40,7 +40,7 @@ from app.modules.medical_timeline.enums import MedicalEventType  # noqa: E402
 from app.modules.medical_timeline.models import MedicalEvent  # noqa: E402
 from app.modules.permissions import service as permissions_service  # noqa: E402
 from app.modules.reports.models import DailyReport  # noqa: E402
-from app.llm.errors import LLMProviderError  # noqa: E402
+from app.llm.errors import LLMProviderError, LLMTimeoutError  # noqa: E402
 from app.llm.schemas import LLMResponse  # noqa: E402
 
 
@@ -67,9 +67,11 @@ UNSAFE_OUTPUT_TERMS = (
 
 
 class FakeLLMClient:
-    def __init__(self, content: str, *, raise_error: bool = False) -> None:
+    def __init__(self, content: str, *, raise_error: bool = False, exception: Exception | None = None, response=None) -> None:
         self.content = content
         self.raise_error = raise_error
+        self.exception = exception
+        self.response = response
         self.calls = 0
         self.last_user_prompt = ""
 
@@ -77,8 +79,12 @@ class FakeLLMClient:
         del system_prompt, temperature, max_tokens
         self.calls += 1
         self.last_user_prompt = user_prompt
+        if self.exception is not None:
+            raise self.exception
         if self.raise_error:
             raise LLMProviderError("provider failed")
+        if self.response is not None:
+            return self.response
         return LLMResponse(
             content=self.content,
             provider="fake",
@@ -287,7 +293,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertNotIn("SessionLocal", source)
         self.assertNotIn("select(", source)
         self.assertNotIn(".query(", source)
-        self.assertNotIn("service as", source)
+        self.assertNotIn("from app.modules", source)
 
     def test_daily_brief_use_llm_false_does_not_call_llm(self) -> None:
         fake_llm = FakeLLMClient("should not be called")
@@ -347,7 +353,56 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertEqual(fake_llm.calls, 1)
         self.assertIn("根据系统内记录，已为你整理最近", result.generated_content or "")
         self.assertIn("fallback_used=true", result.message)
-        self.assertIn("fallback_reason=llm_error", result.message)
+        self.assertIn("fallback_reason=llm_provider_error", result.message)
+
+    def test_llm_timeout_falls_back_to_rule_brief(self) -> None:
+        fake_llm = FakeLLMClient("", exception=LLMTimeoutError("request timed out"))
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(fake_llm.calls, 1)
+        self.assertEqual(result.status, "completed")
+        self.assertIn("fallback_used=true", result.message)
+        self.assertIn("fallback_reason=llm_timeout", result.message)
+
+    def test_empty_llm_output_falls_back_to_rule_brief(self) -> None:
+        fake_llm = FakeLLMClient("   ")
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(fake_llm.calls, 1)
+        self.assertEqual(result.status, "completed")
+        self.assertIn("fallback_reason=empty_llm_output", result.message)
+
+    def test_invalid_llm_response_schema_falls_back_to_rule_brief(self) -> None:
+        fake_llm = FakeLLMClient("", response=object())
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(fake_llm.calls, 1)
+        self.assertEqual(result.status, "completed")
+        self.assertIn("fallback_reason=llm_response_invalid", result.message)
 
     def test_unsafe_llm_output_falls_back_to_rule_brief(self) -> None:
         fake_llm = FakeLLMClient("诊断结果：高风险，请停药并调整剂量。")
@@ -365,6 +420,40 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertIn("根据系统内记录，已为你整理最近", result.generated_content or "")
         self.assertNotIn("诊断结果", result.generated_content or "")
         self.assertIn("fallback_reason=llm_output_safety_blocked", result.message)
+        self.assertIn("safety_filtered=true", result.message)
+
+    def test_unsafe_llm_fallback_records_safety_summary_without_raw_response(self) -> None:
+        unsafe_output = "诊断结果：高风险，请停药并调整剂量。"
+        fake_llm = FakeLLMClient(unsafe_output)
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+        trace = agent_service.get_trace(self.db, result.trace_id)
+        checks = agent_service.list_safety_checks(self.db, request_id=trace.request_id)
+        joined = "\n".join(
+            [
+                str(check.safety_flags)
+                + str(check.blocked_reason)
+                + str(check.input_risk_summary)
+                + str(check.original_answer_summary)
+                + str(check.revised_answer_summary)
+                for check in checks
+            ]
+        )
+
+        self.assertIn("llm_output_safety_filtered", joined)
+        self.assertIn("fallback_reason=llm_output_safety_blocked", joined)
+        self.assertIn("llm_output_omitted", joined)
+        self.assertNotIn(unsafe_output, joined)
+        self.assertNotIn("api_key", joined.lower())
+        self.assertNotIn("raw prompt", joined.lower())
+        self.assertNotIn("raw response", joined.lower())
 
     def test_llm_prompt_uses_structured_summary_without_sensitive_raw_fields(self) -> None:
         self._seed_health_records(self.actor.id, self.actor.id, family_id=None, secret_text="very private raw symptom text")

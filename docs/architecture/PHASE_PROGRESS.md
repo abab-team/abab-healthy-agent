@@ -332,3 +332,29 @@ Phase 10.B：`daily_health_brief` 可选接入 LLM 已执行。
 - 未新增业务 API。
 
 下一步建议：Phase 10.C，围绕 LLM 接入 lightweight review 或 prompt/safety 契约验收。
+
+## Phase 10.C 更新
+
+Phase 10.C：LLM 输出安全、fallback 与文档收口已执行。
+
+完成范围：
+
+- 收紧 `daily_health_brief` 的 LLM system prompt，明确不替代医生、不诊断、不处方、不给剂量、不建议停药、不判断正常/异常/高风险/低风险、不承诺急救或自动联系医院/家人。
+- 确认 LLM user prompt 只使用只读 tools 汇总后的结构化摘要，不传 `raw_text`、`symptom_text`、`raw_extracted_text`、`file_path`、API key、traceback 或 SQL。
+- 对 provider error、timeout、空输出、response schema 不完整、unsafe 输出等场景统一 fallback 到规则简报。
+- unsafe LLM 输出不会返回给用户，也不会写入 trace/debug。
+- LLM 分支会在 `agent_safety_checks` 中记录安全摘要，例如 `llm_used`、`fallback_used`、`fallback_reason`、`safety_filtered`。
+- 补充 daily health brief LLM safety/fallback 单元测试。
+
+边界保持：
+
+- 默认 `LLM_ENABLED=false` 且 `DAILY_BRIEF_USE_LLM=false`，默认 `daily_health_brief` 行为不变。
+- 仍仅 `daily_health_brief` 可选使用 LLM。
+- 未接入 `symptom_draft_create`、`medical_event_draft_create`、`alert_create` 或其他 workflow。
+- 未修改前端。
+- 未实现 Auth/JWT。
+- 未实现 LangGraph/OCR/RAG。
+- 未新增数据库 migration 或 model。
+- 未新增业务 API。
+
+下一步建议：Phase 10 Batch Review，对 Phase 10.A/10.B/10.C 的 LLM client、可选接入、安全收口和默认 smoke 做总体验收。

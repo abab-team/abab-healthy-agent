@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from app.agent.enums import AgentWorkflowName
+from app.agent import service as agent_service
+from app.agent.enums import AgentSafetyLevel, AgentWorkflowName
 from app.agent.safety import AgentSafetyPolicy
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
@@ -11,6 +12,7 @@ from app.agent.tool_registry import AgentToolRegistry
 from app.agent.tools import register_readonly_health_tools
 from app.core.config import Settings, get_settings
 from app.llm.client import LLMClient, get_llm_client
+from app.llm.errors import LLMConfigurationError, LLMProviderError, LLMTimeoutError
 
 
 DEFAULT_DAYS = 7
@@ -83,6 +85,7 @@ class DailyHealthBriefWorkflow:
             llm_client=self.llm_client,
         )
         content = llm_attempt.content
+        _record_llm_safety_summary(context, llm_attempt)
         return AgentWorkflowResult(
             message=llm_attempt.message,
             generated_content=content,
@@ -120,10 +123,12 @@ class _BriefToolResults:
 class DailyBriefLLMAttempt:
     content: str
     llm_used: bool
+    llm_attempted: bool
     llm_provider: str | None
     llm_model: str | None
     fallback_used: bool
     fallback_reason: str | None
+    safety_filtered: bool = False
 
     @property
     def message(self) -> str:
@@ -133,7 +138,8 @@ class DailyBriefLLMAttempt:
             f"llm_provider={self.llm_provider or 'none'}; "
             f"llm_model={self.llm_model or 'none'}; "
             f"fallback_used={str(self.fallback_used).lower()}; "
-            f"fallback_reason={self.fallback_reason or 'none'}"
+            f"fallback_reason={self.fallback_reason or 'none'}; "
+            f"safety_filtered={str(self.safety_filtered).lower()}"
         )
 
 
@@ -151,8 +157,9 @@ def maybe_generate_daily_brief_with_llm(
     if not effective_settings.DAILY_BRIEF_USE_LLM:
         return _fallback(rule_content, "daily_brief_use_llm_disabled")
 
+    client = llm_client
     try:
-        client = llm_client or get_llm_client(effective_settings)
+        client = client or get_llm_client(effective_settings)
         response = client.generate_text(
             system_prompt=_daily_brief_system_prompt(),
             user_prompt=build_daily_brief_llm_prompt(results, days=days),
@@ -160,14 +167,24 @@ def maybe_generate_daily_brief_with_llm(
             max_tokens=effective_settings.LLM_MAX_TOKENS,
             metadata={"workflow_type": "daily_health_brief"},
         )
+    except LLMTimeoutError:
+        return _fallback(rule_content, "llm_timeout", attempted=True)
+    except LLMConfigurationError:
+        return _fallback(rule_content, "llm_configuration_error", attempted=True)
+    except LLMProviderError:
+        return _fallback(rule_content, "llm_provider_error", attempted=True)
     except Exception:
-        return _fallback(rule_content, "llm_error")
+        return _fallback(rule_content, "llm_error", attempted=True)
 
-    content = (response.content or "").strip()
+    if not _is_valid_llm_response(response):
+        return _fallback(rule_content, "llm_response_invalid", attempted=True)
+
+    content = response.content.strip()
     if not content:
         return DailyBriefLLMAttempt(
             content=rule_content,
             llm_used=True,
+            llm_attempted=True,
             llm_provider=response.provider,
             llm_model=response.model,
             fallback_used=True,
@@ -179,15 +196,18 @@ def maybe_generate_daily_brief_with_llm(
         return DailyBriefLLMAttempt(
             content=rule_content,
             llm_used=True,
+            llm_attempted=True,
             llm_provider=response.provider,
             llm_model=response.model,
             fallback_used=True,
             fallback_reason="llm_output_safety_blocked",
+            safety_filtered=True,
         )
 
     return DailyBriefLLMAttempt(
         content=content,
         llm_used=True,
+        llm_attempted=True,
         llm_provider=response.provider,
         llm_model=response.model,
         fallback_used=False,
@@ -214,17 +234,20 @@ def build_daily_brief_llm_prompt(results: _BriefToolResults, *, days: int = DEFA
 
 def _daily_brief_system_prompt() -> str:
     return (
-        "你不是医生。你只能根据系统内记录整理健康简报。"
-        "不要诊断，不要处方，不要给药物剂量，不要建议停药或换药，"
-        "不要做急救判断，不要承诺自动报警或联系医院/家人。"
+        "你不是医生。你只能根据系统内结构化记录整理健康简报，不能替代医生。"
+        "不要诊断，不要确诊，不要处方，不要给药物剂量，不要建议停药或换药，"
+        "不要判断正常/异常/高风险/低风险，不要做急救判断，"
+        "不要承诺自动急救、自动报警或自动联系医院/家人。"
         "无记录时只能说系统内暂无相关记录。"
+        "如遇紧急情况，应联系医生或当地急救服务。"
     )
 
 
-def _fallback(rule_content: str, reason: str) -> DailyBriefLLMAttempt:
+def _fallback(rule_content: str, reason: str, *, attempted: bool = False) -> DailyBriefLLMAttempt:
     return DailyBriefLLMAttempt(
         content=rule_content,
         llm_used=False,
+        llm_attempted=attempted,
         llm_provider=None,
         llm_model=None,
         fallback_used=True,
@@ -235,6 +258,44 @@ def _fallback(rule_content: str, reason: str) -> DailyBriefLLMAttempt:
 def _contains_blocked_llm_brief_terms(content: str) -> bool:
     lowered = content.lower()
     return any(term in content or term in lowered for term in LLM_DAILY_BRIEF_BLOCKED_TERMS)
+
+
+def _is_valid_llm_response(response: Any) -> bool:
+    return (
+        isinstance(getattr(response, "content", None), str)
+        and isinstance(getattr(response, "provider", None), str)
+        and isinstance(getattr(response, "model", None), str)
+    )
+
+
+def _record_llm_safety_summary(context: AgentWorkflowContext, attempt: DailyBriefLLMAttempt) -> None:
+    if not attempt.llm_attempted:
+        return
+    trace = agent_service.get_trace(context.db, context.trace_id)
+    if trace is None:
+        return
+    flags = ["llm_daily_brief"]
+    if attempt.fallback_used:
+        flags.append(f"fallback:{attempt.fallback_reason or 'unknown'}")
+    if attempt.safety_filtered:
+        flags.append("llm_output_safety_filtered")
+    agent_service.record_safety_check(
+        context.db,
+        request_id=trace.request_id,
+        workflow_name=trace.workflow_name,
+        safety_level=AgentSafetyLevel(context.safety_level),
+        passed=not attempt.safety_filtered,
+        safety_flags=flags,
+        blocked_reason="llm_output_safety_blocked" if attempt.safety_filtered else None,
+        input_risk_summary=(
+            f"llm_used={str(attempt.llm_used).lower()};"
+            f"fallback_used={str(attempt.fallback_used).lower()};"
+            f"fallback_reason={attempt.fallback_reason or 'none'}"
+        ),
+        original_answer_summary="llm_output_omitted" if attempt.safety_filtered else None,
+        revised_answer_summary="rule_brief_fallback" if attempt.fallback_used else "llm_brief_returned",
+        was_rewritten=attempt.safety_filtered,
+    )
 
 
 def build_daily_health_brief_content(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
