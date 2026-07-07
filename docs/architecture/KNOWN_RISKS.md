@@ -183,3 +183,12 @@
 - OCR extraction results are previews for review. They must not be treated as diagnosis, prescription, dosage guidance, or formal health facts.
 - `medical_event_draft_create` can create only pending drafts from OCR previews. Formal `medical_events` confirmation remains outside Phase 13.
 - Local document storage stores internal storage keys. Any future object-storage backend needs a separate path, ACL, retention, and signed-url review.
+## Phase 14 RAG Risks
+
+- RAG is disabled by default with `RAG_ENABLED=false`.
+- Phase 14 uses dynamic internal indexing and simple retrieval only. There is no persisted RAG index, vector DB, or real embedding provider.
+- RAG only indexes safe summaries and previews. It must not index `raw_text`, `symptom_text`, full `raw_extracted_text`, file paths, local paths, token/password/API key, traceback, SQL, raw prompt, or raw LLM response.
+- RAG retrieval depends on current family permissions at query time. If a future persisted index is introduced, permission revocation and deletion synchronization need a separate schema and privacy review.
+- `health_metrics` and `blood_pressure_records` still have no `family_id`; Phase 14 continues the existing user-owned facts plus family permission access strategy.
+- RAG is not a medical QA system. It must not generate diagnosis, prescription, dosage, stop-medication advice, normal/abnormal judgment, or high/low risk judgment.
+- External medical knowledge bases remain out of scope and require a separate safety, source, citation, and compliance review.

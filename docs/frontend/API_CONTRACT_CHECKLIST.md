@@ -184,3 +184,19 @@ Phase 12 新增认证契约：
 - demo header fallback 只用于开发。
 - JWT 用户仍不能绕过 family permissions。
 - Agent API 仍不能绕过 Safety Policy / Tool Executor。
+## Phase 14 RAG API Contract
+
+Phase 14 新增后端受控 RAG API，但移动端暂未接入 RAG 页面。
+
+新增接口：
+
+- `POST /api/v1/rag/search`
+
+契约：
+
+- 使用当前登录用户或 demo header 用户作为 `current_user_id`。
+- 可传 `target_user_id`、`family_id`、`query`、`source_types`、`top_k`。
+- family 访问必须继续走权限系统。
+- response 只返回 safe excerpt、citation、source metadata。
+- response 不返回 `raw_text`、`symptom_text`、`raw_extracted_text`、`file_path`、token、password、API key、traceback、SQL。
+- 该接口不生成医学回答，不开放通用 tool execution。

@@ -13,6 +13,7 @@ from app.agent.tools import register_readonly_health_tools
 from app.core.config import Settings, get_settings
 from app.llm.client import LLMClient, get_llm_client
 from app.llm.errors import LLMConfigurationError, LLMProviderError, LLMTimeoutError
+from app.rag.context import safe_rag_context_for_agent
 
 
 DEFAULT_DAYS = 7
@@ -77,6 +78,11 @@ class DailyHealthBriefWorkflow:
             alerts=self._call_tool(context, "alerts.active.list", {"limit": DEFAULT_LIMIT}),
         )
         rule_content = build_daily_health_brief_content(results, days=DEFAULT_DAYS)
+        rule_content, rag_summary = maybe_append_daily_brief_rag_context(
+            context,
+            rule_content,
+            settings=self.settings,
+        )
         llm_attempt = maybe_generate_daily_brief_with_llm(
             results,
             rule_content=rule_content,
@@ -85,6 +91,7 @@ class DailyHealthBriefWorkflow:
             llm_client=self.llm_client,
         )
         content = llm_attempt.content
+        _record_rag_safety_summary(context, rag_summary)
         _record_llm_safety_summary(context, llm_attempt)
         return AgentWorkflowResult(
             message=llm_attempt.message,
@@ -141,6 +148,44 @@ class DailyBriefLLMAttempt:
             f"fallback_reason={self.fallback_reason or 'none'}; "
             f"safety_filtered={str(self.safety_filtered).lower()}"
         )
+
+
+@dataclass(frozen=True)
+class DailyBriefRagSummary:
+    rag_used: bool
+    rag_source_count: int
+    fallback_reason: str | None
+
+
+def maybe_append_daily_brief_rag_context(
+    context: AgentWorkflowContext,
+    rule_content: str,
+    *,
+    settings: Settings | None = None,
+) -> tuple[str, DailyBriefRagSummary]:
+    result, lines, fallback_reason = safe_rag_context_for_agent(
+        context.db,
+        current_user_id=context.request.actor_user_id,
+        target_user_id=context.request.target_user_id,
+        family_id=context.request.family_id,
+        query="daily health brief recent system records",
+        top_k=5,
+        settings=settings,
+    )
+    if not lines:
+        return rule_content, DailyBriefRagSummary(False, 0, fallback_reason)
+    safe_section = "\n".join(
+        [
+            "",
+            "System record citations:",
+            *lines,
+            "These citations are safe excerpts from internal records and are not medical advice.",
+        ]
+    )
+    return (
+        rule_content + safe_section,
+        DailyBriefRagSummary(True, len(result.results) if result else len(lines), None),
+    )
 
 
 def maybe_generate_daily_brief_with_llm(
@@ -295,6 +340,34 @@ def _record_llm_safety_summary(context: AgentWorkflowContext, attempt: DailyBrie
         original_answer_summary="llm_output_omitted" if attempt.safety_filtered else None,
         revised_answer_summary="rule_brief_fallback" if attempt.fallback_used else "llm_brief_returned",
         was_rewritten=attempt.safety_filtered,
+    )
+
+
+def _record_rag_safety_summary(context: AgentWorkflowContext, summary: DailyBriefRagSummary) -> None:
+    if not summary.rag_used and summary.fallback_reason == "rag_disabled":
+        return
+    trace = agent_service.get_trace(context.db, context.trace_id)
+    if trace is None:
+        return
+    flags = ["rag_daily_brief"]
+    if summary.fallback_reason:
+        flags.append(f"fallback:{summary.fallback_reason}")
+    agent_service.record_safety_check(
+        context.db,
+        request_id=trace.request_id,
+        workflow_name=trace.workflow_name,
+        safety_level=AgentSafetyLevel(context.safety_level),
+        passed=summary.fallback_reason not in {"permission_denied"},
+        safety_flags=flags,
+        blocked_reason="rag_permission_denied" if summary.fallback_reason == "permission_denied" else None,
+        input_risk_summary=(
+            f"rag_used={str(summary.rag_used).lower()};"
+            f"rag_source_count={summary.rag_source_count};"
+            f"fallback_reason={summary.fallback_reason or 'none'}"
+        ),
+        original_answer_summary="rag_raw_sources_omitted",
+        revised_answer_summary="safe_rag_citations_only" if summary.rag_used else "rag_fallback",
+        was_rewritten=False,
     )
 
 

@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 512
     LLM_TEMPERATURE: float = 0.2
     DAILY_BRIEF_USE_LLM: bool = False
+    RAG_ENABLED: bool = False
+    RAG_PROVIDER: str = "simple"
+    RAG_INDEX_INTERNAL_SOURCES: bool = True
+    RAG_ALLOW_EXTERNAL_KNOWLEDGE: bool = False
+    RAG_MAX_CHUNK_CHARS: int = 1200
+    RAG_TOP_K: int = 5
+    RAG_STORE_RAW_TEXT: bool = False
+    RAG_EMBEDDING_PROVIDER: str = "mock"
+    RAG_RETRIEVAL_PROVIDER: str = "simple"
+    RAG_MIN_SCORE: float = 0.0
     DOCUMENT_UPLOAD_ENABLED: bool = True
     DOCUMENT_MAX_UPLOAD_MB: int = 10
     DOCUMENT_STORAGE_BACKEND: str = "local"

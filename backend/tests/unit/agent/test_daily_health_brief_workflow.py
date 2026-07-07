@@ -491,6 +491,23 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
 
         self.assertEqual(self._business_counts(), counts_before)
 
+    def test_rag_enabled_appends_safe_internal_citations(self) -> None:
+        self._seed_health_records(self.actor.id, self.actor.id, family_id=None)
+        registry = AgentWorkflowRegistry()
+        registry.register(DailyHealthBriefWorkflow(settings=Settings(RAG_ENABLED=True, RAG_TOP_K=3)))
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+        trace = agent_service.get_trace(self.db, result.trace_id)
+        checks = agent_service.list_safety_checks(self.db, request_id=trace.request_id)
+        joined_checks = "\n".join(str(check.safety_flags) + str(check.input_risk_summary) for check in checks)
+
+        self.assertEqual(result.status, "completed")
+        self.assertIn("System record citations", result.generated_content or "")
+        self.assertIn("rag_daily_brief", joined_checks)
+        self.assertIn("rag_used=true", joined_checks)
+        self.assertNotIn("raw_text", result.generated_content or "")
+        self.assertNotIn("file_path", result.generated_content or "")
+
     def test_blocked_input_does_not_execute_workflow_or_tools(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, user_message="   "))
         trace = agent_service.get_trace(self.db, result.trace_id)

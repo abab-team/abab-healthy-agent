@@ -255,3 +255,23 @@ Phase 13 已新增健康资料上传与文档处理最小闭环。
 - OCR result 可通过既有 `medical_event_draft_create` Agent workflow 生成 pending `medical_event_draft`。
 - 未确认 preview 不写草稿；确认后也只创建待确认草稿，不创建正式 `medical_event`。
 - 真实 OCR provider、移动端原生文件选择器、OCR worker、正式草稿确认入库仍未实现。
+## Phase 14 RAG 当前状态
+
+Phase 14 已新增内部 RAG 检索地基。默认 `RAG_ENABLED=false`，开启后也只检索系统内部安全摘要，不接入外部医学知识库，不调用真实 embedding provider，不使用 vector DB。
+
+新增能力：
+
+- `backend/app/rag/**`：source policy、chunking、simple retrieval、动态内部索引。
+- `POST /api/v1/rag/search`：只返回 safe excerpt 与 citation，不生成医学回答。
+- `daily_health_brief`：RAG 开启时可追加系统内 citation，失败时回退原规则简报。
+- `medical_event_draft_create`：RAG 开启时可追加安全 `structured_hints.rag_sources`，仍只创建待确认草稿。
+
+仍未完成：
+
+- 真实 embedding provider。
+- vector DB。
+- 外部医学知识库。
+- RAG chatbot。
+- 移动端 RAG 页面。
+
+RAG 不得返回 `raw_text`、`symptom_text`、`raw_extracted_text`、`file_path`、token、password、API key、traceback、SQL，也不得生成诊断、处方、剂量、停药建议。

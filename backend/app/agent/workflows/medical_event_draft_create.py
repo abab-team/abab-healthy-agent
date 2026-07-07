@@ -7,6 +7,7 @@ from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExe
 from app.agent.tool_executor import AgentToolExecutor
 from app.agent.tool_registry import AgentToolRegistry
 from app.agent.tools.document_tools import MedicalEventDraftCreateTool
+from app.rag.context import safe_rag_context_for_agent
 
 
 WORKFLOW_TYPE = "medical_event_draft_create"
@@ -48,7 +49,42 @@ def _tool_input(context: AgentWorkflowContext) -> dict[str, Any]:
     payload = dict(context.request.workflow_payload or {})
     if not payload.get("summary") and not payload.get("draft_json") and not payload.get("extraction_result_id"):
         payload["summary"] = context.request.user_message
+    _attach_safe_rag_hints(context, payload)
     return payload
+
+
+def _attach_safe_rag_hints(context: AgentWorkflowContext, payload: dict[str, Any]) -> None:
+    query = " ".join(
+        str(item)
+        for item in (
+            payload.get("draft_title"),
+            payload.get("title"),
+            payload.get("summary"),
+            context.request.user_message,
+        )
+        if item
+    )
+    _, lines, fallback_reason = safe_rag_context_for_agent(
+        context.db,
+        current_user_id=context.request.actor_user_id,
+        target_user_id=context.request.target_user_id,
+        family_id=context.request.family_id,
+        query=query or "medical event draft related internal records",
+        source_types=[
+            "medical_document_metadata",
+            "document_extraction_preview",
+            "medical_event_summary",
+            "medical_event_draft_summary",
+        ],
+        top_k=3,
+    )
+    if not lines:
+        if fallback_reason and fallback_reason != "rag_disabled":
+            payload.setdefault("structured_hints", {})["rag_fallback_reason"] = fallback_reason
+        return
+    hints = payload.setdefault("structured_hints", {})
+    if isinstance(hints, dict):
+        hints["rag_sources"] = lines
 
 
 def _workflow_result(tool_result: ToolExecutionResult) -> AgentWorkflowResult:

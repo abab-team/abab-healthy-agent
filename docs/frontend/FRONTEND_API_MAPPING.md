@@ -219,3 +219,14 @@ Agent API 在 `api-auth` 下仍只允许：
 - `symptom_draft_create`
 - `medical_event_draft_create`
 - `alert_create`
+## Phase 14 RAG Mapping
+
+当前移动端不直接调用 RAG。Phase 14 后端新增：
+
+| 功能 | API | 移动端状态 | 说明 |
+| --- | --- | --- | --- |
+| 内部 RAG 搜索 | `POST /api/v1/rag/search` | 未接入 | 仅返回 safe excerpt 与 citation，不生成医学回答 |
+| daily_health_brief RAG citation | `POST /api/v1/agent/runs` with `daily_health_brief` | 间接受益 | 仅在 `RAG_ENABLED=true` 时追加 citation，默认关闭 |
+| medical_event_draft_create RAG hints | `POST /api/v1/agent/runs` with `medical_event_draft_create` | 间接受益 | 仅在 `RAG_ENABLED=true` 时追加安全 hints，默认关闭 |
+
+移动端后续如接入 RAG citation，仍不得展示 raw text、file_path、raw OCR text、token/password/API key 或医学判断结论。
