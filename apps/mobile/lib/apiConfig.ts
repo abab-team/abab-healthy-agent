@@ -1,4 +1,4 @@
-import type { DataMode } from "@/types/api";
+import type { AuthMode, DataMode } from "@/types/api";
 
 function envValue(name: string): string | undefined {
   const value = process.env[name];
@@ -6,6 +6,7 @@ function envValue(name: string): string | undefined {
 }
 
 export const dataMode: DataMode = envValue("EXPO_PUBLIC_DATA_MODE") === "api" ? "api" : "mock";
+export const authMode: AuthMode = envValue("EXPO_PUBLIC_AUTH_MODE") === "auth" ? "auth" : "demo";
 
 export const apiBaseUrl = (envValue("EXPO_PUBLIC_API_BASE_URL") ?? "").replace(/\/+$/, "");
 const configuredDemoUserId = envValue("EXPO_PUBLIC_DEMO_USER_ID");
@@ -29,5 +30,8 @@ export const defaultDemoUserId = configuredDemoUserId ?? demoUsers[0].id;
 
 export const apiModeWarnings = [
   ...(dataMode === "api" && !apiBaseUrl ? ["API Base URL 未配置。"] : []),
-  ...(dataMode === "api" && !configuredDemoUserId ? ["X-Current-User-Id 未配置，将使用 mock id，真实后端可能拒绝。"] : [])
+  ...(dataMode === "api" && authMode === "demo" && !configuredDemoUserId
+    ? ["X-Current-User-Id 未配置，将使用 mock id，真实后端可能拒绝。"]
+    : []),
+  ...(dataMode === "api" && authMode === "auth" ? ["Auth mode 将使用 Authorization Bearer，不再发送 demo header。"] : [])
 ];

@@ -1,4 +1,5 @@
-import { apiBaseUrl } from "@/lib/apiConfig";
+import { apiBaseUrl, authMode } from "@/lib/apiConfig";
+import { getAccessTokenForRequest, refreshStoredAuthSession, shouldRefreshAuthSession } from "@/lib/authSession";
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH";
@@ -70,22 +71,19 @@ async function readJson(response: Response): Promise<unknown> {
 
 export const apiClient = {
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const headers: Record<string, string> = {
-      Accept: "application/json"
-    };
-    if (options.body !== undefined) {
-      headers["Content-Type"] = "application/json";
+    if (authMode === "auth" && shouldRefreshAuthSession()) {
+      await refreshStoredAuthSession();
     }
-    if (options.currentUserId) {
-      headers["X-Current-User-Id"] = options.currentUserId;
+    const response = await sendRequest(path, options);
+    let payload = await readJson(response);
+    if (response.status === 401 && authMode === "auth" && (await refreshStoredAuthSession())) {
+      const retryResponse = await sendRequest(path, options);
+      payload = await readJson(retryResponse);
+      if (!retryResponse.ok) {
+        throw parseErrorDetail(retryResponse.status, payload);
+      }
+      return payload as T;
     }
-
-    const response = await fetch(buildUrl(path), {
-      method: options.method ?? "GET",
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body)
-    });
-    const payload = await readJson(response);
     if (!response.ok) {
       throw parseErrorDetail(response.status, payload);
     }
@@ -104,3 +102,24 @@ export const apiClient = {
     return this.request<T>(path, { body, currentUserId, method: "PATCH" });
   }
 };
+
+async function sendRequest(path: string, options: RequestOptions): Promise<Response> {
+    const headers: Record<string, string> = {
+      Accept: "application/json"
+    };
+    if (options.body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
+    const accessToken = authMode === "auth" ? getAccessTokenForRequest() : null;
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    } else if (authMode !== "auth" && options.currentUserId) {
+      headers["X-Current-User-Id"] = options.currentUserId;
+    }
+
+    return fetch(buildUrl(path), {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    });
+}

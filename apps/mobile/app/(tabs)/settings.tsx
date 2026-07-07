@@ -1,4 +1,5 @@
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 import { BackendStatusCard } from "@/components/common/BackendStatusCard";
 import { CardBase } from "@/components/cards/CardBase";
 import { SettingsListItem } from "@/components/common/SettingsListItem";
@@ -32,7 +33,9 @@ export default function SettingsScreen() {
       </CardBase>
 
       <BackendStatusCard
+        accessTokenPreview={session.authSession.accessTokenPreview}
         apiBaseUrl={session.apiBaseUrl}
+        authMode={session.authMode}
         currentUserId={session.currentUserId}
         health={health.data}
         healthError={health.error}
@@ -43,6 +46,24 @@ export default function SettingsScreen() {
       />
 
       <CardBase>
+        <Text style={styles.sectionTitle}>登录态</Text>
+        <Text style={styles.about}>当前模式：{session.authMode === "auth" ? "api-auth / Bearer token" : "api-demo / X-Current-User-Id"}</Text>
+        <Text style={styles.about}>
+          当前用户：{session.authSession.user?.nickname ?? session.authSession.user?.email ?? currentUser.name}
+        </Text>
+        <Text style={styles.about}>Access Token：{session.authSession.accessTokenPreview}</Text>
+        <Text style={styles.about}>Refresh Token：{session.authSession.refreshTokenStored ? "已安全保存摘要，不展示完整 token" : "未保存"}</Text>
+        <View style={styles.actions}>
+          <Pressable style={styles.secondaryButton} onPress={() => router.push("/login")}>
+            <Text style={styles.secondaryButtonText}>打开登录页</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => void session.authSession.logout()}>
+            <Text style={styles.secondaryButtonText}>退出登录</Text>
+          </Pressable>
+        </View>
+      </CardBase>
+
+      <CardBase>
         <Text style={styles.sectionTitle}>Agent API 状态</Text>
         <StatusBadge label="daily_health_brief 已接入" tone="mint" />
         <StatusBadge label="symptom_draft_create 已接入" tone="mint" />
@@ -51,7 +72,8 @@ export default function SettingsScreen() {
         <Text style={styles.about}>预览使用 confirmation=false，不会写入。</Text>
         <Text style={styles.about}>确认使用 confirmation=true，只创建待确认草稿或普通健康提醒。</Text>
         <Text style={styles.about}>草稿正式确认入库仍未实现。</Text>
-        <Text style={styles.about}>Auth/JWT、LLM、LangGraph、OCR/RAG 仍未实现。</Text>
+        <Text style={styles.about}>Auth/JWT 最小登录态已接入；LLM 仍只用于 daily_health_brief 可选路径。</Text>
+        <Text style={styles.about}>LangGraph、OCR/RAG 仍未实现。</Text>
       </CardBase>
 
       <CardBase>
@@ -93,6 +115,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20
   },
+  actions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 10
+  },
   avatar: {
     fontSize: 54
   },
@@ -101,6 +129,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800",
     marginBottom: 8
+  },
+  secondaryButton: {
+    borderColor: colors.primary,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9
+  },
+  secondaryButtonText: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: "900"
   },
   source: {
     color: colors.textMuted,

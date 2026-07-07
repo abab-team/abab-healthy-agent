@@ -30,7 +30,7 @@ type BackendFamilyMember = {
 
 type BackendAgentTrace = {
   trace_id: string;
-  workflow_type: string;
+  workflow_type: AgentRunResponse["workflow_type"];
   status: AgentRunResponse["status"];
   output_summary?: string | null;
   source?: string | null;

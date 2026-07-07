@@ -187,6 +187,22 @@ export type AgentSafetyCheckSummary = {
 
 export type DataMode = "mock" | "api";
 
+export type AuthMode = "demo" | "auth";
+
+export type AuthUser = {
+  id: string;
+  email?: string | null;
+  nickname?: string | null;
+};
+
+export type AuthSession = {
+  access_token: string;
+  refresh_token: string;
+  token_type: "bearer";
+  expires_at: number;
+  user: AuthUser;
+};
+
 export type HealthStatus = {
   status: string;
   service: string;

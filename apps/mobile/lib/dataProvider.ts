@@ -225,7 +225,7 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           source: run.source,
           tool_calls: toolCalls,
           trace_id: run.trace_id,
-          workflow_type: "daily_health_brief"
+          workflow_type: run.workflow_type
         });
       } catch (error) {
         return fail<AgentRunDetail>(error);
