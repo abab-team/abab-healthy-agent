@@ -8,6 +8,8 @@ from typing import Any
 
 TEST_DB_PATH = Path(tempfile.gettempdir()) / "family_health_agent_phase05_api.sqlite3"
 os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{TEST_DB_PATH.as_posix()}")
+os.environ.setdefault("JWT_SECRET_KEY", "api-test-jwt-secret")
+os.environ.setdefault("AUTH_DEMO_HEADER_ENABLED", "true")
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import delete, select  # noqa: E402

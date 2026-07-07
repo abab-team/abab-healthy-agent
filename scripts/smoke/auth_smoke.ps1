@@ -21,6 +21,7 @@ if (-not $DatabaseUrl) {
 $env:DATABASE_URL = $DatabaseUrl
 $env:PYTHONPATH = "backend"
 $env:JWT_SECRET_KEY = "auth-smoke-local-secret"
+$env:AUTH_DEMO_HEADER_ENABLED = "false"
 
 Write-Host "Running Alembic migration..."
 & $Python -m alembic -c backend/alembic.ini upgrade head
@@ -44,10 +45,19 @@ if login.status_code != 200:
 body = login.json()
 access_token = body["access_token"]
 refresh_token = body["refresh_token"]
+user_id = body["user"]["id"]
 me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
 print(f"ME_STATUS={me.status_code}")
 if me.status_code != 200:
     raise SystemExit(me.text)
+identity_me = client.get("/api/v1/identity/me", headers={"Authorization": f"Bearer {access_token}"})
+print(f"IDENTITY_ME_STATUS={identity_me.status_code}")
+if identity_me.status_code != 200:
+    raise SystemExit(identity_me.text)
+demo_header_denied = client.get("/api/v1/identity/me", headers={"X-Current-User-Id": user_id})
+print(f"DEMO_HEADER_DISABLED_STATUS={demo_header_denied.status_code}")
+if demo_header_denied.status_code != 401:
+    raise SystemExit(demo_header_denied.text)
 refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
 print(f"REFRESH_STATUS={refresh.status_code}")
 if refresh.status_code != 200:
