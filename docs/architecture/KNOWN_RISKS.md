@@ -134,3 +134,23 @@
 3. LLM 调试信息仍必须保持摘要化。
    - 允许记录 `llm_used`、`llm_provider`、`llm_model`、`fallback_used`、`fallback_reason`、`safety_filtered`。
    - 禁止记录 API key、raw prompt、raw response、raw_text、symptom_text、raw_extracted_text、file_path、token/password/key、traceback、SQL 或本机敏感路径。
+
+## Phase 12.A 记录
+
+1. Auth/JWT 地基已建立，但尚未全局接管 current user。
+   - Phase 12.A 新增了 login、refresh、logout、`/auth/me` 和最小 register。
+   - 既有业务 API 仍保留 `X-Current-User-Id` demo header，不在本阶段强制改为 Bearer token。
+   - 后续 Phase 12.B 必须专门 review current user dependency、demo header 关闭策略和移动端迁移路径。
+
+2. 默认认证配置仍偏开发模式。
+   - 默认 `AUTH_ENABLED=false`、`AUTH_DEMO_LOGIN_ENABLED=true`，方便现有 demo 与 smoke 不被破坏。
+   - 生产或外部试用前必须设置强 `JWT_SECRET_KEY`，并明确关闭或限制 demo header。
+   - `.env.example` 只提供占位值，真实 `.env` 与密钥不得提交。
+
+3. Phase 12.A 未实现完整账号体系。
+   - 本阶段不实现 OAuth、短信验证码、邮箱验证、找回密码、设备管理、管理员 RBAC 或审计型登录风控。
+   - 当前密码策略和 token 策略仅为最小工程地基，后续产品化前需要安全 review。
+
+4. demo 用户密码仅用于本地开发验证。
+   - `seed_demo_data.py` 为 demo 用户写入开发用密码哈希，便于 auth smoke。
+   - 该 demo 密码不得作为生产账号密码或真实用户初始密码策略。

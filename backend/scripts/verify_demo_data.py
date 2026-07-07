@@ -64,6 +64,14 @@ def main() -> None:
 
         checks = {
             "demo_users": len(users),
+            "demo_users_with_password_hash": session.scalar(
+                select(func.count())
+                .select_from(User)
+                .where(
+                    User.email.in_(DEMO_EMAILS),
+                    User.password_hash.is_not(None),
+                ),
+            ),
             "demo_family": 1 if family else 0,
             "family_members": session.scalar(
                 select(func.count()).select_from(FamilyMember).where(FamilyMember.family_id == family_id),
@@ -136,6 +144,7 @@ def main() -> None:
 
     expectations = {
         "demo_users": 3,
+        "demo_users_with_password_hash": 3,
         "demo_family": 1,
         "family_members": 3,
         "permissions": 3,

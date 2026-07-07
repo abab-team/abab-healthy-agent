@@ -378,3 +378,31 @@ Phase 11：真实 LLM Provider 受控验证与 Agent 输出质量评估已执行
 - 未提交 `.env`、API key、真实 provider 原始输出或用户附件。
 
 下一阶段建议：Phase 12：Auth/JWT 与用户会话，先补齐真实身份边界，再扩大 LLM/LangGraph 能力。
+
+## Phase 12.A 更新
+
+Phase 12.A：Auth/JWT 与用户会话地基已执行。
+
+完成范围：
+- 新增 `backend/app/modules/auth` 模块，包含 auth API、schema、service、repository、password、token 与异常定义。
+- 新增最小 Auth API：
+  - `POST /api/v1/auth/register`
+  - `POST /api/v1/auth/login`
+  - `POST /api/v1/auth/refresh`
+  - `POST /api/v1/auth/logout`
+  - `GET /api/v1/auth/me`
+- 复用现有 `users`、`login_sessions`、`refresh_tokens` 表，不新增 migration/model。
+- 新增 PBKDF2-SHA256 密码哈希与 HMAC-SHA256 JWT access token。
+- refresh token 原文不入库，只保存哈希；refresh 会轮换 token，logout 会撤销 refresh token。
+- demo seed 用户写入开发用密码哈希，auth smoke 可验证 login/me/refresh/logout。
+- 新增 `docs/architecture/AUTH_JWT_DESIGN.md` 与 `scripts/smoke/auth_smoke.ps1`。
+
+边界保持：
+- 默认 `AUTH_ENABLED=false`。
+- 默认 `AUTH_DEMO_LOGIN_ENABLED=true`。
+- 既有 `X-Current-User-Id` demo header 未移除，现有业务 API 尚未强制切换 JWT。
+- 未修改前端。
+- 未修改 Agent workflow、LLM、Tool Executor 或 LangGraph。
+- 未新增 OAuth、短信验证码、邮箱验证、管理员 RBAC 或生产级账号策略。
+
+下一阶段建议：Phase 12.B：Current User Dependency JWT 迁移与 demo header 收口策略。

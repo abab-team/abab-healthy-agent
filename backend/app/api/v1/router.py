@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.modules.agent.api import router as agent_router
 from app.modules.alerts.api import router as alerts_router
+from app.modules.auth.api import router as auth_router
 from app.modules.document_center.api import router as document_center_router
 from app.modules.document_processing.api import router as document_processing_router
 from app.modules.family.api import router as family_router
@@ -15,6 +16,7 @@ from app.modules.reports.api import router as reports_router
 
 
 api_v1_router = APIRouter(prefix="/api/v1")
+api_v1_router.include_router(auth_router)
 api_v1_router.include_router(identity_router)
 api_v1_router.include_router(family_router)
 api_v1_router.include_router(permissions_router)

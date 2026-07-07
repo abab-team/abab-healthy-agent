@@ -18,6 +18,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from app.db.session import SessionLocal  # noqa: E402
+from app.modules.auth.password import hash_password  # noqa: E402
 from app.modules.alerts.enums import AlertLevel, AlertSource, AlertStatus, AlertType  # noqa: E402
 from app.modules.alerts.models import Alert, AlertEvent  # noqa: E402
 from app.modules.document_center.enums import (  # noqa: E402
@@ -82,6 +83,7 @@ DEMO_EMAILS = {
     "father": "father.demo@example.com",
     "mother": "mother.demo@example.com",
 }
+DEMO_PASSWORD = "DemoPass123!"
 DEMO_FAMILY_NAME = "Gala 的家庭"
 DEMO_TODAY = date(2026, 7, 3)
 DEMO_NOW = datetime(2026, 7, 3, 8, 0, tzinfo=timezone.utc)
@@ -153,7 +155,7 @@ def seed_users(session: Session) -> dict[str, User]:
         "gala": User(
             phone="demo_gala_phone",
             email=DEMO_EMAILS["gala"],
-            password_hash=None,
+            password_hash=hash_password(DEMO_PASSWORD),
             nickname="Gala",
             gender=Gender.FEMALE,
             birth_date=date(2004, 1, 1),
@@ -162,7 +164,7 @@ def seed_users(session: Session) -> dict[str, User]:
         "father": User(
             phone="demo_father_phone",
             email=DEMO_EMAILS["father"],
-            password_hash=None,
+            password_hash=hash_password(DEMO_PASSWORD),
             nickname="爸爸",
             gender=Gender.MALE,
             birth_date=date(1974, 1, 1),
@@ -171,7 +173,7 @@ def seed_users(session: Session) -> dict[str, User]:
         "mother": User(
             phone="demo_mother_phone",
             email=DEMO_EMAILS["mother"],
-            password_hash=None,
+            password_hash=hash_password(DEMO_PASSWORD),
             nickname="妈妈",
             gender=Gender.FEMALE,
             birth_date=date(1976, 1, 1),
