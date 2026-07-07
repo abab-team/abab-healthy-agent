@@ -111,7 +111,7 @@ export default function DocumentDetailScreen() {
       <CardBase>
         <SectionHeader title="生成健康事件草稿" action="Phase 13.D" />
         <Text style={styles.line}>草稿必须通过 Agent workflow preview/confirm，不会直接生成正式健康事件。</Text>
-        <Text style={styles.line}>禁止展示 raw_extracted_text、file_path、密钥、错误堆栈或数据库语句。</Text>
+        <Text style={styles.line}>禁止展示原始长文本、文件路径、密钥、错误堆栈或数据库语句。</Text>
         <Link href={routes.createHealthEventDraft} style={styles.link}>前往创建健康事件草稿</Link>
       </CardBase>
     </AppScreen>

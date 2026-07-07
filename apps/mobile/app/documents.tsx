@@ -30,7 +30,7 @@ export default function DocumentsScreen() {
       <CardBase>
         <SectionHeader title="资料处理闭环" />
         <Text style={styles.line}>本阶段支持上传安全元数据、processing job、mock OCR 预览与待确认健康事件草稿。</Text>
-        <Text style={styles.line}>OCR 结果不会直接成为诊断、处方或正式健康事实。</Text>
+        <Text style={styles.line}>OCR 结果不会直接成为医疗判断、用药安排或正式健康事实。</Text>
       </CardBase>
       {documents.loading ? <Text style={styles.line}>正在读取资料列表...</Text> : null}
       {documents.error ? <ApiErrorState message={documents.error} /> : null}
