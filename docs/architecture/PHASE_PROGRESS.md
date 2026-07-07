@@ -309,4 +309,26 @@ Phase 10.A：LLM Client 最小封装已执行。
 - 未实现 LangGraph/OCR/RAG。
 - 未实现 Auth/JWT。
 
-下一步建议：Phase 10.B，围绕 LLM Client 轻量验收或受控 workflow 接入前的 safety 契约审查。
+## Phase 10.B 更新
+
+Phase 10.B：`daily_health_brief` 可选接入 LLM 已执行。
+
+完成范围：
+
+- 新增 `DAILY_BRIEF_USE_LLM=false` 配置项。
+- `daily_health_brief` 仅在 `LLM_ENABLED=true` 且 `DAILY_BRIEF_USE_LLM=true` 时尝试调用 LLM。
+- LLM 输入只使用只读 tools 已整理后的结构化摘要。
+- LLM 输出先经过 output safety 检查；不安全、空输出、配置错误或 provider 失败时回退规则简报。
+- Agent run message 中记录安全调试摘要：`llm_used`、`llm_provider`、`llm_model`、`fallback_used`、`fallback_reason`。
+
+边界保持：
+
+- 默认行为不变，默认仍走规则简报。
+- 未接入其他 workflow。
+- 未修改前端。
+- 未实现 LangGraph/OCR/RAG。
+- 未实现 Auth/JWT。
+- 未新增数据库 migration 或 model。
+- 未新增业务 API。
+
+下一步建议：Phase 10.C，围绕 LLM 接入 lightweight review 或 prompt/safety 契约验收。

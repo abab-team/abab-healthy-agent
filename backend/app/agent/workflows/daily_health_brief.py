@@ -4,10 +4,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.agent.enums import AgentWorkflowName
+from app.agent.safety import AgentSafetyPolicy
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
 from app.agent.tool_registry import AgentToolRegistry
 from app.agent.tools import register_readonly_health_tools
+from app.core.config import Settings, get_settings
+from app.llm.client import LLMClient, get_llm_client
 
 
 DEFAULT_DAYS = 7
@@ -20,16 +23,47 @@ READONLY_HEALTH_BRIEF_TOOLS = (
     "alerts.active.list",
 )
 PARTIAL_UNAVAILABLE_MESSAGE = "部分信息因权限设置暂不可用。"
+LLM_DAILY_BRIEF_BLOCKED_TERMS = (
+    "诊断结果",
+    "诊断是",
+    "诊断为",
+    "确诊",
+    "处方",
+    "剂量",
+    "停药",
+    "自动报警",
+    "自动联系医院",
+    "自动联系家人",
+    "高风险",
+    "低风险",
+    "正常",
+    "异常",
+    "no need to see a doctor",
+    "nothing is wrong",
+    "prescription",
+    "dosage",
+    "stop medication",
+    "high risk",
+    "low risk",
+)
 
 
 class DailyHealthBriefWorkflow:
     workflow_name = AgentWorkflowName.DAILY_HEALTH_BRIEF
 
-    def __init__(self, executor: AgentToolExecutor | None = None) -> None:
+    def __init__(
+        self,
+        executor: AgentToolExecutor | None = None,
+        *,
+        settings: Settings | None = None,
+        llm_client: LLMClient | None = None,
+    ) -> None:
         if executor is None:
             registry = register_readonly_health_tools(AgentToolRegistry())
             executor = AgentToolExecutor(registry)
         self.executor = executor
+        self.settings = settings
+        self.llm_client = llm_client
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         request = context.request
@@ -40,9 +74,17 @@ class DailyHealthBriefWorkflow:
             followups=self._call_tool(context, "medical_timeline.followups.list", {"limit": DEFAULT_LIMIT}),
             alerts=self._call_tool(context, "alerts.active.list", {"limit": DEFAULT_LIMIT}),
         )
-        content = build_daily_health_brief_content(results, days=DEFAULT_DAYS)
+        rule_content = build_daily_health_brief_content(results, days=DEFAULT_DAYS)
+        llm_attempt = maybe_generate_daily_brief_with_llm(
+            results,
+            rule_content=rule_content,
+            days=DEFAULT_DAYS,
+            settings=self.settings,
+            llm_client=self.llm_client,
+        )
+        content = llm_attempt.content
         return AgentWorkflowResult(
-            message="Daily health brief generated from system records.",
+            message=llm_attempt.message,
             generated_content=content,
             tool_calls_count=len(READONLY_HEALTH_BRIEF_TOOLS),
         )
@@ -72,6 +114,127 @@ class _BriefToolResults:
     symptoms: ToolExecutionResult
     followups: ToolExecutionResult
     alerts: ToolExecutionResult
+
+
+@dataclass(frozen=True)
+class DailyBriefLLMAttempt:
+    content: str
+    llm_used: bool
+    llm_provider: str | None
+    llm_model: str | None
+    fallback_used: bool
+    fallback_reason: str | None
+
+    @property
+    def message(self) -> str:
+        return (
+            "Daily health brief generated from system records. "
+            f"llm_used={str(self.llm_used).lower()}; "
+            f"llm_provider={self.llm_provider or 'none'}; "
+            f"llm_model={self.llm_model or 'none'}; "
+            f"fallback_used={str(self.fallback_used).lower()}; "
+            f"fallback_reason={self.fallback_reason or 'none'}"
+        )
+
+
+def maybe_generate_daily_brief_with_llm(
+    results: _BriefToolResults,
+    *,
+    rule_content: str,
+    days: int = DEFAULT_DAYS,
+    settings: Settings | None = None,
+    llm_client: LLMClient | None = None,
+) -> DailyBriefLLMAttempt:
+    effective_settings = settings or get_settings()
+    if not effective_settings.LLM_ENABLED:
+        return _fallback(rule_content, "llm_disabled")
+    if not effective_settings.DAILY_BRIEF_USE_LLM:
+        return _fallback(rule_content, "daily_brief_use_llm_disabled")
+
+    try:
+        client = llm_client or get_llm_client(effective_settings)
+        response = client.generate_text(
+            system_prompt=_daily_brief_system_prompt(),
+            user_prompt=build_daily_brief_llm_prompt(results, days=days),
+            temperature=effective_settings.LLM_TEMPERATURE,
+            max_tokens=effective_settings.LLM_MAX_TOKENS,
+            metadata={"workflow_type": "daily_health_brief"},
+        )
+    except Exception:
+        return _fallback(rule_content, "llm_error")
+
+    content = (response.content or "").strip()
+    if not content:
+        return DailyBriefLLMAttempt(
+            content=rule_content,
+            llm_used=True,
+            llm_provider=response.provider,
+            llm_model=response.model,
+            fallback_used=True,
+            fallback_reason="empty_llm_output",
+        )
+
+    decision = AgentSafetyPolicy().evaluate_output(content, "daily_health_brief")
+    if decision.blocked or _contains_blocked_llm_brief_terms(content):
+        return DailyBriefLLMAttempt(
+            content=rule_content,
+            llm_used=True,
+            llm_provider=response.provider,
+            llm_model=response.model,
+            fallback_used=True,
+            fallback_reason="llm_output_safety_blocked",
+        )
+
+    return DailyBriefLLMAttempt(
+        content=content,
+        llm_used=True,
+        llm_provider=response.provider,
+        llm_model=response.model,
+        fallback_used=False,
+        fallback_reason=None,
+    )
+
+
+def build_daily_brief_llm_prompt(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
+    lines = [
+        f"请根据以下系统内结构化摘要生成最近 {days} 天健康简报。",
+        "只能整理记录，不能诊断、不能处方、不能给剂量、不能建议停药、不能判断急救。",
+        "",
+        "结构化摘要：",
+        f"- 健康档案：{_profile_line(results.profile)}",
+        f"- 血压记录：{'；'.join(_blood_pressure_lines(results.blood_pressure))}",
+        f"- 症状记录：{'；'.join(_symptom_lines(results.symptoms))}",
+        f"- 复查 / 随访：{'；'.join(_followup_lines(results.followups))}",
+        f"- 提醒：{'；'.join(_alert_lines(results.alerts))}",
+        "",
+        "输出必须包含：根据系统内记录、系统内、不能替代医生诊断、请联系医生。",
+    ]
+    return "\n".join(lines)
+
+
+def _daily_brief_system_prompt() -> str:
+    return (
+        "你不是医生。你只能根据系统内记录整理健康简报。"
+        "不要诊断，不要处方，不要给药物剂量，不要建议停药或换药，"
+        "不要做急救判断，不要承诺自动报警或联系医院/家人。"
+        "无记录时只能说系统内暂无相关记录。"
+    )
+
+
+def _fallback(rule_content: str, reason: str) -> DailyBriefLLMAttempt:
+    return DailyBriefLLMAttempt(
+        content=rule_content,
+        llm_used=False,
+        llm_provider=None,
+        llm_model=None,
+        fallback_used=True,
+        fallback_reason=reason,
+    )
+
+
+def _contains_blocked_llm_brief_terms(content: str) -> bool:
+    lowered = content.lower()
+    return any(term in content or term in lowered for term in LLM_DAILY_BRIEF_BLOCKED_TERMS)
 
 
 def build_daily_health_brief_content(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:

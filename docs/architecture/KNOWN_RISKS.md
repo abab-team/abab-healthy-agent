@@ -86,3 +86,17 @@
    - LLM Client 只负责文本生成，不判断病情、不生成诊断、处方、剂量或停药建议。
    - 后续任何业务接入必须经过 Agent Safety Policy。
    - LLM 不能决定 `current_user_id`、`family_id`、`target_user_id`，不能直接调用 tool，不能直接写业务数据。
+
+## Phase 10.B 记录
+
+1. `daily_health_brief` LLM 接入默认关闭。
+   - 必须同时设置 `LLM_ENABLED=true` 与 `DAILY_BRIEF_USE_LLM=true` 才会尝试调用 LLM。
+   - 默认 smoke 和默认 API 行为仍使用规则简报。
+
+2. LLM brief fallback 风险。
+   - provider 配置错误、超时、失败、空输出或 safety blocked 会回退规则简报。
+   - fallback 原因只作为安全摘要记录，不记录 API key、原始 prompt 全文或完整 LLM 原始响应。
+
+3. LLM 输入边界风险。
+   - 当前只传递 tools 汇总后的结构化摘要。
+   - 后续新增 LLM workflow 时必须继续禁止 raw_text、file_path、raw_extracted_text、token/password/key 进入 prompt。

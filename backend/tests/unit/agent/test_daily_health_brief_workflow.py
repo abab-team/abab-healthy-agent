@@ -19,6 +19,7 @@ from app.agent.safety import AgentSafetyPolicy  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
 from app.agent.workflows import AgentWorkflowRegistry, default_workflow_registry  # noqa: E402
 from app.agent.workflows.daily_health_brief import DailyHealthBriefWorkflow  # noqa: E402
+from app.core.config import Settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.session import SessionLocal, engine  # noqa: E402
 from app.modules.alerts import service as alert_service  # noqa: E402
@@ -39,6 +40,8 @@ from app.modules.medical_timeline.enums import MedicalEventType  # noqa: E402
 from app.modules.medical_timeline.models import MedicalEvent  # noqa: E402
 from app.modules.permissions import service as permissions_service  # noqa: E402
 from app.modules.reports.models import DailyReport  # noqa: E402
+from app.llm.errors import LLMProviderError  # noqa: E402
+from app.llm.schemas import LLMResponse  # noqa: E402
 
 
 READONLY_TOOL_NAMES = [
@@ -61,6 +64,28 @@ UNSAFE_OUTPUT_TERMS = (
     "没有问题",
     "你很健康",
 )
+
+
+class FakeLLMClient:
+    def __init__(self, content: str, *, raise_error: bool = False) -> None:
+        self.content = content
+        self.raise_error = raise_error
+        self.calls = 0
+        self.last_user_prompt = ""
+
+    def generate_text(self, *, system_prompt, user_prompt, temperature, max_tokens, metadata):
+        del system_prompt, temperature, max_tokens
+        self.calls += 1
+        self.last_user_prompt = user_prompt
+        if self.raise_error:
+            raise LLMProviderError("provider failed")
+        return LLMResponse(
+            content=self.content,
+            provider="fake",
+            model="fake-model",
+            is_mock=True,
+            finish_reason="fake",
+        )
 
 
 class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
@@ -242,18 +267,132 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertTrue(decision.blocked)
         self.assertEqual(decision.reason_code, "unsafe_medical_output")
 
-    def test_workflow_does_not_call_llm_or_directly_access_repository_or_db(self) -> None:
-        sys.modules.pop("app.agent.llm_client", None)
+    def test_default_workflow_does_not_call_llm_or_directly_access_repository_or_db(self) -> None:
+        fake_llm = FakeLLMClient("should not be called")
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=False, DAILY_BRIEF_USE_LLM=False),
+                llm_client=fake_llm,
+            )
+        )
         source = inspect.getsource(sys.modules[DailyHealthBriefWorkflow.__module__])
 
-        AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id))
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
 
-        self.assertNotIn("app.agent.llm_client", sys.modules)
+        self.assertEqual(fake_llm.calls, 0)
+        self.assertIn("llm_used=false", result.message)
+        self.assertIn("fallback_reason=llm_disabled", result.message)
         self.assertNotIn("repository", source)
         self.assertNotIn("SessionLocal", source)
         self.assertNotIn("select(", source)
         self.assertNotIn(".query(", source)
         self.assertNotIn("service as", source)
+
+    def test_daily_brief_use_llm_false_does_not_call_llm(self) -> None:
+        fake_llm = FakeLLMClient("should not be called")
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=False),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(fake_llm.calls, 0)
+        self.assertIn("llm_used=false", result.message)
+        self.assertIn("fallback_reason=daily_brief_use_llm_disabled", result.message)
+
+    def test_llm_enabled_can_generate_safe_daily_brief(self) -> None:
+        safe_content = "\n".join(
+            [
+                "根据系统内记录，已整理一份健康简报。",
+                "- 系统内记录已完成摘要整理。",
+                "- 本简报不能替代医生诊断或治疗建议。",
+                "- 如有不适或紧急情况，请联系医生或当地急救服务。",
+            ]
+        )
+        fake_llm = FakeLLMClient(safe_content)
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(fake_llm.calls, 1)
+        self.assertEqual(result.generated_content, safe_content)
+        self.assertIn("llm_used=true", result.message)
+        self.assertIn("fallback_used=false", result.message)
+        self.assertNotIn("api_key", result.message.lower())
+        self.assertNotIn("raw prompt", result.message.lower())
+
+    def test_llm_provider_error_falls_back_to_rule_brief(self) -> None:
+        fake_llm = FakeLLMClient("", raise_error=True)
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(fake_llm.calls, 1)
+        self.assertIn("根据系统内记录，已为你整理最近", result.generated_content or "")
+        self.assertIn("fallback_used=true", result.message)
+        self.assertIn("fallback_reason=llm_error", result.message)
+
+    def test_unsafe_llm_output_falls_back_to_rule_brief(self) -> None:
+        fake_llm = FakeLLMClient("诊断结果：高风险，请停药并调整剂量。")
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(fake_llm.calls, 1)
+        self.assertIn("根据系统内记录，已为你整理最近", result.generated_content or "")
+        self.assertNotIn("诊断结果", result.generated_content or "")
+        self.assertIn("fallback_reason=llm_output_safety_blocked", result.message)
+
+    def test_llm_prompt_uses_structured_summary_without_sensitive_raw_fields(self) -> None:
+        self._seed_health_records(self.actor.id, self.actor.id, family_id=None, secret_text="very private raw symptom text")
+        safe_content = "\n".join(
+            [
+                "根据系统内记录，已整理一份健康简报。",
+                "- 系统内记录已完成摘要整理。",
+                "- 本简报不能替代医生诊断或治疗建议。",
+                "- 如有不适或紧急情况，请联系医生或当地急救服务。",
+            ]
+        )
+        fake_llm = FakeLLMClient(safe_content)
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(result.status, "completed")
+        self.assertNotIn("very private raw symptom text", fake_llm.last_user_prompt)
+        self.assertNotIn("raw_text", fake_llm.last_user_prompt)
+        self.assertNotIn("file_path", fake_llm.last_user_prompt)
+        self.assertNotIn("raw_extracted_text", fake_llm.last_user_prompt)
+        self.assertNotIn("api_key", result.message.lower())
 
     def test_workflow_does_not_write_daily_reports_or_health_business_data(self) -> None:
         self._seed_health_records(self.actor.id, self.actor.id, family_id=None)

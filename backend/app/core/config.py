@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: float = 30.0
     LLM_MAX_TOKENS: int = 512
     LLM_TEMPERATURE: float = 0.2
+    DAILY_BRIEF_USE_LLM: bool = False
     OPENAI_API_KEY: str = ""
     LOCAL_STORAGE_DIR: str = "backend/storage/local"
     S3_ENDPOINT: str = ""
