@@ -188,3 +188,34 @@ Phase 09.4 没有改变 API mapping，只完成移动端 MVP 收口：
 - Web 和 Expo Go 演示方式见 `MOBILE_MVP_DEMO_SCRIPT.md`。
 - 页面和 API 验收项见 `MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`。
 - 最终结论见 `PHASE_09_FINAL_REVIEW.md`。
+
+## Phase 12 Auth Mapping
+
+Phase 12 后移动端 API client 增加 auth mode，但不改变 Agent workflow 白名单。
+
+数据/认证模式：
+
+- `mock`：`EXPO_PUBLIC_DATA_MODE=mock`，不请求后端。
+- `api-demo`：`EXPO_PUBLIC_DATA_MODE=api` + `EXPO_PUBLIC_AUTH_MODE=demo`，发送 `X-Current-User-Id`。
+- `api-auth`：`EXPO_PUBLIC_DATA_MODE=api` + `EXPO_PUBLIC_AUTH_MODE=auth`，发送 `Authorization: Bearer`。
+
+新增接口：
+
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+
+移动端仍禁止：
+
+- 任意 `workflow_type`。
+- `tool_name`。
+- `input_data`。
+- 通用 tool execution。
+
+Agent API 在 `api-auth` 下仍只允许：
+
+- `daily_health_brief`
+- `symptom_draft_create`
+- `medical_event_draft_create`
+- `alert_create`

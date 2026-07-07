@@ -405,4 +405,56 @@ Phase 12.A：Auth/JWT 与用户会话地基已执行。
 - 未修改 Agent workflow、LLM、Tool Executor 或 LangGraph。
 - 未新增 OAuth、短信验证码、邮箱验证、管理员 RBAC 或生产级账号策略。
 
-下一阶段建议：Phase 12.B：Current User Dependency JWT 迁移与 demo header 收口策略。
+## Phase 12.B 更新
+
+Phase 12.B：替换 demo header 鉴权链路已执行。
+
+完成范围：
+- 统一 current user dependency 支持 `Authorization: Bearer <access_token>`。
+- Bearer token 优先于 `X-Current-User-Id`。
+- 无效 Bearer token 直接返回 401，不 fallback demo header。
+- 新增 `AUTH_DEMO_HEADER_ENABLED` 配置，默认开发模式为 true。
+- 当 `AUTH_DEMO_HEADER_ENABLED=false` 时，demo header 请求会被拒绝。
+- Agent API 通过统一 current user dependency 使用 JWT 用户。
+- family / permissions 权限检查仍独立生效。
+
+边界保持：
+- 未删除 demo header fallback。
+- 未修改 Agent workflow、Tool Executor、LLM 或 LangGraph。
+- 未修改数据库模型或 migration。
+
+## Phase 12.C 更新
+
+Phase 12.C：移动端登录态接入已执行。
+
+完成范围：
+- 新增 `/login` 登录页。
+- 新增移动端 auth session store。
+- `api-auth` mode 自动发送 `Authorization: Bearer`。
+- access token 过期时尝试 refresh；refresh 失败后清理 session。
+- 设置页显示 auth mode、当前用户摘要、token 短摘要和 logout。
+- `mock` mode 与 `api-demo` mode 均保留。
+- 新增 `scripts/smoke/mobile_auth_smoke.ps1`。
+
+边界保持：
+- 未实现 OAuth、短信验证码、邮箱验证、找回密码或复杂账号中心。
+- 未开放通用 tool execution。
+- 未修改后端业务模型或 migration。
+
+## Phase 12.D 更新
+
+Phase 12.D：Auth 安全、错误处理与文档收口已执行。
+
+完成范围：
+- 更新 `docs/architecture/AUTH_JWT_DESIGN.md`。
+- 新增 `docs/architecture/AUTH_SECURITY_NOTES.md`。
+- 新增 `docs/frontend/AUTH_MOBILE_RUNBOOK.md`。
+- 新增 `docs/frontend/AUTH_QA_CHECKLIST.md`。
+- 新增 `docs/architecture/PHASE_12_AUTH_FINAL_REVIEW.md`。
+- 更新 README、移动端 README、Known Risks 与 smoke runbook。
+
+Phase 12 结论：
+- Phase 12 可以视为 Auth/JWT 与用户会话阶段完成。
+- 生产前仍需关闭 demo header、设置强 JWT secret、补 Native SecureStore 和更完整账号安全策略。
+
+下一阶段建议：Phase 13：文件上传 / OCR / 文档处理增强。

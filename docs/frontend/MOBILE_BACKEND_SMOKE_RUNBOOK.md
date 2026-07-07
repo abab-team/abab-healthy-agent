@@ -166,11 +166,14 @@ Invoke-RestMethod -Uri "http://127.0.0.1:18001/api/v1/agent/runs/$traceId/safety
 
 ## 移动端 API Mode
 
+### api-demo
+
 Web 本机预览可使用：
 
 ```powershell
 cd apps/mobile
 $env:EXPO_PUBLIC_DATA_MODE="api"
+$env:EXPO_PUBLIC_AUTH_MODE="demo"
 $env:EXPO_PUBLIC_API_BASE_URL="http://127.0.0.1:18001"
 $env:EXPO_PUBLIC_DEMO_USER_ID="99154c5b-6df9-437f-8ad7-d532ce6a231c"
 npm run web
@@ -184,6 +187,36 @@ npm run web
 - 设置页 `/health` 状态为后端返回。
 - AI 管家页只触发 `daily_health_brief`。
 - Agent Run 详情只展示安全摘要。
+
+### api-auth
+
+Phase 12 后可使用 Bearer token 登录态：
+
+```powershell
+cd apps/mobile
+$env:EXPO_PUBLIC_DATA_MODE="api"
+$env:EXPO_PUBLIC_AUTH_MODE="auth"
+$env:EXPO_PUBLIC_API_BASE_URL="http://127.0.0.1:18001"
+npm run web
+```
+
+检查：
+
+- 打开 `/login`。
+- 使用 demo 账号 `gala.demo@example.com` / `DemoPass123!` 登录。
+- 设置页显示 `Auth Mode: Authorization Bearer`。
+- 设置页只显示 access token 短摘要，不显示完整 token。
+- AI 管家页和 Agent Run 详情通过 Bearer token 请求后端。
+- 退出登录后需要重新登录。
+
+api-auth 后端 smoke：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/smoke/mobile_auth_smoke.ps1 `
+  -Python "<codex-bundled-python>"
+```
+
+该脚本会设置 `AUTH_DEMO_HEADER_ENABLED=false`，验证 Bearer token 可用且 demo header 被拒绝。
 
 Phase 09.3.C 时写入类页面仍为 mock：
 

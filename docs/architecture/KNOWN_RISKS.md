@@ -154,3 +154,24 @@
 4. demo 用户密码仅用于本地开发验证。
    - `seed_demo_data.py` 为 demo 用户写入开发用密码哈希，便于 auth smoke。
    - 该 demo 密码不得作为生产账号密码或真实用户初始密码策略。
+
+## Phase 12 Final Review 记录
+
+1. demo header fallback 仍保留。
+   - Phase 12.B 已新增 `AUTH_DEMO_HEADER_ENABLED`，并支持生产环境关闭。
+   - 默认值仍为 true，以保护本地 demo 和既有 smoke。
+   - 生产或外部试用前必须设置 `AUTH_DEMO_HEADER_ENABLED=false`。
+
+2. 移动端 Native token 安全存储尚未完成。
+   - 当前 Web 可使用 `localStorage`，Native 环境会退回内存 session。
+   - 生产发布前应接入 Expo SecureStore 或等价安全存储。
+   - UI 只显示 token 短摘要，不展示完整 token。
+
+3. 账号安全策略仍是最小版本。
+   - 当前未实现 OAuth、短信验证码、邮箱验证、找回密码、设备管理、登录失败限流和管理员 RBAC。
+   - 这些能力需要后续产品化安全 review。
+
+4. JWT 不替代权限系统。
+   - JWT 只识别当前用户。
+   - family permissions、Agent Safety、Tool Executor 和 confirmation 仍必须独立执行。
+   - 后续任何 API 或 Agent workflow 变更不得把“JWT 用户本人”错误当成家人数据访问授权。

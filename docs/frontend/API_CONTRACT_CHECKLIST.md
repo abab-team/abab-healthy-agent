@@ -164,3 +164,23 @@ Phase 09.3.D 已接入以下受控 workflow：
 - 移动端仍只调用受控 API，不开放通用 tool execution。
 - `daily_health_brief`、`symptom_draft_create`、`medical_event_draft_create`、`alert_create` 仍是唯一开放的 Agent workflow 集合。
 - MVP 演示与验收入口见 `MOBILE_MVP_DEMO_SCRIPT.md`、`MOBILE_MVP_ACCEPTANCE_CHECKLIST.md` 和 `PHASE_09_FINAL_REVIEW.md`。
+
+## Phase 12 Auth Contract
+
+Phase 12 新增认证契约：
+
+- `EXPO_PUBLIC_AUTH_MODE=demo`：继续使用 `X-Current-User-Id`。
+- `EXPO_PUBLIC_AUTH_MODE=auth`：使用 `Authorization: Bearer`。
+- 登录页只调用 `POST /api/v1/auth/login`。
+- refresh 只调用 `POST /api/v1/auth/refresh`。
+- logout 只调用 `POST /api/v1/auth/logout`。
+- 设置页只展示 token 短摘要。
+
+必须继续确认：
+
+- API client 不在 console 输出完整 token。
+- UI 不展示完整 access token 或 refresh token。
+- auth mode 下不发送 demo header。
+- demo header fallback 只用于开发。
+- JWT 用户仍不能绕过 family permissions。
+- Agent API 仍不能绕过 Safety Policy / Tool Executor。

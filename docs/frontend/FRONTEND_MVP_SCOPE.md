@@ -152,4 +152,23 @@ Phase 09.4 已完成移动端 MVP 收口：
 - MVP 验收清单：`docs/frontend/MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`。
 - Phase 09 Final Review：`docs/frontend/PHASE_09_FINAL_REVIEW.md`。
 
-Phase 09 可以视为移动端 MVP 已完成，但它仍不是生产发布包。真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG、草稿正式确认入库、生产部署和真机视觉 QA 仍需后续阶段完成。
+Phase 09 可以视为移动端 MVP 已完成，但它仍不是生产发布包。Phase 12 已补充最小 Auth/JWT 登录态；OAuth、短信/邮箱验证、LangGraph、OCR/upload/RAG、草稿正式确认入库、生产部署和真机视觉 QA 仍需后续阶段完成。
+
+## Phase 12 Auth 补充
+
+移动端现支持：
+
+- `mock` mode。
+- `api-demo` mode：开发期 demo header。
+- `api-auth` mode：登录页 + Bearer token。
+- refresh / logout。
+- 设置页 token 短摘要。
+
+移动端仍不做：
+
+- OAuth。
+- 短信验证码。
+- 邮箱验证。
+- 完整账号中心。
+- 通用 Agent tool execution。
+- Native SecureStore 生产收口。
