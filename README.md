@@ -1,6 +1,6 @@
 # Family Health Agent
 
-Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前进入 **Phase 10.C：LLM 输出安全、fallback 与文档收口**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、受控 Agent workflow、Agent API 最小入口、移动端 MVP 演示闭环已经可验证运行，LLM 底座已开始受控接入，并完成 `daily_health_brief` 的 LLM 安全与 fallback 收口。
+Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前进入 **Phase 11：真实 LLM Provider 受控验证与 Agent 输出质量评估**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、受控 Agent workflow、Agent API 最小入口、移动端 MVP 演示闭环已经可验证运行，LLM 底座已开始受控接入，并完成 `daily_health_brief` 的 LLM 安全、fallback、provider smoke 与质量评估收口。
 
 本项目不是医疗诊断系统。系统只做生活健康管理、资料整理、趋势提醒和就医沟通辅助，不输出医学诊断、处方建议、药物剂量建议、停药/换药建议，也不把“系统内无记录”表达成“现实没有问题”。
 
@@ -12,10 +12,11 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 - Phase 10.A 已新增 LLM Client 最小封装：默认 mock provider、默认 `LLM_ENABLED=false`，并预留 openai-compatible provider。
 - Phase 10.B 已将 LLM Client 可选接入 `daily_health_brief`，必须同时满足 `LLM_ENABLED=true` 与 `DAILY_BRIEF_USE_LLM=true` 才会调用 LLM。
 - Phase 10.C 已完成 `daily_health_brief` 的 LLM prompt 安全收口、输出 safety 收口、fallback reason 收口、trace/debug 摘要收口和测试补强。
+- Phase 11 已新增真实 provider 受控 smoke 路径、daily_health_brief LLM 质量评估 harness 与 provider 使用风险文档。
 - Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
 - Phase 09 已完成移动端 MVP：Expo + React Native App 支持 mock/api mode、只读 demo 数据、`daily_health_brief`、3 个受控写入 workflow、Agent Run 详情和开发者调试状态。
 - 当前不是完整产品，仍缺少真实 Auth/JWT、其他 workflow LLM 接入、LangGraph、OCR/upload/RAG、正式上传、生产部署和完整真机视觉 QA。
-- 当前阶段为 **Phase 10.C：LLM 输出安全、fallback 与文档收口**。默认配置下 `daily_health_brief` 仍走规则简报。
+- 当前阶段为 **Phase 11：真实 LLM Provider 受控验证与 Agent 输出质量评估**。默认配置下 `daily_health_brief` 仍走规则简报。
 
 ## 已具备能力
 
@@ -203,3 +204,15 @@ make verify-demo
 ```
 
 任何开发任务开始前必须先阅读 `AGENTS.md`、`CODEX_IMPLEMENTATION_PLAN.md` 与相关架构文档，并严格遵守当前 Phase 范围。
+## Phase 11 LLM Provider Verification
+
+Phase 11 已完成真实 provider 受控 smoke 路径、daily_health_brief LLM 输出质量评估 harness，以及 LLM provider 使用风险文档收口。
+
+- 默认仍为 `LLM_ENABLED=false`、`LLM_PROVIDER=mock`、`DAILY_BRIEF_USE_LLM=false`。
+- `scripts/smoke/llm_provider_smoke.ps1` 默认只跑 mock provider；真实 provider 只有显式设置 `LLM_REAL_SMOKE_ENABLED=true` 且提供本地 `LLM_API_KEY` 时才会请求外部服务。
+- `scripts/smoke/daily_brief_llm_quality_smoke.ps1` 默认使用 mock provider 和合成摘要评估 `daily_health_brief` 输出质量。
+- 真实 provider 未配置时会安全 skip，不会伪装为在线通过。
+- smoke / evaluation 输出不记录 API key、raw prompt、raw response、真实健康原文、traceback、SQL 或本机敏感路径。
+- 当前仍只有 `daily_health_brief` 可选使用 LLM；其他 workflow 尚未接入 LLM。
+- LLM 仍不查数据库、不调用 tool、不写业务数据，不绕过 Agent Runtime、Safety Policy 或 Tool Executor。
+- 详细说明见 `docs/architecture/LLM_REAL_PROVIDER_RUNBOOK.md`、`docs/architecture/LLM_DAILY_BRIEF_EVALUATION.md`、`docs/architecture/PHASE_11_LLM_PROVIDER_VERIFICATION.md`。

@@ -119,3 +119,18 @@
 4. 其他 workflow 尚未接入 LLM。
    - 当前只有 `daily_health_brief` 可选使用 LLM。
    - 后续如接入草稿、提醒、问答或 LangGraph workflow，必须重新 review prompt、权限、Tool Executor、Safety Policy、trace/debug 与 fallback。
+## Phase 11 记录
+
+1. 真实 provider smoke 仍不是生产承诺。
+   - Phase 11 新增了真实 provider 受控 smoke 路径，但默认仍不联网、不需要 key。
+   - 只有显式设置 `LLM_REAL_SMOKE_ENABLED=true` 且提供本地 `LLM_API_KEY` 时才会调用真实 provider。
+   - smoke 通过只说明最小连通性可用，不代表成本、稳定性、限流、合规、监控或生产 SLA 已完成。
+
+2. daily_health_brief LLM 质量评估使用合成摘要。
+   - 评估 harness 不使用真实用户健康数据。
+   - 合成用例可以覆盖基础安全边界，但不能替代真实产品灰度、人工 QA 或长期回归评估。
+   - 真实 provider 可能存在模型版本漂移和输出风格波动，必须继续保留规则简报 fallback。
+
+3. LLM 调试信息仍必须保持摘要化。
+   - 允许记录 `llm_used`、`llm_provider`、`llm_model`、`fallback_used`、`fallback_reason`、`safety_filtered`。
+   - 禁止记录 API key、raw prompt、raw response、raw_text、symptom_text、raw_extracted_text、file_path、token/password/key、traceback、SQL 或本机敏感路径。

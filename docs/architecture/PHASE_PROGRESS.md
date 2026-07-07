@@ -358,3 +358,23 @@ Phase 10.C：LLM 输出安全、fallback 与文档收口已执行。
 - 未新增业务 API。
 
 下一步建议：Phase 10 Batch Review，对 Phase 10.A/10.B/10.C 的 LLM client、可选接入、安全收口和默认 smoke 做总体验收。
+## Phase 11 更新
+
+Phase 11：真实 LLM Provider 受控验证与 Agent 输出质量评估已执行。
+
+完成范围：
+- Phase 11.A：新增真实 provider smoke runbook 与 `scripts/smoke/llm_provider_smoke.*`，默认 mock，不联网，不需要真实 key。
+- Phase 11.B：新增 `daily_health_brief` LLM 质量评估 harness，使用合成结构化摘要覆盖 normal、empty、multi-member、follow-up reminder、safety-sensitive 用例。
+- Phase 11.C：新增 Phase 11 provider verification、real provider runbook、daily brief evaluation 文档，说明安全、fallback、trace/debug、成本、延迟、稳定性风险。
+
+边界保持：
+- 未修改前端。
+- 未接入其他 workflow。
+- 未实现 Auth/JWT。
+- 未实现 LangGraph/OCR/RAG。
+- 未新增数据库 migration/model。
+- 未新增后端业务 API。
+- 未开放通用 tool execution。
+- 未提交 `.env`、API key、真实 provider 原始输出或用户附件。
+
+下一阶段建议：Phase 12：Auth/JWT 与用户会话，先补齐真实身份边界，再扩大 LLM/LangGraph 能力。

@@ -163,3 +163,15 @@ Phase 10.B/10.C 中，`daily_health_brief` 的 LLM 输出会先经过 output saf
 - `LLMTimeoutError`
 
 错误信息不得泄露 API key、完整敏感请求、traceback、SQL 或本机路径。
+## Phase 11 Provider Verification
+
+Phase 11 在不新增业务能力的前提下补齐真实 provider 验证路径与 daily_health_brief 质量评估：
+
+- `scripts/smoke/llm_provider_smoke.ps1`：默认 mock provider，不联网；真实 provider 必须显式设置 `LLM_REAL_SMOKE_ENABLED=true`。
+- `scripts/smoke/daily_brief_llm_quality_smoke.ps1`：使用合成结构化摘要评估 daily brief 输出质量。
+- `backend/tests/evaluation/test_daily_brief_llm_quality.py`：覆盖 normal、empty、multi-member、follow-up reminder、safety-sensitive 五类合成用例。
+- 真实 provider 未配置 `LLM_API_KEY` 时输出安全 skip，不失败也不伪装在线通过。
+- smoke 与评估输出只包含 provider、model、is_mock、status、latency、content_length 或 failed_checks，不输出 raw prompt 或 raw response。
+- 真实 provider 会带来成本、延迟、限流、稳定性和模型漂移风险，因此仍必须保留规则简报 fallback。
+
+Phase 11 后仍保持：只有 `daily_health_brief` 可选接入 LLM；其他 workflow 未接入 LLM；LLM 不查 DB、不调用 tool、不写数据。
