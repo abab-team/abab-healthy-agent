@@ -1,6 +1,6 @@
 # Family Health Agent
 
-Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前已完成到 **Phase 09.4 + Phase 09 Final Review**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、受控 Agent workflow、Agent API 最小入口，以及移动端 MVP 演示闭环已经可验证运行。
+Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前进入 **Phase 10.A：LLM Client 最小封装**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、受控 Agent workflow、Agent API 最小入口、移动端 MVP 演示闭环已经可验证运行，LLM 底座已开始建设。
 
 本项目不是医疗诊断系统。系统只做生活健康管理、资料整理、趋势提醒和就医沟通辅助，不输出医学诊断、处方建议、药物剂量建议、停药/换药建议，也不把“系统内无记录”表达成“现实没有问题”。
 
@@ -9,10 +9,11 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 当前状态：
 
 - Phase 00-09 已完成。
+- Phase 10.A 已新增 LLM Client 最小封装：默认 mock provider、默认 `LLM_ENABLED=false`，并预留 openai-compatible provider。
 - Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
 - Phase 09 已完成移动端 MVP：Expo + React Native App 支持 mock/api mode、只读 demo 数据、`daily_health_brief`、3 个受控写入 workflow、Agent Run 详情和开发者调试状态。
-- 当前不是完整产品，仍缺少真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG、正式上传、生产部署和完整真机视觉 QA。
-- 当前阶段为 **Phase 09.4：移动端 MVP 闭环与 Phase 09 Final Review**。默认仍使用 mock 数据，切换 `EXPO_PUBLIC_DATA_MODE=api` 后才请求 FastAPI。
+- 当前不是完整产品，仍缺少真实 Auth/JWT、业务 workflow LLM 接入、LangGraph、OCR/upload/RAG、正式上传、生产部署和完整真机视觉 QA。
+- 当前阶段为 **Phase 10.A：LLM Client 最小封装**。LLM Client 尚未接入 `daily_health_brief` 或其他 Agent workflow。
 
 ## 已具备能力
 
@@ -36,6 +37,10 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
   - `GET /api/v1/agent/runs/{trace_id}`
   - `GET /api/v1/agent/runs/{trace_id}/tool-calls`
   - `GET /api/v1/agent/runs/{trace_id}/safety-checks`
+- LLM Client 最小底座：
+  - `mock` provider，默认不请求外部网络。
+  - `openai_compatible` provider，读取 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`。
+  - 默认 `LLM_ENABLED=false`，当前未接入业务 workflow。
 
 ## 未完成能力
 
@@ -44,7 +49,7 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 - 正式 Web 前端。
 - 移动端完整真实 API 联调与发布。
 - 真实 Auth/JWT 登录体系。
-- LLM Client。
+- 业务 workflow 的 LLM 接入。
 - LangGraph workflow。
 - OCR / upload / RAG。
 - 生产部署、真实通知、真实设备接入。
@@ -161,6 +166,17 @@ Phase 15: 真实 Auth / 部署 / 产品化收口
 ```
 
 Phase 09 优先做可用前端 / 调试页面，是为了更快验证已有普通 API、Agent API、权限、草稿确认、trace/tool_calls/safety_checks 的产品闭环。LLM 与 LangGraph 后移，避免在没有可操作界面的情况下继续堆叠不可见能力。
+
+## LLM Client 状态
+
+Phase 10.A 只完成 LLM Client 底座，不改变现有 Agent workflow 行为：
+
+- 默认 `LLM_ENABLED=false`。
+- 默认 `LLM_PROVIDER=mock`。
+- `mock` provider 返回稳定文本，适合测试和本地开发。
+- `openai_compatible` provider 只在显式启用且配置 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL` 后才会请求外部服务。
+- LLM Client 不查数据库、不调用 tool、不写业务数据。
+- 后续任何 LLM 输出接入 Agent workflow 前，都必须经过 Safety Policy。
 
 ## 本地命令
 

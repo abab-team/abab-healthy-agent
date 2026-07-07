@@ -284,3 +284,29 @@ Phase 09 结论：
 - 移动端 MVP 可演示，但不是生产发布包。
 - 真机 Expo Go 视觉 QA 仍需要用户手动完成。
 - 下一阶段建议进入 Phase 10：LLM Client 最小封装。
+
+## Phase 10.A 更新
+
+Phase 10.A：LLM Client 最小封装已执行。
+
+完成范围：
+
+- 新增 `backend/app/llm` 模块。
+- 新增 `mock` provider，默认不请求外部网络。
+- 新增 `openai_compatible` provider，预留 OpenAI-compatible chat completions 接入。
+- 新增统一入口 `get_llm_client(settings)`、`LLMClient.generate_text(...)`、`LLMClient.chat(...)`。
+- 新增 LLM request/response schema 与错误类型。
+- 新增 `docs/architecture/LLM_CLIENT_DESIGN.md`。
+
+边界保持：
+
+- 默认 `LLM_ENABLED=false`。
+- 默认 `LLM_PROVIDER=mock`。
+- 未接入 `daily_health_brief`。
+- 未修改 Agent workflow、Tool Executor 或 Agent API。
+- 未修改前端。
+- 未新增数据库 migration 或 model。
+- 未实现 LangGraph/OCR/RAG。
+- 未实现 Auth/JWT。
+
+下一步建议：Phase 10.B，围绕 LLM Client 轻量验收或受控 workflow 接入前的 safety 契约审查。

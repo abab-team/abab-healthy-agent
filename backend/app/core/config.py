@@ -28,7 +28,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     CORS_ORIGINS: str = ""
+    LLM_ENABLED: bool = False
     LLM_PROVIDER: str = "mock"
+    LLM_BASE_URL: str = ""
+    LLM_API_KEY: str = ""
+    LLM_MODEL: str = "mock-model"
+    LLM_TIMEOUT_SECONDS: float = 30.0
+    LLM_MAX_TOKENS: int = 512
+    LLM_TEMPERATURE: float = 0.2
     OPENAI_API_KEY: str = ""
     LOCAL_STORAGE_DIR: str = "backend/storage/local"
     S3_ENDPOINT: str = ""

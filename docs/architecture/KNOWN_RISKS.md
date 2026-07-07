@@ -70,3 +70,19 @@
 4. PostgreSQL / Docker 完整复验仍受本机环境影响。
    - Phase 09 smoke 使用临时 SQLite demo DB 完成。
    - Docker Desktop engine 可用后仍建议补跑 PostgreSQL / docker-compose 路径。
+
+## Phase 10.A 记录
+
+1. LLM Client 尚未接入业务 workflow。
+   - Phase 10.A 只新增底层 client，不改变 `daily_health_brief` 或任何 Agent workflow 行为。
+   - 后续接入前必须单独 review prompt、Safety Policy、trace、权限与 fallback 策略。
+
+2. 真实 provider 配置风险。
+   - 默认 `LLM_ENABLED=false`，默认 provider 为 `mock`。
+   - `openai_compatible` 需要从本地 `.env` 或部署环境变量读取 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`。
+   - API key 不得写入代码、文档示例或测试输出。
+
+3. LLM 输出安全风险。
+   - LLM Client 只负责文本生成，不判断病情、不生成诊断、处方、剂量或停药建议。
+   - 后续任何业务接入必须经过 Agent Safety Policy。
+   - LLM 不能决定 `current_user_id`、`family_id`、`target_user_id`，不能直接调用 tool，不能直接写业务数据。
