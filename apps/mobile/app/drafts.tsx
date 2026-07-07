@@ -13,7 +13,7 @@ import type { DraftStatus } from "@/types/api";
 
 const statusLabel: Record<DraftStatus, string> = {
   pending: "待确认",
-  confirmed: "已确认",
+  confirmed: "mock 已确认",
   later: "稍后处理"
 };
 
@@ -34,7 +34,7 @@ export default function DraftsScreen() {
       return;
     }
     setDrafts((current) => current.map((draft) => (draft.id === id ? { ...draft, status, editing: false } : draft)));
-    setMessage(status === "confirmed" ? "草稿已 mock 确认。" : "草稿已标记为稍后处理。");
+    setMessage(status === "confirmed" ? "草稿已 mock 确认；正式确认入库仍未接入。" : "草稿已标记为稍后处理。");
   }
 
   return (
@@ -61,7 +61,7 @@ export default function DraftsScreen() {
           )}
           <View style={styles.actions}>
             <Pressable style={styles.button} onPress={() => updateStatus(draft.id, "confirmed")}>
-              <Text style={styles.buttonText}>确认</Text>
+              <Text style={styles.buttonText}>mock 确认</Text>
             </Pressable>
             <Pressable
               style={[styles.button, styles.secondaryButton]}

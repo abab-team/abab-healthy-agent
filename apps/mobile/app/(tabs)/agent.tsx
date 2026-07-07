@@ -21,6 +21,10 @@ import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
 import type { AgentRunResponse } from "@/types/api";
 
+function shortId(id: string): string {
+  return id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-6)}` : id;
+}
+
 export default function AgentScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
@@ -66,7 +70,7 @@ export default function AgentScreen() {
         {error ? <ApiErrorState message={error} /> : null}
         {brief ? (
           <View style={styles.briefBox}>
-            <Text style={styles.logTitle}>Trace：{brief.trace_id}</Text>
+            <Text style={styles.logTitle}>Trace：{shortId(brief.trace_id)}</Text>
             <Text style={styles.description}>{brief.generated_content}</Text>
             <Link href={routes.agentRun(brief.trace_id)} style={styles.link}>查看本次 Agent Run</Link>
           </View>

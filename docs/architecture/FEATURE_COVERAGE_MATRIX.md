@@ -123,18 +123,18 @@ Phase 08 后建议执行顺序：
 | K-09 | document_to_event_draft | agent, document_processing | 文档转事件草稿 | 部分完成 | Agent Tool, Agent Workflow | 目前无 OCR，只支持受控草稿入口 | 是 | 是 | 是 | 是 | 是 | 后续增强 | 是 | 是 | 需确认后才正式写入 | Phase 13 | P1 | |
 | K-10 | caregiver_brief | agent, family | 照护者摘要 | 未开始 | Docs | 候选 workflow | 否 | 候选 | 否 | 是 | 后续增强 | 后续增强 | 否 | 否 | 不泄露未授权成员数据 | Phase 12 | P1 | |
 | K-11 | daily_report_generate | agent, reports | 生成并保存日报 | 未开始 | Docs | 候选 workflow | 否 | 候选 | 否 | 是 | 是 | 后续增强 | 否 | 是 | 写入前需确认/规则边界 | Phase 12 | P2 | 当前 daily_health_brief 不入库 |
-| L-01 | 最小可用前端 | apps/web | 让已有能力可操作 | 未开始 | Docs | 本文档与 FRONTEND_MVP_SCOPE 定义范围 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 视页面 | demo header 风险 | Phase 09 | P0 | 下一阶段 |
-| L-02 | Demo 登录/用户切换 | apps/web, identity | 选择 demo 用户验收流程 | 未开始 | Docs | 范围已定义 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 否 | 不得伪装真实 Auth | Phase 09 | P0 | |
-| L-03 | 家庭成员选择 | apps/web, family | 选择目标成员 | 未开始 | Docs | 范围已定义 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 否 | 必须传明确 target_user_id/family_id | Phase 09 | P0 | |
-| L-04 | 健康档案页 | apps/web, health_profile | 查看/编辑档案 | 未开始 | Docs | 范围已定义 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 是 | 字段校验与脱敏 | Phase 09 | P0 | |
-| L-05 | 血压/症状记录页 | apps/web, health_data, health_record | 快速记录与查看 | 未开始 | Docs | 范围已定义 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 是 | 不渲染诊断判断 | Phase 09 | P0 | |
-| L-06 | 医疗时间线页 | apps/web, medical_timeline | 查看事件与随访 | 未开始 | Docs | 范围已定义 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 是 | 医生诊断字段来源需明确 | Phase 09 | P1 | |
-| L-07 | 文档页 | apps/web, document_center | 展示文档元数据占位 | 未开始 | Docs | 范围已定义 | 否 | 否 | 否 | 是 | 否 | 否 | 是 | 是 | Phase 09 不做真实上传 | Phase 09, Phase 13 | P2 | |
-| L-08 | 提醒页 | apps/web, alerts | 查看/创建普通提醒 | 未开始 | Docs | 范围已定义 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 是 | 强调不是急救 | Phase 09 | P0 | |
-| L-09 | Agent 简报页 | apps/web, agent | 调用 daily brief | 未开始 | Docs | 范围已定义 | 否 | 否 | 是 | 是 | 否 | 否 | 否 | 否 | 显示 trace 可追踪 | Phase 09 | P0 | |
-| L-10 | Agent 草稿创建页 | apps/web, agent | 创建待确认草稿 | 未开始 | Docs | 范围已定义 | 否 | 否 | 是 | 是 | 否 | 否 | 否 | 是 | confirmation UI 必须清晰 | Phase 09 | P0 | |
-| L-11 | 草稿确认页 | apps/web | 用户确认正式写入 | 未开始 | Docs | 范围已定义 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 是 | 不自动确认 | Phase 09 | P0 | |
-| L-12 | Trace/Tool/Safety 调试页 | apps/web, agent | 验证审计链路 | 未开始 | Docs | 范围已定义 | 是 | 否 | 否 | 是 | 否 | 否 | 否 | 否 | 只看自己的 run | Phase 09 | P0 | |
+| L-01 | 最小可用移动端 | apps/mobile | 让已有能力可操作 | 已完成 | Frontend, Docs | Expo + React Native MVP，支持 mock/api mode | 是 | 否 | 是 | 是 | 否 | 否 | 否 | 视页面 | demo header 风险 | Phase 09 | P0 | Phase 09.4 收口 |
+| L-02 | Demo 用户调试 | apps/mobile, identity | 选择 demo 用户验收流程 | 部分完成 | Frontend, Docs | 设置页展示 `X-Current-User-Id`，环境变量配置 | 是 | 否 | 否 | 是 | 否 | 否 | 否 | 否 | 不得伪装真实 Auth | Phase 09, Phase 15 | P0 | 后续可做用户切换页 |
+| L-03 | 家庭成员选择 | apps/mobile, family | 选择目标成员 | 已完成 | Frontend | 家庭页、成员详情、写入 workflow 目标成员选择 | 是 | 否 | 是 | 是 | 否 | 否 | 否 | 否 | 必须传明确 target_user_id/family_id | Phase 09 | P0 | |
+| L-04 | 健康档案摘要 | apps/mobile, health_profile | 查看档案摘要 | 部分完成 | Frontend | 成员详情展示系统内只读摘要 | 是 | 是 | 是 | 是 | 否 | 否 | 否 | 否 | 字段校验与脱敏 | Phase 09, Phase 12 | P0 | 编辑页后续增强 |
+| L-05 | 血压/症状摘要 | apps/mobile, health_data, health_record | 查看摘要与创建草稿 | 已完成 | Frontend | 成员详情摘要、症状草稿 workflow | 是 | 是 | 是 | 是 | 否 | 否 | 否 | 是 | 不渲染诊断判断 | Phase 09 | P0 | |
+| L-06 | 健康事件草稿页 | apps/mobile, medical_timeline | 创建待确认健康事件草稿 | 已完成 | Frontend | `create-health-event-draft` preview/confirm | 是 | 是 | 是 | 是 | 否 | 否 | 否 | 是 | 不写正式 medical_event | Phase 09 | P0 | |
+| L-07 | 文档页 | apps/mobile, document_center | 展示文档元数据占位 | 未开始 | Docs | Phase 09 不做真实上传/OCR | 否 | 否 | 否 | 后续增强 | 否 | 否 | 是 | 是 | Phase 09 不做真实上传 | Phase 13 | P2 | |
+| L-08 | 提醒创建页 | apps/mobile, alerts | 创建普通健康提醒 | 已完成 | Frontend | `create-alert` preview/confirm | 是 | 是 | 是 | 是 | 否 | 否 | 否 | 是 | 强调不是急救 | Phase 09 | P0 | |
+| L-09 | Agent 简报页 | apps/mobile, agent | 调用 daily brief | 已完成 | Frontend | 首页/AI 管家调用 `daily_health_brief` | 是 | 是 | 是 | 是 | 否 | 否 | 否 | 否 | 显示 trace 可追踪 | Phase 09 | P0 | |
+| L-10 | Agent 草稿创建页 | apps/mobile, agent | 创建待确认草稿 | 已完成 | Frontend | 症状草稿、健康事件草稿 preview/confirm | 是 | 是 | 是 | 是 | 否 | 否 | 否 | 是 | confirmation UI 必须清晰 | Phase 09 | P0 | |
+| L-11 | 草稿确认页 | apps/mobile | 用户确认后写正式事实 | 部分完成 | Frontend, Docs | 草稿页仍为 mock，明确不正式入库 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 是 | 不自动确认 | Phase 12, Phase 15 | P0 | 正式确认入库后续 |
+| L-12 | Trace/Tool/Safety 调试页 | apps/mobile, agent | 验证审计链路 | 已完成 | Frontend | Agent Run 详情安全摘要 | 是 | 否 | 否 | 是 | 否 | 否 | 否 | 否 | 只看自己的 run | Phase 09 | P0 | |
 | M-01 | LLM Client | agent, integrations | 统一模型调用 | 未开始 | Docs | 原计划保留，顺序后移 | 否 | 否 | 否 | 后续增强 | 是 | 否 | 否 | 否 | API key 与输出安全风险 | Phase 10 | P2 | |
 | M-02 | LLM Prompt 管理 | prompts | 可追踪 prompt | 未开始 | Docs | 原计划保留 | 否 | 否 | 否 | 后续增强 | 是 | 否 | 否 | 否 | prompt 不散落代码 | Phase 10 | P2 | |
 | M-03 | LLM 输出安全检查 | agent | 防止危险表达 | 部分完成 | Safety, Docs | deterministic safety 已有，LLM 输出增强未做 | 否 | 否 | 否 | 后续增强 | 是 | 否 | 否 | 否 | unsafe output 必须被替换 | Phase 11 | P1 | |
@@ -142,8 +142,8 @@ Phase 08 后建议执行顺序：
 | M-05 | OCR/upload | document_center, integrations | 真实资料入口 | 未开始 | Docs | storage/OCR 结构预留 | 否 | 否 | 否 | 是 | 后续增强 | 后续增强 | 是 | 是 | 文件路径与隐私 | Phase 13 | P2 | |
 | M-06 | RAG/健康知识库 | knowledge | 常识解释与来源引用 | 未开始 | Docs | knowledge 模块预留 | 部分 | 候选 | 候选 | 是 | 是 | 后续增强 | 否 | 否 | 不得据此诊断 | Phase 14 | P3 | |
 | M-07 | 部署 | infra, operations | 可稳定运行 | 部分完成 | Docker, Docs | dev compose 已有 | 否 | 否 | 否 | 后续增强 | 否 | 否 | 否 | 否 | 生产密钥和备份 | Phase 15 | P2 | |
-| M-08 | 移动端 | apps/mobile | 后续扩展终端 | 未开始 | Docs | 目录预留 | 否 | 否 | 否 | 是 | 否 | 否 | 否 | 视功能 | 不绕过后端权限 | Phase 15+ | P3 | |
+| M-08 | 移动端生产化 | apps/mobile | 后续扩展为可发布应用 | 部分完成 | Frontend, Docs | MVP 已完成，生产化未完成 | 是 | 是 | 是 | 是 | 否 | 否 | 否 | 视功能 | 不绕过后端权限 | Phase 15+ | P2 | 仍需 Auth、发布包、真机 QA |
 
 ## 当前结论
 
-Phase 08 完成的是 Agent API 与 Agent Tools 的第一轮受控开放，不是完整产品落地。下一步应先做 Phase 09 可用前端 / 调试页面，让已有 API、权限、Agent workflow、trace/tool_calls/safety_checks 真正被看见和验证。LLM、LangGraph、OCR/upload、RAG 继续后移。
+Phase 09 已完成移动端 MVP，让已有 API、权限、Agent workflow、trace/tool_calls/safety_checks 可以在 Expo App 中被看见和验证。下一步建议进入 Phase 10：LLM Client 最小封装。LangGraph、OCR/upload、RAG 继续后移。

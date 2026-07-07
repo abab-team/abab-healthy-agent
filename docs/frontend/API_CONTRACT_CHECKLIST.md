@@ -157,3 +157,10 @@ Phase 09.3.D 已接入以下受控 workflow：
 - `tool_name` / `input_data` 继续禁止。
 - API mode 失败不得自动 fallback mock。
 - 真机 QA 仍需用户手动完成，步骤见 `docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md`。
+
+## Phase 09.4 Final Review 补充
+
+- Phase 09.4 没有新增后端 API。
+- 移动端仍只调用受控 API，不开放通用 tool execution。
+- `daily_health_brief`、`symptom_draft_create`、`medical_event_draft_create`、`alert_create` 仍是唯一开放的 Agent workflow 集合。
+- MVP 演示与验收入口见 `MOBILE_MVP_DEMO_SCRIPT.md`、`MOBILE_MVP_ACCEPTANCE_CHECKLIST.md` 和 `PHASE_09_FINAL_REVIEW.md`。

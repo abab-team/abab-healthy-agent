@@ -43,12 +43,14 @@ export default function SettingsScreen() {
       />
 
       <CardBase>
-        <Text style={styles.sectionTitle}>写入 Workflow 状态</Text>
+        <Text style={styles.sectionTitle}>Agent API 状态</Text>
+        <StatusBadge label="daily_health_brief 已接入" tone="mint" />
         <StatusBadge label="symptom_draft_create 已接入" tone="mint" />
         <StatusBadge label="medical_event_draft_create 已接入" tone="mint" />
         <StatusBadge label="alert_create 已接入" tone="mint" />
         <Text style={styles.about}>预览使用 confirmation=false，不会写入。</Text>
         <Text style={styles.about}>确认使用 confirmation=true，只创建待确认草稿或普通健康提醒。</Text>
+        <Text style={styles.about}>草稿正式确认入库仍未实现。</Text>
         <Text style={styles.about}>Auth/JWT、LLM、LangGraph、OCR/RAG 仍未实现。</Text>
       </CardBase>
 

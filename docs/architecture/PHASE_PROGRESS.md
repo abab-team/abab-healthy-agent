@@ -242,3 +242,45 @@ Phase 09.3.E：写入流程 UI 打磨与真机 QA 修补已执行。
 - 未实现 LangGraph/OCR/RAG。
 
 下一步建议：Phase 09.3 Batch Review。
+
+## Phase 09.3 Batch Review 更新
+
+Phase 09.3 Batch Review 已完成基础验证。
+
+验证范围：
+
+- 移动端仍支持 mock/api mode。
+- 只读 demo 数据、`daily_health_brief`、Agent run / tool_calls / safety_checks 查询可用。
+- `symptom_draft_create`、`medical_event_draft_create`、`alert_create` 的 preview / confirm smoke 通过。
+- 移动端不开放通用 tool execution。
+- 移动端不允许页面传 `tool_name` 或 `input_data`。
+- 草稿列表和正式确认入库仍未真实接入。
+
+边界保持：
+
+- 未修改后端业务代码。
+- 未新增后端 API、migration 或 model。
+- 未实现 Auth/JWT。
+- 未调用 LLM。
+- 未实现 LangGraph/OCR/upload/RAG。
+
+## Phase 09.4 + Phase 09 Final Review 更新
+
+Phase 09.4：移动端 MVP 闭环、真机问题修补与前端 MVP 最终验收已执行。
+
+完成范围：
+
+- 首页、家庭页、成员详情、AI 管家页、写入 workflow 页面、Agent Run 详情、草稿页、设置页完成 MVP 演示路径收口。
+- 写入 workflow 页面继续明确 mock/api、preview/confirm、loading、success、error 与 safety blocked 状态。
+- 设置页开发者调试区展示 data mode、API Base URL、`X-Current-User-Id`、`/health`、Agent workflow 接入状态和未完成功能。
+- 新增 `docs/frontend/MOBILE_MVP_DEMO_SCRIPT.md`。
+- 新增 `docs/frontend/MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`。
+- 新增 `docs/frontend/PHASE_09_FINAL_REVIEW.md`。
+- 更新 README、移动端 README、前端 runbook、MVP scope、设备 QA、写入 workflow QA、Feature Coverage Matrix 与 Known Risks。
+
+Phase 09 结论：
+
+- Phase 09 可以视为移动端 MVP 已完成。
+- 移动端 MVP 可演示，但不是生产发布包。
+- 真机 Expo Go 视觉 QA 仍需要用户手动完成。
+- 下一阶段建议进入 Phase 10：LLM Client 最小封装。

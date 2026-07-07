@@ -77,6 +77,20 @@ npm run web
 
 - 通用 tool execution 入口。
 - 页面传 `tool_name` 或 `input_data`。
+
+## Phase 09.4 补充
+
+Phase 09.4 没有新增写入能力，只确认 3 个受控写入 workflow 的 UI 与文档闭环：
+
+- `symptom_draft_create`
+- `medical_event_draft_create`
+- `alert_create`
+
+最终演示和验收请同时参考：
+
+- `docs/frontend/MOBILE_MVP_DEMO_SCRIPT.md`
+- `docs/frontend/MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`
+- `docs/frontend/PHASE_09_FINAL_REVIEW.md`
 - 正式草稿确认入库。
 - 真实 Auth/JWT。
 - LLM、LangGraph、OCR/RAG。

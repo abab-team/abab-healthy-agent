@@ -310,3 +310,12 @@ open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specifie
 ### localhost 真机不可访问
 
 Expo Go 真机访问电脑后端时，`localhost` 指向手机自己。必须使用电脑局域网 IP。
+
+## Phase 09.4 Smoke 说明
+
+Phase 09.4 继续使用本 runbook 的两条 smoke 路径：
+
+- `scripts/smoke/mobile_backend_smoke.ps1`
+- `scripts/smoke/mobile_write_workflows_smoke.ps1`
+
+移动端 MVP 演示脚本见 `docs/frontend/MOBILE_MVP_DEMO_SCRIPT.md`，最终验收清单见 `docs/frontend/MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`。

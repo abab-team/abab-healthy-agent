@@ -50,3 +50,23 @@
    - Phase 09 优先做前端闭环，LLM Client 后移到 Phase 10。
    - 在 LLM 接入前，Agent 输出继续以确定性 workflow 和安全策略为准。
    - 后续 LLM 接入不得绕过 Safety Policy、Tool Executor、权限、confirmation 和 trace。
+
+## Phase 09 Final Review 记录
+
+1. 移动端 MVP 不是生产发布包。
+   - Phase 09.4 完成的是 Expo + React Native MVP 演示闭环。
+   - 真实 Auth/JWT、生产部署、发布包、隐私合规与真实用户账号仍未完成。
+   - 当前仍使用 `X-Current-User-Id` demo header。
+
+2. 真机视觉 QA 仍需要用户手动完成。
+   - Codex 已验证 Web export 与 Web HTTP 200。
+   - Expo Go 真机扫码、不同屏幕尺寸、中文换行和触控体验需要用户按 QA checklist 手动确认。
+
+3. 草稿正式确认入库仍未接入移动端。
+   - `symptom_draft_create` 与 `medical_event_draft_create` 只创建待确认草稿。
+   - `drafts` 页面仍为 mock，不执行正式 `symptom_record` 或 `medical_event` 确认入库。
+   - 后续实现正式确认入库前必须再次 review 权限、确认语义和审计。
+
+4. PostgreSQL / Docker 完整复验仍受本机环境影响。
+   - Phase 09 smoke 使用临时 SQLite demo DB 完成。
+   - Docker Desktop engine 可用后仍建议补跑 PostgreSQL / docker-compose 路径。

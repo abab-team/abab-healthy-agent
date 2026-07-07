@@ -143,3 +143,13 @@ Phase 09.3.E 只做移动端写入 workflow UI 收口与 QA 文档补齐：
 - Agent Run 详情只展示安全摘要。
 - 草稿列表仍为 mock，不接正式确认入库。
 - 真机 QA 仍需用户按 `docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md` 手动完成。
+
+## Phase 09.4 Final Review 补充
+
+Phase 09.4 已完成移动端 MVP 收口：
+
+- MVP 演示脚本：`docs/frontend/MOBILE_MVP_DEMO_SCRIPT.md`。
+- MVP 验收清单：`docs/frontend/MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`。
+- Phase 09 Final Review：`docs/frontend/PHASE_09_FINAL_REVIEW.md`。
+
+Phase 09 可以视为移动端 MVP 已完成，但它仍不是生产发布包。真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG、草稿正式确认入库、生产部署和真机视觉 QA 仍需后续阶段完成。

@@ -150,6 +150,19 @@ npx expo start --tunnel
 - 不用就医。
 - 一定没事。
 
+## Phase 09.4 MVP 真机补充
+
+Phase 09.4 真机 QA 还需要覆盖：
+
+- 首页到 AI 简报、家庭、成员详情、草稿页的跳转。
+- `create-symptom-draft` preview / confirm。
+- `create-health-event-draft` preview / confirm。
+- `create-alert` preview / confirm，并确认“提醒不是急救”文案可见。
+- Agent Run 详情的 tool_calls / safety_checks 安全摘要。
+- 设置页显示 data mode、API Base URL、`X-Current-User-Id`、`/health`、三个写入 workflow 状态和未完成功能。
+
+完整演示脚本见 `docs/frontend/MOBILE_MVP_DEMO_SCRIPT.md`。
+
 ## 记录模板
 
 ```text

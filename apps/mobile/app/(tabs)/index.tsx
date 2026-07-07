@@ -20,6 +20,10 @@ import { routes } from "@/lib/routes";
 import { useState } from "react";
 import type { AgentRunResponse } from "@/types/api";
 
+function shortId(id: string): string {
+  return id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-6)}` : id;
+}
+
 export default function HomeScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
@@ -118,7 +122,7 @@ export default function HomeScreen() {
         {briefError ? <ApiErrorState message={briefError} /> : null}
         {brief ? (
           <View style={styles.briefResult}>
-            <Text style={styles.hint}>Trace ID：{brief.trace_id}</Text>
+            <Text style={styles.hint}>Trace ID：{shortId(brief.trace_id)}</Text>
             <Text style={styles.briefText}>{brief.generated_content}</Text>
             <Link href={routes.agentRun(brief.trace_id)} style={styles.link}>查看 Agent Run 详情</Link>
           </View>

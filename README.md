@@ -1,6 +1,6 @@
 # Family Health Agent
 
-Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前已完成到 **Phase 08 Final Review**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、第一批受控 Agent workflow 和 Agent API 最小入口已经可验证运行。
+Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前已完成到 **Phase 09.4 + Phase 09 Final Review**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、受控 Agent workflow、Agent API 最小入口，以及移动端 MVP 演示闭环已经可验证运行。
 
 本项目不是医疗诊断系统。系统只做生活健康管理、资料整理、趋势提醒和就医沟通辅助，不输出医学诊断、处方建议、药物剂量建议、停药/换药建议，也不把“系统内无记录”表达成“现实没有问题”。
 
@@ -8,11 +8,11 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 
 当前状态：
 
-- Phase 00-08 已完成。
+- Phase 00-09 已完成。
 - Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
-- Phase 09 已开始移动端可用前端方向；Phase 09.1 已完成 Expo 静态 UI 原型，Phase 09.2 已完成静态交互与 API 契约准备，Phase 09.3.E 已完成写入 workflow UI 收口与 QA 文档补齐。
-- 当前不是完整产品，仍缺少正式前端、真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG 和生产部署收口。
-- 当前阶段为 **Phase 09.3.E：移动端写入 workflow UI 收口与 QA 文档补齐**。默认仍使用 mock 数据，切换 `EXPO_PUBLIC_DATA_MODE=api` 后才请求 FastAPI。
+- Phase 09 已完成移动端 MVP：Expo + React Native App 支持 mock/api mode、只读 demo 数据、`daily_health_brief`、3 个受控写入 workflow、Agent Run 详情和开发者调试状态。
+- 当前不是完整产品，仍缺少真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG、正式上传、生产部署和完整真机视觉 QA。
+- 当前阶段为 **Phase 09.4：移动端 MVP 闭环与 Phase 09 Final Review**。默认仍使用 mock 数据，切换 `EXPO_PUBLIC_DATA_MODE=api` 后才请求 FastAPI。
 
 ## 已具备能力
 
@@ -88,6 +88,9 @@ Phase 09.3.E 已补充：
 
 - `docs/architecture/FEATURE_COVERAGE_MATRIX.md`
 - `docs/frontend/FRONTEND_MVP_SCOPE.md`
+- `docs/frontend/MOBILE_MVP_DEMO_SCRIPT.md`
+- `docs/frontend/MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`
+- `docs/frontend/PHASE_09_FINAL_REVIEW.md`
 - `docs/architecture/PHASE_PROGRESS.md`
 - `docs/architecture/PHASE_08_SCOPE_RECONCILIATION.md`
 

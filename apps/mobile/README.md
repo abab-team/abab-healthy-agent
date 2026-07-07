@@ -1,6 +1,6 @@
 # Family Health Agent Mobile
 
-这是 family-health-agent 的 React Native + Expo 移动端原型。Phase 09.3.D 已接入移动端受控写入类 Agent workflow，用于在 `api` mode 下通过固定 Agent API 创建待确认草稿或普通健康提醒。
+这是 family-health-agent 的 React Native + Expo 移动端 MVP。Phase 09.4 已完成移动端 MVP 收口，用于演示家庭概览、成员详情、AI 健康简报、受控写入类 Agent workflow、Agent Run 安全摘要和开发者调试状态。
 
 默认版本仍使用本地 mock 数据。只有在显式设置 `EXPO_PUBLIC_DATA_MODE=api` 后，才会请求 FastAPI。
 
@@ -19,6 +19,7 @@
 - `/drafts`
 - `/agent-brief`
 - `/create-symptom-draft`
+- `/create-health-event-draft`
 - `/create-alert`
 - `/agent-run/[id]`
 
@@ -58,7 +59,7 @@ EXPO_PUBLIC_DEMO_USER_ID=
 http://192.168.x.x:8000
 ```
 
-## Phase 09.3.D API 范围
+## Phase 09.4 API 范围
 
 已接入：
 
@@ -124,6 +125,16 @@ Phase 09.3.E 只做移动端 UI 与 QA 文档打磨，不新增后端能力：
 - Agent Run 详情继续只展示安全摘要。
 - 草稿列表仍为 mock，真实草稿列表和正式确认入库后续实现。
 - 写入 workflow QA 清单见 `docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md`。
+
+## Phase 09.4 MVP 收口
+
+Phase 09.4 不新增后端能力，只做移动端 MVP 闭环、文档和最终验收：
+
+- 首页、家庭页、成员详情、AI 管家、写入 workflow、Agent Run 详情、草稿页和设置页完成演示路径收口。
+- 新增 `docs/frontend/MOBILE_MVP_DEMO_SCRIPT.md`，用于本地 Web 与 Expo Go 演示。
+- 新增 `docs/frontend/MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`，用于页面、API、写入 workflow、安全文案和真机 QA 验收。
+- 新增 `docs/frontend/PHASE_09_FINAL_REVIEW.md`，记录 Phase 09 完成范围、验证结果和剩余风险。
+- 草稿列表仍为 mock，正式确认入库后续实现。
 
 ## Expo Go 预览
 
