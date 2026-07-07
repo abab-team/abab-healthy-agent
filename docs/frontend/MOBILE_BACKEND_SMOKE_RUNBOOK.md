@@ -231,6 +231,21 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke/mobile_write_workflows_sm
 
 这些页面仍只通过 `POST /api/v1/agent/runs` 调用固定 workflow，不开放 `tool_name` 或 `input_data`。
 
+## Phase 09.3.E UI QA 补充
+
+Phase 09.3.E 不新增 smoke 范围，继续复用：
+
+- `scripts/smoke/mobile_backend_smoke.ps1`
+- `scripts/smoke/mobile_write_workflows_smoke.ps1`
+
+同时新增人工 QA 文档：
+
+```text
+docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md
+```
+
+自动 smoke 负责验证后端可用与受控 workflow 行为；真机视觉、按钮可点性、长文本换行和 trace_id 展示仍需人工按 QA 清单完成。
+
 ## Expo Go 真机预览
 
 手机不能使用 `localhost` 或 `127.0.0.1` 访问电脑后端。需要：

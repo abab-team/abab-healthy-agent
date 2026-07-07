@@ -1,19 +1,19 @@
-import { Link } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ApiModeBadge } from "@/components/common/ApiModeBadge";
 import { SafetyNotice } from "@/components/common/SafetyNotice";
+import { SafeResultSummary } from "@/components/common/SafeResultSummary";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { WorkflowStatusCard } from "@/components/common/WorkflowStatusCard";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
 import { family as mockFamily, members as mockMembers } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
-import { routes } from "@/lib/routes";
 import type { AgentRunResponse, FamilyMember } from "@/types/api";
 
 const reminderTypes = ["记录提醒", "复查提醒", "资料整理提醒"];
@@ -29,10 +29,6 @@ function mockFamilyMembers(): FamilyMember[] {
   }));
 }
 
-function summaryText(run: AgentRunResponse | null): string {
-  return run?.generated_content ?? run?.message ?? "系统内暂无可展示摘要。";
-}
-
 export default function CreateAlertScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
@@ -45,6 +41,7 @@ export default function CreateAlertScreen() {
   const [time, setTime] = useState("2026-07-07T20:30:00+08:00");
   const [previewRun, setPreviewRun] = useState<AgentRunResponse | null>(null);
   const [confirmedRun, setConfirmedRun] = useState<AgentRunResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("等待预览。");
   const [loading, setLoading] = useState(false);
   const selectedMember = members.find((member) => member.user_id === selectedUserId || member.id === selectedUserId) ?? members[0];
@@ -53,6 +50,7 @@ export default function CreateAlertScreen() {
 
   async function previewAlert() {
     setLoading(true);
+    setError(null);
     setMessage("正在请求 confirmation=false 预览；预览不会写入。");
     setPreviewRun(null);
     const result = await provider.createAlertPreview({
@@ -70,7 +68,9 @@ export default function CreateAlertScreen() {
       setMessage(result.data.blocked ? "后端安全阻断，未创建提醒。" : "预览已返回，尚未创建提醒。");
       return;
     }
-    setMessage(result.error?.message ?? "预览失败，请检查权限或网络。");
+    const errorMessage = result.error?.message ?? "预览失败，请检查权限或网络。";
+    setError(errorMessage);
+    setMessage(errorMessage);
   }
 
   async function confirmAlert() {
@@ -79,6 +79,7 @@ export default function CreateAlertScreen() {
       return;
     }
     setLoading(true);
+    setError(null);
     setMessage("正在请求 confirmation=true；成功后创建普通健康提醒。");
     const result = await provider.createAlertConfirmed({
       alertType: "medical_follow_up",
@@ -95,7 +96,9 @@ export default function CreateAlertScreen() {
       setMessage(result.data.blocked ? "后端阻断，未创建提醒。" : "普通健康提醒已由后端创建。");
       return;
     }
-    setMessage(result.error?.message ?? "确认失败，请检查权限或网络。");
+    const errorMessage = result.error?.message ?? "确认失败，请检查权限或网络。";
+    setError(errorMessage);
+    setMessage(errorMessage);
   }
 
   return (
@@ -106,17 +109,14 @@ export default function CreateAlertScreen() {
         <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API Agent workflow" : "Mock 静态预览"} />
         <StatusBadge label={loading ? "处理中" : message} tone="plain" />
       </View>
+      {error ? <ApiErrorState message={error} /> : null}
       {overview.error ? <ApiErrorState message={overview.error} /> : null}
 
-      <CardBase>
-        <SectionHeader title="当前写入状态" />
-        <Text style={styles.line}>
-          {session.dataMode === "api"
-            ? "api mode 将通过 POST /api/v1/agent/runs 调用 alert_create。"
-            : "mock mode 只演示交互，不会真实提交。"}
-        </Text>
-        <Text style={styles.line}>预览使用 confirmation=false；确认使用 confirmation=true。</Text>
-      </CardBase>
+      <WorkflowStatusCard
+        confirmText="确认后创建普通健康提醒"
+        mode={session.dataMode}
+        workflowType="alert_create"
+      />
 
       <CardBase>
         <SectionHeader title="选择成员" action={overview.loading ? "加载中" : undefined} />
@@ -147,42 +147,34 @@ export default function CreateAlertScreen() {
       </CardBase>
 
       {previewRun ? (
-        <CardBase>
-          <SectionHeader title="预览结果" />
-          <Text style={styles.line}>Workflow：{previewRun.workflow_type}</Text>
-          <Text style={styles.line}>Status：{previewRun.status}</Text>
-          <Text style={styles.generated}>{summaryText(previewRun)}</Text>
-          <Text style={styles.line}>预览不会写入；确认后才创建普通健康提醒。</Text>
-          <View style={styles.actions}>
+        <>
+          <SafeResultSummary
+            note="预览结果仅用于确认前检查，不创建提醒。"
+            run={previewRun}
+            title={previewRun.blocked ? "安全阻断" : "预览结果"}
+          />
+          <CardBase>
+            <SectionHeader title="确认下一步" />
+            <Text style={styles.line}>确认后创建普通健康提醒；提醒不是急救，如遇紧急情况请联系医生或当地急救服务。</Text>
             <Pressable style={[styles.button, styles.confirmButton]} onPress={confirmAlert}>
               <Text style={styles.buttonText}>确认创建提醒</Text>
             </Pressable>
-            <Link href={routes.agentRun(previewRun.trace_id)} style={styles.linkButton}>
-              查看 Run 详情
-            </Link>
-          </View>
-        </CardBase>
+          </CardBase>
+        </>
       ) : null}
 
       {confirmedRun ? (
-        <CardBase>
-          <SectionHeader title="确认结果" />
-          <Text style={styles.line}>Trace：{confirmedRun.trace_id}</Text>
-          <Text style={styles.generated}>{summaryText(confirmedRun)}</Text>
-          <Link href={routes.agentRun(confirmedRun.trace_id)} style={styles.linkButton}>
-            查看 Agent Run 详情
-          </Link>
-        </CardBase>
+        <SafeResultSummary
+          note="确认成功后只创建普通健康提醒，不提供紧急服务。"
+          run={confirmedRun}
+          title={confirmedRun.blocked ? "未创建提醒" : "确认结果"}
+        />
       ) : null}
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  actions: {
-    gap: 10,
-    marginTop: 14
-  },
   button: {
     backgroundColor: colors.primary,
     borderRadius: 999,
@@ -201,12 +193,6 @@ const styles = StyleSheet.create({
   confirmButton: {
     backgroundColor: colors.primaryDark
   },
-  generated: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: 8
-  },
   input: {
     borderColor: colors.border,
     borderRadius: 14,
@@ -222,18 +208,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     marginTop: 8
-  },
-  linkButton: {
-    borderColor: colors.primary,
-    borderRadius: 999,
-    borderWidth: 1,
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "800",
-    marginTop: 10,
-    overflow: "hidden",
-    paddingVertical: 12,
-    textAlign: "center"
   },
   modeRow: {
     gap: 8,

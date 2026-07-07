@@ -219,7 +219,10 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         return ok({
           generated_content: run.output_summary ?? "系统内暂无可展示摘要。",
           safety_checks: safetyChecks,
+          completed_at: run.ended_at,
+          created_at: run.started_at,
           status: run.status,
+          source: run.source,
           tool_calls: toolCalls,
           trace_id: run.trace_id,
           workflow_type: "daily_health_brief"

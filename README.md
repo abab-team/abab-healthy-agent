@@ -10,9 +10,9 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 
 - Phase 00-08 已完成。
 - Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
-- Phase 09 已开始移动端可用前端方向；Phase 09.1 已完成 Expo 静态 UI 原型，Phase 09.2 已完成静态交互与 API 契约准备，Phase 09.3.D 已接入移动端受控写入类 Agent workflow。
+- Phase 09 已开始移动端可用前端方向；Phase 09.1 已完成 Expo 静态 UI 原型，Phase 09.2 已完成静态交互与 API 契约准备，Phase 09.3.E 已完成写入 workflow UI 收口与 QA 文档补齐。
 - 当前不是完整产品，仍缺少正式前端、真实 Auth/JWT、LLM、LangGraph、OCR/upload/RAG 和生产部署收口。
-- 当前阶段为 **Phase 09.3.D：移动端写入类 Agent workflow 受控接入**。默认仍使用 mock 数据，切换 `EXPO_PUBLIC_DATA_MODE=api` 后才请求 FastAPI。
+- 当前阶段为 **Phase 09.3.E：移动端写入 workflow UI 收口与 QA 文档补齐**。默认仍使用 mock 数据，切换 `EXPO_PUBLIC_DATA_MODE=api` 后才请求 FastAPI。
 
 ## 已具备能力
 
@@ -72,6 +72,13 @@ Phase 09.3.D 已补充写入类 workflow 的 preview / confirm 接入：
 - `alert_create`：预览不写入，确认后创建普通健康提醒。
 
 草稿列表和正式确认入库仍未真实接入，后续 Phase 再处理。
+
+Phase 09.3.E 已补充：
+
+- 写入页面的 mock/api、preview/confirm、loading、success、error 与安全阻断状态展示。
+- 写入成功后的 trace_id 摘要与 Agent Run 详情入口。
+- Agent Run 详情的安全摘要展示。
+- 写入 workflow QA 清单：`docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md`。
 
 ## 重要说明
 

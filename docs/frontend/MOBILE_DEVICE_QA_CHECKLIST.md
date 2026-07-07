@@ -87,6 +87,12 @@ API mode 检查：
 - Agent Run 详情不展示敏感原文、文件路径、抽取全文、密钥、错误堆栈或数据库语句。
 - 创建提醒页明确提醒不是急救，且不提供紧急服务。
 
+Phase 09.3.E 进一步补充写入流程 UI 收口清单，详见：
+
+```text
+docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md
+```
+
 ## 如果扫码失败
 
 优先尝试：

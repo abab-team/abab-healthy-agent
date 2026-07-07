@@ -33,6 +33,9 @@ type BackendAgentTrace = {
   workflow_type: string;
   status: AgentRunResponse["status"];
   output_summary?: string | null;
+  source?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
 };
 
 type BackendToolCall = {

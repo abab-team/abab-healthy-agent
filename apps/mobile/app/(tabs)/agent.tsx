@@ -55,10 +55,10 @@ export default function AgentScreen() {
       <SafetyNotice />
 
       <CardBase>
-        <SectionHeader title="今天可以做什么？" action={session.dataMode === "api" ? "daily_health_brief 已接 API" : "mock"} />
+        <SectionHeader title="今天可以做什么？" action={session.dataMode === "api" ? "受控 workflow 已接 API" : "mock"} />
         <ApiModeBadge mode={session.dataMode} />
         <Text style={styles.description}>
-          本阶段仅把今日健康简报接入后端；写入类草稿与提醒仍为 mock 交互，正式写入前仍需要确认。
+          今日健康简报与 3 个写入类 workflow 已支持 api mode。所有写入都先预览，确认后也只创建待确认草稿或普通健康提醒。
         </Text>
         <Pressable style={styles.button} onPress={runDailyBrief}>
           <Text style={styles.buttonText}>{loading ? "生成中..." : "生成今日健康简报"}</Text>
@@ -84,7 +84,7 @@ export default function AgentScreen() {
               {action.workflowType === "daily_health_brief" ? (
                 <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API" : "mock"} />
               ) : (
-                <MockDataBadge label="mock / 不真实提交" />
+                <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API 受控确认" : "mock 预览"} />
               )}
             </View>
           ))}
@@ -92,8 +92,8 @@ export default function AgentScreen() {
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="待确认草稿" action="写入工作流仍为 mock ›" />
-        <MockDataBadge label="mock / 不真实提交" />
+        <SectionHeader title="待确认草稿" action="列表后续接入 ›" />
+        <MockDataBadge label="草稿列表仍为 mock" />
         {pendingDrafts.map((draft) => (
           <Link key={draft.id} href={routes.drafts}>
             <DraftReviewCard createdAt={draft.createdAt} summary={draft.summary} title={draft.title} type={draft.type} />

@@ -217,3 +217,28 @@ Phase 09.3.D：移动端写入类 Agent workflow 受控接入已执行。
 - PostgreSQL/Docker 路径仍待 Docker Desktop engine 可用后复验。
 
 下一步建议：Phase 09.3.D Lightweight Review。
+
+## Phase 09.3.E 更新
+
+Phase 09.3.E：写入流程 UI 打磨与真机 QA 修补已执行。
+
+完成范围：
+
+- 统一写入 workflow 页面 mock/api、preview/confirm、loading、success/error、安全阻断状态展示。
+- `create-symptom-draft`、`create-health-event-draft`、`create-alert` 使用统一状态卡和安全结果摘要。
+- Agent Run 详情强化 workflow、status、trace、tool_calls、safety_checks 的安全摘要展示。
+- 设置页开发者调试区补充写入 workflow 接入状态和真机访问提示。
+- 新增 `docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md`。
+
+边界保持：
+
+- 未修改后端业务代码。
+- 未新增后端 API、migration 或 model。
+- 未开放通用 tool execution。
+- 未允许页面传 `tool_name` 或 `input_data`。
+- 草稿列表与正式确认入库仍未真实接入。
+- 未实现 Auth/JWT。
+- 未调用 LLM。
+- 未实现 LangGraph/OCR/RAG。
+
+下一步建议：Phase 09.3 Batch Review。

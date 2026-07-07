@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { TraceDebugPanel } from "@/components/cards/TraceDebugPanel";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
@@ -11,6 +11,10 @@ import { agentRun } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
+
+function shortId(id: string): string {
+  return id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-6)}` : id;
+}
 
 export default function AgentRunDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,12 +38,23 @@ export default function AgentRunDetailScreen() {
       <StatusBadge label={session.dataMode === "api" ? "API 安全摘要" : "Mock 安全摘要"} tone="blue" />
       {detail.loading ? <Text style={styles.line}>正在读取 run / tool calls / safety checks...</Text> : null}
       {detail.error ? <ApiErrorState message={detail.error} /> : null}
-      <TraceDebugPanel run={safeDetail.trace_id} toolCalls={safeDetail.tool_calls.length} safetyChecks="已脱敏" />
+      <TraceDebugPanel run={shortId(safeDetail.trace_id)} toolCalls={safeDetail.tool_calls.length} safetyChecks="已脱敏" />
 
       <CardBase>
         <SectionHeader title="运行状态" />
-        <Text style={styles.line}>Workflow Type：{safeDetail.workflow_type}</Text>
-        <Text style={styles.line}>Status：{safeDetail.status}</Text>
+        <View style={styles.statusGrid}>
+          <View style={styles.statusBox}>
+            <Text style={styles.boxLabel}>Workflow</Text>
+            <Text style={styles.boxValue}>{safeDetail.workflow_type}</Text>
+          </View>
+          <View style={styles.statusBox}>
+            <Text style={styles.boxLabel}>Status</Text>
+            <Text style={styles.boxValue}>{safeDetail.status}</Text>
+          </View>
+        </View>
+        <Text style={styles.line}>Trace：{shortId(safeDetail.trace_id)}</Text>
+        {safeDetail.created_at ? <Text style={styles.line}>Created：{safeDetail.created_at}</Text> : null}
+        {safeDetail.completed_at ? <Text style={styles.line}>Completed：{safeDetail.completed_at}</Text> : null}
         <Text style={styles.generated}>{safeDetail.generated_content}</Text>
       </CardBase>
 
@@ -47,7 +62,11 @@ export default function AgentRunDetailScreen() {
         <SectionHeader title="Tool Calls" />
         {safeDetail.tool_calls.length === 0 ? <Text style={styles.line}>系统内暂无 tool call 摘要。</Text> : null}
         {safeDetail.tool_calls.map((call) => (
-          <Text key={call.id} style={styles.line}>{call.name} · {call.status} · {call.summary}</Text>
+          <View key={call.id} style={styles.summaryRow}>
+            <StatusBadge label={call.status} tone={call.status === "completed" ? "mint" : "orange"} />
+            <Text style={styles.summaryText}>{call.name}</Text>
+            <Text style={styles.summaryText}>{call.summary}</Text>
+          </View>
         ))}
       </CardBase>
 
@@ -55,7 +74,10 @@ export default function AgentRunDetailScreen() {
         <SectionHeader title="Safety Checks" />
         {safeDetail.safety_checks.length === 0 ? <Text style={styles.line}>系统内暂无 safety check 摘要。</Text> : null}
         {safeDetail.safety_checks.map((check) => (
-          <Text key={check.id} style={styles.line}>{check.stage} · {check.status} · {check.summary}</Text>
+          <View key={check.id} style={styles.summaryRow}>
+            <StatusBadge label={`${check.stage} · ${check.status}`} tone={check.status === "passed" ? "mint" : "orange"} />
+            <Text style={styles.summaryText}>{check.summary}</Text>
+          </View>
         ))}
       </CardBase>
 
@@ -69,6 +91,17 @@ export default function AgentRunDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  boxLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  boxValue: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 4
+  },
   generated: {
     color: colors.text,
     fontSize: 14,
@@ -80,6 +113,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 21,
     paddingVertical: 5
+  },
+  statusBox: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: 12,
+    flex: 1,
+    padding: 10
+  },
+  statusGrid: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10
+  },
+  summaryRow: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: 12,
+    gap: 6,
+    marginTop: 10,
+    padding: 10
+  },
+  summaryText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 20
   },
   title: {
     color: colors.text,

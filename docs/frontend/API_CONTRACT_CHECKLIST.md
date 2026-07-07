@@ -148,3 +148,12 @@ Phase 09.3.D 已接入以下受控 workflow：
 - 草稿正式确认入库。
 - 真实 Auth/JWT。
 - LLM、LangGraph、OCR/upload/RAG。
+
+## Phase 09.3.E 验收补充
+
+- 写入 workflow UI 只基于 Phase 09.3.D 已有 API 契约打磨。
+- 不新增后端 API。
+- 不开放任意 workflow 或 tool execution。
+- `tool_name` / `input_data` 继续禁止。
+- API mode 失败不得自动 fallback mock。
+- 真机 QA 仍需用户手动完成，步骤见 `docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md`。

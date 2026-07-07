@@ -42,6 +42,22 @@ export default function SettingsScreen() {
         warnings={session.warnings}
       />
 
+      <CardBase>
+        <Text style={styles.sectionTitle}>写入 Workflow 状态</Text>
+        <StatusBadge label="symptom_draft_create 已接入" tone="mint" />
+        <StatusBadge label="medical_event_draft_create 已接入" tone="mint" />
+        <StatusBadge label="alert_create 已接入" tone="mint" />
+        <Text style={styles.about}>预览使用 confirmation=false，不会写入。</Text>
+        <Text style={styles.about}>确认使用 confirmation=true，只创建待确认草稿或普通健康提醒。</Text>
+        <Text style={styles.about}>Auth/JWT、LLM、LangGraph、OCR/RAG 仍未实现。</Text>
+      </CardBase>
+
+      <CardBase>
+        <Text style={styles.sectionTitle}>真机访问提示</Text>
+        <Text style={styles.about}>Web 本机调试可以使用 localhost。</Text>
+        <Text style={styles.about}>Expo Go 真机不能使用 localhost，需要配置电脑局域网 IP。</Text>
+      </CardBase>
+
       {settingsGroups.map((group, index) => (
         <CardBase key={index}>
           {group.map((item) => (

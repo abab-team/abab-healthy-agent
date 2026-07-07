@@ -164,6 +164,9 @@ export type AgentRunResponse = {
 };
 
 export type AgentRunDetail = AgentRunResponse & {
+  completed_at?: string | null;
+  created_at?: string | null;
+  source?: string | null;
   tool_calls: AgentToolCallSummary[];
   safety_checks: AgentSafetyCheckSummary[];
 };

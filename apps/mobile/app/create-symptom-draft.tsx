@@ -1,19 +1,19 @@
-import { Link } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ApiModeBadge } from "@/components/common/ApiModeBadge";
 import { SafetyNotice } from "@/components/common/SafetyNotice";
+import { SafeResultSummary } from "@/components/common/SafeResultSummary";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { WorkflowStatusCard } from "@/components/common/WorkflowStatusCard";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
 import { family as mockFamily, members as mockMembers } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
-import { routes } from "@/lib/routes";
 import type { AgentRunResponse, FamilyMember } from "@/types/api";
 
 function mockFamilyMembers(): FamilyMember[] {
@@ -27,10 +27,6 @@ function mockFamilyMembers(): FamilyMember[] {
   }));
 }
 
-function summaryText(run: AgentRunResponse | null): string {
-  return run?.generated_content ?? run?.message ?? "系统内暂无可展示摘要。";
-}
-
 export default function CreateSymptomDraftScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
@@ -40,6 +36,7 @@ export default function CreateSymptomDraftScreen() {
   const [description, setDescription] = useState("今天头部不适并有些乏力，想先记录下来，稍后补充时间和持续情况。");
   const [previewRun, setPreviewRun] = useState<AgentRunResponse | null>(null);
   const [confirmedRun, setConfirmedRun] = useState<AgentRunResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("等待输入。");
   const [loading, setLoading] = useState(false);
   const selectedMember = members.find((member) => member.user_id === selectedUserId || member.id === selectedUserId) ?? members[0];
@@ -48,6 +45,7 @@ export default function CreateSymptomDraftScreen() {
 
   async function generatePreview() {
     setLoading(true);
+    setError(null);
     setMessage("正在请求 confirmation=false 预览；预览不会写入。");
     setPreviewRun(null);
     const result = await provider.createSymptomDraftPreview({
@@ -62,7 +60,9 @@ export default function CreateSymptomDraftScreen() {
       setMessage(result.data.blocked ? "后端安全阻断，未写入草稿。" : "预览已返回，尚未写入。");
       return;
     }
-    setMessage(result.error?.message ?? "预览失败，请检查权限或网络。");
+    const errorMessage = result.error?.message ?? "预览失败，请检查权限或网络。";
+    setError(errorMessage);
+    setMessage(errorMessage);
   }
 
   async function confirmDraft() {
@@ -71,6 +71,7 @@ export default function CreateSymptomDraftScreen() {
       return;
     }
     setLoading(true);
+    setError(null);
     setMessage("正在请求 confirmation=true；成功后创建待确认草稿。");
     const result = await provider.createSymptomDraftConfirmed({
       description,
@@ -84,7 +85,9 @@ export default function CreateSymptomDraftScreen() {
       setMessage(result.data.blocked ? "后端阻断，未创建草稿。" : "待确认症状草稿已由后端创建。");
       return;
     }
-    setMessage(result.error?.message ?? "确认失败，请检查权限或网络。");
+    const errorMessage = result.error?.message ?? "确认失败，请检查权限或网络。";
+    setError(errorMessage);
+    setMessage(errorMessage);
   }
 
   return (
@@ -95,17 +98,14 @@ export default function CreateSymptomDraftScreen() {
         <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API Agent workflow" : "Mock 静态预览"} />
         <StatusBadge label={loading ? "处理中" : message} tone="plain" />
       </View>
+      {error ? <ApiErrorState message={error} /> : null}
       {overview.error ? <ApiErrorState message={overview.error} /> : null}
 
-      <CardBase>
-        <SectionHeader title="当前写入状态" />
-        <Text style={styles.line}>
-          {session.dataMode === "api"
-            ? "api mode 将通过 POST /api/v1/agent/runs 调用 symptom_draft_create。"
-            : "mock mode 只演示交互，不会真实提交。"}
-        </Text>
-        <Text style={styles.line}>预览使用 confirmation=false；确认使用 confirmation=true。</Text>
-      </CardBase>
+      <WorkflowStatusCard
+        confirmText="确认后创建待确认症状草稿"
+        mode={session.dataMode}
+        workflowType="symptom_draft_create"
+      />
 
       <CardBase>
         <SectionHeader title="选择成员" action={overview.loading ? "加载中" : undefined} />
@@ -133,42 +133,34 @@ export default function CreateSymptomDraftScreen() {
       </CardBase>
 
       {previewRun ? (
-        <CardBase>
-          <SectionHeader title="预览结果" />
-          <Text style={styles.line}>Workflow：{previewRun.workflow_type}</Text>
-          <Text style={styles.line}>Status：{previewRun.status}</Text>
-          <Text style={styles.generated}>{summaryText(previewRun)}</Text>
-          <Text style={styles.line}>预览不会写入；确认后才创建待确认草稿。</Text>
-          <View style={styles.actions}>
+        <>
+          <SafeResultSummary
+            note="预览结果仅用于确认前检查，不写入正式数据。"
+            run={previewRun}
+            title={previewRun.blocked ? "安全阻断" : "预览结果"}
+          />
+          <CardBase>
+            <SectionHeader title="确认下一步" />
+            <Text style={styles.line}>确认后创建待确认症状草稿，仍不会生成正式健康事实。</Text>
             <Pressable style={[styles.button, styles.confirmButton]} onPress={confirmDraft}>
               <Text style={styles.buttonText}>确认创建草稿</Text>
             </Pressable>
-            <Link href={routes.agentRun(previewRun.trace_id)} style={styles.linkButton}>
-              查看 Run 详情
-            </Link>
-          </View>
-        </CardBase>
+          </CardBase>
+        </>
       ) : null}
 
       {confirmedRun ? (
-        <CardBase>
-          <SectionHeader title="确认结果" />
-          <Text style={styles.line}>Trace：{confirmedRun.trace_id}</Text>
-          <Text style={styles.generated}>{summaryText(confirmedRun)}</Text>
-          <Link href={routes.agentRun(confirmedRun.trace_id)} style={styles.linkButton}>
-            查看 Agent Run 详情
-          </Link>
-        </CardBase>
+        <SafeResultSummary
+          note="确认成功后只创建待确认草稿，正式确认入库留到后续流程。"
+          run={confirmedRun}
+          title={confirmedRun.blocked ? "未创建草稿" : "确认结果"}
+        />
       ) : null}
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  actions: {
-    gap: 10,
-    marginTop: 14
-  },
   button: {
     backgroundColor: colors.primary,
     borderRadius: 999,
@@ -211,18 +203,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     marginTop: 8
-  },
-  linkButton: {
-    borderColor: colors.primary,
-    borderRadius: 999,
-    borderWidth: 1,
-    color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "800",
-    marginTop: 10,
-    overflow: "hidden",
-    paddingVertical: 12,
-    textAlign: "center"
   },
   modeRow: {
     gap: 8,

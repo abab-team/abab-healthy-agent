@@ -133,3 +133,13 @@ Phase 09 完成时至少应验证：
 - confirmation=false 不会创建草稿或提醒。
 - family 权限不足时前端显示安全提示。
 - 页面不展示诊断、处方、剂量、停药建议。
+
+## Phase 09.3.E 补充
+
+Phase 09.3.E 只做移动端写入 workflow UI 收口与 QA 文档补齐：
+
+- 写入类页面统一展示 preview / confirm 状态。
+- 成功后显示 trace_id 摘要并可进入 Agent Run 详情。
+- Agent Run 详情只展示安全摘要。
+- 草稿列表仍为 mock，不接正式确认入库。
+- 真机 QA 仍需用户按 `docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md` 手动完成。
