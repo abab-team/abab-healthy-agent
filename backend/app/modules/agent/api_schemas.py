@@ -85,6 +85,8 @@ class MedicalEventDraftWorkflowPayload(BaseModel):
     draft_title: OptionalTitle = None
     title: OptionalTitle = None
     summary: SummaryText = None
+    extracted_text_preview: SummaryText = None
+    structured_hints: JsonDict = None
     draft_event_type: ShortText = None
     event_date: ShortText = None
     hospital_or_org: HospitalOrOrg = None

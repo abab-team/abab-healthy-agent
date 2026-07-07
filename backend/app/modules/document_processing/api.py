@@ -7,17 +7,20 @@ from sqlalchemy.orm import Session
 
 from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
+from app.core.config import Settings, get_settings
 from app.modules.document_center import service as document_service
 from app.modules.document_center.exceptions import MedicalDocumentNotFoundError
 from app.modules.document_processing import service
 from app.modules.document_processing.api_schemas import (
     ExtractionResultCreateRequest,
+    ExtractionResultResponse,
     MedicalEventDraftCreateRequest,
     MedicalEventDraftResponse,
     ProcessingJobCreateRequest,
     ProcessingJobFailedRequest,
     ProcessingJobResponse,
 )
+from app.ocr.errors import OCRError
 from app.modules.document_processing.exceptions import (
     DocumentExtractionResultNotFoundError,
     DocumentProcessingJobNotFoundError,
@@ -47,6 +50,24 @@ def create_my_processing_job(
     return _job_response(job)
 
 
+@router.get("/document-processing/me/documents/{document_id}/jobs")
+def list_my_processing_jobs(
+    document_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    document = _get_document_or_404(db, document_id)
+    _assert_document_scope(document, user_id=current_user_id, family_id=None)
+    return {"items": [_job_response(job) for job in service.list_processing_jobs(db, document_id=document_id, user_id=current_user_id)]}
+
+
+@router.get("/document-processing/me/jobs/{job_id}", response_model=ProcessingJobResponse)
+def get_my_processing_job(job_id: UUID, current_user_id: UUID = Depends(get_current_user_id_for_demo), db: Session = Depends(get_db)):
+    job = _get_job_or_404(db, job_id)
+    _assert_job_scope(job, user_id=current_user_id, family_id=None)
+    return _job_response(job)
+
+
 @router.post("/document-processing/me/jobs/{job_id}/started", response_model=ProcessingJobResponse)
 def mark_my_job_started(job_id: UUID, current_user_id: UUID = Depends(get_current_user_id_for_demo), db: Session = Depends(get_db)):
     _assert_job_scope(_get_job_or_404(db, job_id), user_id=current_user_id, family_id=None)
@@ -70,6 +91,21 @@ def mark_my_job_failed(
     return _job_response(service.mark_job_failed(db, job_id, payload.error_message))
 
 
+@router.post("/document-processing/me/jobs/{job_id}/run-mock-ocr", response_model=ExtractionResultResponse, status_code=status.HTTP_201_CREATED)
+def run_my_mock_ocr(
+    job_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    _assert_job_scope(_get_job_or_404(db, job_id), user_id=current_user_id, family_id=None)
+    try:
+        result = service.run_mock_ocr_for_job(db, job_id=job_id, settings=settings)
+    except OCRError as exc:
+        raise _bad_request(exc) from exc
+    return _extraction_response(result)
+
+
 @router.post("/document-processing/me/documents/{document_id}/extraction-results", status_code=status.HTTP_201_CREATED)
 def save_my_extraction_result(
     document_id: UUID,
@@ -80,6 +116,28 @@ def save_my_extraction_result(
     document = _get_document_or_404(db, document_id)
     _assert_document_scope(document, user_id=current_user_id, family_id=None)
     return _save_extraction_result(db, document_id=document_id, user_id=current_user_id, family_id=None, payload=payload)
+
+
+@router.get("/document-processing/me/documents/{document_id}/extraction-results")
+def list_my_extraction_results(
+    document_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    document = _get_document_or_404(db, document_id)
+    _assert_document_scope(document, user_id=current_user_id, family_id=None)
+    return {"items": [_extraction_response(result) for result in service.list_extraction_results(db, document_id=document_id)]}
+
+
+@router.get("/document-processing/me/extraction-results/{result_id}", response_model=ExtractionResultResponse)
+def get_my_extraction_result(
+    result_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    result = _get_extraction_result_or_404(db, result_id)
+    _assert_extraction_result_scope(result, user_id=current_user_id, family_id=None)
+    return _extraction_response(result)
 
 
 @router.post("/document-processing/me/event-drafts", response_model=MedicalEventDraftResponse, status_code=status.HTTP_201_CREATED)
@@ -130,6 +188,56 @@ def create_family_member_processing_job(
     return _job_response(job)
 
 
+@router.get("/families/{family_id}/members/{target_user_id}/document-processing/documents/{document_id}/jobs")
+def list_family_member_processing_jobs(
+    family_id: UUID,
+    target_user_id: UUID,
+    document_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    _require_permission(db, current_user_id, family_id, target_user_id, "documents", "view")
+    document = _get_document_or_404(db, document_id)
+    _assert_document_scope(document, user_id=target_user_id, family_id=family_id)
+    return {"items": [_job_response(job) for job in service.list_processing_jobs(db, document_id=document_id, user_id=target_user_id)]}
+
+
+@router.get("/families/{family_id}/members/{target_user_id}/document-processing/jobs/{job_id}", response_model=ProcessingJobResponse)
+def get_family_member_processing_job(
+    family_id: UUID,
+    target_user_id: UUID,
+    job_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    _require_permission(db, current_user_id, family_id, target_user_id, "documents", "view")
+    job = _get_job_or_404(db, job_id)
+    _assert_job_scope(job, user_id=target_user_id, family_id=family_id)
+    return _job_response(job)
+
+
+@router.post(
+    "/families/{family_id}/members/{target_user_id}/document-processing/jobs/{job_id}/run-mock-ocr",
+    response_model=ExtractionResultResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def run_family_member_mock_ocr(
+    family_id: UUID,
+    target_user_id: UUID,
+    job_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    _require_permission(db, current_user_id, family_id, target_user_id, "documents", "create")
+    _assert_job_scope(_get_job_or_404(db, job_id), user_id=target_user_id, family_id=family_id)
+    try:
+        result = service.run_mock_ocr_for_job(db, job_id=job_id, settings=settings)
+    except OCRError as exc:
+        raise _bad_request(exc) from exc
+    return _extraction_response(result)
+
+
 @router.post("/families/{family_id}/members/{target_user_id}/document-processing/extraction-results", status_code=status.HTTP_201_CREATED)
 def save_family_member_extraction_result(
     family_id: UUID,
@@ -145,6 +253,20 @@ def save_family_member_extraction_result(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="processing_job_id is required for family extraction results")
     job = _get_job_or_404(db, payload.processing_job_id)
     return _save_extraction_result(db, document_id=job.document_id, user_id=target_user_id, family_id=family_id, payload=payload)
+
+
+@router.get("/families/{family_id}/members/{target_user_id}/document-processing/documents/{document_id}/extraction-results")
+def list_family_member_extraction_results(
+    family_id: UUID,
+    target_user_id: UUID,
+    document_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    _require_permission(db, current_user_id, family_id, target_user_id, "documents", "view")
+    document = _get_document_or_404(db, document_id)
+    _assert_document_scope(document, user_id=target_user_id, family_id=family_id)
+    return {"items": [_extraction_response(result) for result in service.list_extraction_results(db, document_id=document_id)]}
 
 
 @router.post(

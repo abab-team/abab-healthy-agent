@@ -36,7 +36,7 @@ class MedicalEventDraftCreateTool(AgentTool):
     def validate_input(self, payload: dict[str, Any]) -> dict[str, Any]:
         draft_event_type = sanitize_optional_text(payload.get("draft_event_type"), max_length=32) or MedicalEventType.OTHER.value
         title = sanitize_optional_text(payload.get("draft_title", payload.get("title")), max_length=120)
-        summary = sanitize_optional_text(payload.get("summary"), max_length=3000)
+        summary = sanitize_optional_text(payload.get("summary") or payload.get("extracted_text_preview"), max_length=3000)
         if not title and not summary and not payload.get("draft_json") and not payload.get("extraction_result_id"):
             raise ValueError("draft_title, summary, draft_json, or extraction_result_id is required")
         draft_json = _medical_event_draft_json(
@@ -47,6 +47,7 @@ class MedicalEventDraftCreateTool(AgentTool):
             event_date=sanitize_optional_text(payload.get("event_date"), max_length=32),
             hospital_or_org=sanitize_optional_text(payload.get("hospital_or_org"), max_length=120),
             department=sanitize_optional_text(payload.get("department"), max_length=120),
+            structured_hints=sanitize_optional_json(payload.get("structured_hints"), max_string_length=255, max_total_length=2000),
         )
         return {
             "draft_event_type": draft_event_type,
@@ -102,6 +103,7 @@ def _medical_event_draft_json(
     event_date: str | None,
     hospital_or_org: str | None,
     department: str | None,
+    structured_hints: dict[str, Any] | None,
 ) -> dict[str, Any]:
     if value is None:
         event_payload: dict[str, Any] = {"event_type": draft_event_type}
@@ -116,7 +118,10 @@ def _medical_event_draft_json(
             event_payload["hospital_or_org"] = hospital_or_org
         if department:
             event_payload["department"] = department
-        return {"medical_event": event_payload, "source": "agent_tool"}
+        result = {"medical_event": event_payload, "source": "agent_tool"}
+        if structured_hints:
+            result["structured_hints"] = structured_hints
+        return result
     if not isinstance(value, dict):
         raise ValueError("draft_json must be a dict")
     value.setdefault("source", "agent_tool")

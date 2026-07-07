@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
+from app.core.config import Settings, get_settings
+from app.modules.document_center import storage
 from app.modules.document_center import service
 from app.modules.document_center.api_schemas import (
     DocumentMetadataCreateRequest,
@@ -14,6 +16,7 @@ from app.modules.document_center.api_schemas import (
     DocumentVersionCreateRequest,
     DocumentVersionResponse,
 )
+from app.modules.document_center.enums import DocumentType, DocumentVisibility
 from app.modules.document_center.exceptions import InvalidDocumentMetadataError, MedicalDocumentNotFoundError
 
 
@@ -27,6 +30,33 @@ def create_my_document_metadata(
     db: Session = Depends(get_db),
 ):
     return _create_document(db, user_id=current_user_id, family_id=None, uploaded_by_user_id=current_user_id, payload=payload)
+
+
+@router.post("/documents/me/upload", response_model=DocumentSafeResponse, status_code=status.HTTP_201_CREATED)
+async def upload_my_document(
+    request: Request,
+    document_type: DocumentType = Query(DocumentType.OTHER),
+    title: str | None = Query(None),
+    visibility: DocumentVisibility = Query(DocumentVisibility.PRIVATE),
+    x_file_name: str | None = Header(None, alias="X-File-Name"),
+    content_type: str | None = Header(None, alias="Content-Type"),
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    return _store_and_create_document(
+        db,
+        content=await request.body(),
+        file_name=x_file_name,
+        mime_type=content_type,
+        settings=settings,
+        user_id=current_user_id,
+        family_id=None,
+        uploaded_by_user_id=current_user_id,
+        document_type=document_type,
+        title=title,
+        visibility=visibility,
+    )
 
 
 @router.get("/documents/me")
@@ -100,6 +130,40 @@ def create_family_member_document_metadata(
     return _create_document(db, user_id=target_user_id, family_id=family_id, uploaded_by_user_id=current_user_id, payload=payload)
 
 
+@router.post(
+    "/families/{family_id}/members/{target_user_id}/documents/upload",
+    response_model=DocumentSafeResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_family_member_document(
+    family_id: UUID,
+    target_user_id: UUID,
+    request: Request,
+    document_type: DocumentType = Query(DocumentType.OTHER),
+    title: str | None = Query(None),
+    visibility: DocumentVisibility = Query(DocumentVisibility.FAMILY_SHARED),
+    x_file_name: str | None = Header(None, alias="X-File-Name"),
+    content_type: str | None = Header(None, alias="Content-Type"),
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    _require_permission(db, current_user_id, family_id, target_user_id, "documents", "create")
+    return _store_and_create_document(
+        db,
+        content=await request.body(),
+        file_name=x_file_name,
+        mime_type=content_type,
+        settings=settings,
+        user_id=target_user_id,
+        family_id=family_id,
+        uploaded_by_user_id=current_user_id,
+        document_type=document_type,
+        title=title,
+        visibility=visibility,
+    )
+
+
 @router.get("/families/{family_id}/members/{target_user_id}/documents")
 def list_family_member_documents(
     family_id: UUID,
@@ -146,6 +210,52 @@ def _create_document(
     except (InvalidDocumentMetadataError, ValueError) as exc:
         raise _bad_request(exc) from exc
     return _document_response(document)
+
+
+def _store_and_create_document(
+    db: Session,
+    *,
+    content: bytes,
+    file_name: str | None,
+    mime_type: str | None,
+    settings: Settings,
+    user_id: UUID,
+    family_id: UUID | None,
+    uploaded_by_user_id: UUID,
+    document_type: DocumentType,
+    title: str | None,
+    visibility: DocumentVisibility,
+) -> dict:
+    try:
+        stored = storage.store_document_bytes(
+            content=content,
+            filename=file_name or "document",
+            mime_type=mime_type or "",
+            settings=settings,
+        )
+        payload = DocumentMetadataCreateRequest(
+            document_type=document_type,
+            title=(title or stored.file_name),
+            file_name=stored.file_name,
+            file_path=stored.storage_key,
+            file_mime_type=stored.mime_type,
+            file_size=stored.size_bytes,
+            visibility=visibility,
+        )
+        return _create_document(
+            db,
+            user_id=user_id,
+            family_id=family_id,
+            uploaded_by_user_id=uploaded_by_user_id,
+            payload=payload,
+        )
+    except storage.DocumentUploadError as exc:
+        raise _bad_request(exc) from exc
+    except Exception:
+        stored_key = locals().get("stored").storage_key if "stored" in locals() else None
+        if stored_key:
+            storage.delete_stored_document(stored_key, settings)
+        raise
 
 
 def _list_documents(db: Session, user_id: UUID, document_type: str | None, visibility: str | None):

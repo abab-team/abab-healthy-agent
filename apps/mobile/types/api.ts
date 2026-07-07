@@ -78,6 +78,45 @@ export type Alert = {
   status: "preview" | "created" | "active";
 };
 
+export type MedicalDocument = {
+  id: string;
+  title: string;
+  file_name: string;
+  file_mime_type?: string | null;
+  file_size?: number | null;
+  ai_extract_status: string;
+  created_at?: string | null;
+};
+
+export type DocumentProcessingJob = {
+  id: string;
+  document_id: string;
+  job_type: string;
+  status: string;
+  error_message?: string | null;
+  created_at?: string | null;
+};
+
+export type DocumentExtractionResult = {
+  id: string;
+  document_id: string;
+  processing_job_id?: string | null;
+  ai_summary?: string | null;
+  key_findings?: Record<string, unknown>[] | null;
+  suggested_events?: Record<string, unknown>[] | null;
+  safety_notes?: string[] | null;
+  status: string;
+  raw_text_excerpt?: string | null;
+};
+
+export type DocumentPipelineDetail = {
+  document: MedicalDocument;
+  jobs: DocumentProcessingJob[];
+  extractionResults: DocumentExtractionResult[];
+  source: DataMode;
+  mockSections: string[];
+};
+
 export type ReminderSummary = {
   id: string;
   title: string;
@@ -113,6 +152,8 @@ export type MedicalEventDraftWorkflowPayload = {
   title?: string;
   draft_title?: string;
   summary: string;
+  extracted_text_preview?: string;
+  structured_hints?: Record<string, unknown>;
   draft_event_type?: string;
   event_date?: string;
   hospital_or_org?: string;

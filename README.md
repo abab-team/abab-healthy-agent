@@ -1,6 +1,6 @@
 # Family Health Agent
 
-Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前已完成 **Phase 12：Auth/JWT 与用户会话**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、受控 Agent workflow、Agent API、移动端 MVP、LLM provider 受控验证，以及最小登录态/JWT 会话闭环已经可验证运行。
+Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前已完成 **Phase 13：健康资料上传 / 文档处理 / mock OCR / 待确认健康事件草稿闭环**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、受控 Agent workflow、Agent API、移动端 MVP、LLM provider 受控验证、最小登录态/JWT 会话闭环，以及文档处理最小闭环已经可验证运行。
 
 本项目不是医疗诊断系统。系统只做生活健康管理、资料整理、趋势提醒和就医沟通辅助，不输出医学诊断、处方建议、药物剂量建议、停药/换药建议，也不把“系统内无记录”表达成“现实没有问题”。
 
@@ -14,10 +14,11 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 - Phase 10.C 已完成 `daily_health_brief` 的 LLM prompt 安全收口、输出 safety 收口、fallback reason 收口、trace/debug 摘要收口和测试补强。
 - Phase 11 已新增真实 provider 受控 smoke 路径、daily_health_brief LLM 质量评估 harness 与 provider 使用风险文档。
 - Phase 12 已新增 Auth/JWT 与用户会话闭环：密码哈希、登录、刷新、登出、`/auth/me`、JWT current user dependency、移动端登录态和 auth smoke。
+- Phase 13 已新增文档上传安全入口、processing job 查询、mock OCR abstraction、OCR extraction preview，以及通过 `medical_event_draft_create` 生成 pending 草稿的受控链路。
 - Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
 - Phase 09 已完成移动端 MVP：Expo + React Native App 支持 mock/api mode、只读 demo 数据、`daily_health_brief`、3 个受控写入 workflow、Agent Run 详情和开发者调试状态。
-- 当前不是完整产品，仍缺少生产级登录策略、OAuth/短信/邮箱验证、其他 workflow LLM 接入、LangGraph、OCR/upload/RAG、正式上传、生产部署和完整真机视觉 QA。
-- 当前阶段为 **Phase 12：Auth/JWT 与用户会话已完成**。默认配置下 `AUTH_ENABLED=false`，既有 `X-Current-User-Id` demo header fallback 仍可用于开发；生产前必须设置 `AUTH_DEMO_HEADER_ENABLED=false`。
+- 当前不是完整产品，仍缺少生产级登录策略、OAuth/短信/邮箱验证、其他 workflow LLM 接入、LangGraph、真实 OCR provider、移动端原生文件选择器、RAG、生产部署和完整真机视觉 QA。
+- 当前阶段为 **Phase 13：文档处理最小闭环已完成**。默认配置下 `OCR_ENABLED=false`，mock OCR 需要显式开启；`AUTH_ENABLED=false` 时既有 `X-Current-User-Id` demo header fallback 仍可用于开发，生产前必须设置 `AUTH_DEMO_HEADER_ENABLED=false`。
 
 ## 已具备能力
 
@@ -64,7 +65,7 @@ Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共
 - 全局 JWT current user 迁移与生产级登录体系。
 - 其他业务 workflow 的 LLM 接入。
 - LangGraph workflow。
-- OCR / upload / RAG。
+- 真实 OCR provider / 移动端原生文件选择器 / RAG。
 - 生产部署、真实通知、真实设备接入。
 - 通用 tool execution API。当前刻意不开放任意 `tool_name` / `input_data` 执行。
 
@@ -242,3 +243,15 @@ Phase 12 已新增最小 Auth/JWT 与用户会话闭环。
 - 设置页只展示 token 短摘要，不展示完整 token。
 - `.env.example` 只包含占位配置，不提交 `.env` 或真实密钥。
 - 生产前必须禁用 demo header，并接入 Native SecureStore 或等价安全存储。
+## Phase 13 Document Processing Foundation
+
+Phase 13 已新增健康资料上传与文档处理最小闭环。
+
+- `POST /api/v1/documents/me/upload` 支持受控 raw body 上传，要求 `Content-Type` 与 `X-File-Name`，只允许 PDF/PNG/JPG/JPEG。
+- 上传文件名会清洗，落盘使用内部 UUID storage key，API response 不返回本机绝对路径或 `file_path`。
+- `document_processing_jobs` 支持创建、列表、详情和安全失败状态。
+- 新增 `backend/app/ocr` mock OCR abstraction；默认 `OCR_ENABLED=false`，显式开启后只生成安全预览、hash、warnings 与 structured hints。
+- OCR result 默认不保存完整 `raw_extracted_text`。
+- OCR result 可通过既有 `medical_event_draft_create` Agent workflow 生成 pending `medical_event_draft`。
+- 未确认 preview 不写草稿；确认后也只创建待确认草稿，不创建正式 `medical_event`。
+- 真实 OCR provider、移动端原生文件选择器、OCR worker、正式草稿确认入库仍未实现。

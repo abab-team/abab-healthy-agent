@@ -458,3 +458,28 @@ Phase 12 结论：
 - 生产前仍需关闭 demo header、设置强 JWT secret、补 Native SecureStore 和更完整账号安全策略。
 
 下一阶段建议：Phase 13：文件上传 / OCR / 文档处理增强。
+## Phase 13 更新
+
+Phase 13：健康资料上传 / 文档处理 / mock OCR / 待确认健康事件草稿闭环已执行。
+
+完成范围：
+- 新增受控本地文档上传入口，支持 PDF/PNG/JPG/JPEG，拒绝未知 MIME、危险扩展名、超大文件与路径穿越文件名。
+- 上传文件只保存内部 storage key，API response 不返回本机绝对路径或 `file_path`。
+- 补齐 document processing job 查询接口，支持创建、查询、列表与安全失败原因。
+- 新增 `backend/app/ocr` mock OCR 抽象，默认 `OCR_ENABLED=false`，显式开启后只生成安全预览与结构化 hints。
+- mock OCR extraction result 默认不保存完整 `raw_extracted_text`。
+- OCR result 可通过现有 `medical_event_draft_create` Agent workflow 生成 pending `medical_event_draft`。
+- 未确认 preview 不写入草稿；确认后也只创建待确认草稿，不创建正式 `medical_event`。
+- 新增 Phase 13 API 测试与 smoke 脚本。
+- 移动端新增健康资料列表和文档处理详情的最小展示入口。
+
+边界保持：
+- 未实现真实 OCR provider。
+- 未实现 OCR worker 队列。
+- 未实现移动端原生文件选择器。
+- 未生成诊断、处方、剂量建议或停药建议。
+- 未将 OCR 结果直接写成正式健康事实。
+- 未新增数据库 migration 或 model。
+- 未开放通用 tool execution。
+
+下一阶段建议：Phase 13 Batch Review，重点复核上传安全、OCR preview 安全、草稿边界、移动端文档处理展示与 smoke 链路。

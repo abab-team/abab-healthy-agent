@@ -175,3 +175,11 @@
    - JWT 只识别当前用户。
    - family permissions、Agent Safety、Tool Executor 和 confirmation 仍必须独立执行。
    - 后续任何 API 或 Agent workflow 变更不得把“JWT 用户本人”错误当成家人数据访问授权。
+## Phase 13 Document Processing Risks
+
+- Phase 13 only adds a local storage foundation and deterministic mock OCR. No real OCR provider has been integrated or online-smoked.
+- `OCR_ENABLED=false` and `OCR_STORE_RAW_TEXT=false` remain the safe defaults. Enabling raw OCR storage requires a separate privacy and retention review.
+- The mobile app has a document-processing status UI, but no native file picker or production upload experience yet.
+- OCR extraction results are previews for review. They must not be treated as diagnosis, prescription, dosage guidance, or formal health facts.
+- `medical_event_draft_create` can create only pending drafts from OCR previews. Formal `medical_events` confirmation remains outside Phase 13.
+- Local document storage stores internal storage keys. Any future object-storage backend needs a separate path, ACL, retention, and signed-url review.

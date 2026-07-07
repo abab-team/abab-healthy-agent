@@ -7,10 +7,13 @@ import type {
   AlertCreateInput,
   AgentRunRequest,
   BloodPressureRecord,
+  DocumentExtractionResult,
+  DocumentProcessingJob,
   Family,
   FamilyMember,
   HealthProfile,
   HealthStatus,
+  MedicalDocument,
   MedicalEventDraftInput,
   SymptomDraftInput,
   SymptomRecord
@@ -147,6 +150,41 @@ export const backendApi = {
 
   getFamilyMemberActiveAlerts(familyId: string, targetUserId: string, currentUserId: string) {
     return apiClient.get<Alert[]>(`/api/v1/families/${familyId}/members/${targetUserId}/alerts/active`, currentUserId);
+  },
+
+  listMyDocuments(currentUserId: string) {
+    return apiClient.get<{ items: MedicalDocument[] }>("/api/v1/documents/me", currentUserId).then((response) => response.items);
+  },
+
+  getMyDocument(documentId: string, currentUserId: string) {
+    return apiClient.get<MedicalDocument>(`/api/v1/documents/me/${documentId}`, currentUserId);
+  },
+
+  listMyDocumentJobs(documentId: string, currentUserId: string) {
+    return apiClient
+      .get<{ items: DocumentProcessingJob[] }>(`/api/v1/document-processing/me/documents/${documentId}/jobs`, currentUserId)
+      .then((response) => response.items);
+  },
+
+  createMyDocumentOcrJob(documentId: string, currentUserId: string) {
+    return apiClient.post<DocumentProcessingJob>(
+      `/api/v1/document-processing/me/documents/${documentId}/jobs`,
+      { job_type: "ocr" },
+      currentUserId
+    );
+  },
+
+  runMyMockOcr(jobId: string, currentUserId: string) {
+    return apiClient.post<DocumentExtractionResult>(`/api/v1/document-processing/me/jobs/${jobId}/run-mock-ocr`, {}, currentUserId);
+  },
+
+  listMyExtractionResults(documentId: string, currentUserId: string) {
+    return apiClient
+      .get<{ items: DocumentExtractionResult[] }>(
+        `/api/v1/document-processing/me/documents/${documentId}/extraction-results`,
+        currentUserId
+      )
+      .then((response) => response.items);
   },
 
   runDailyHealthBrief(input: { currentUserId: string; targetUserId: string; familyId?: string }) {

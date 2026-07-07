@@ -6,8 +6,12 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings
 from app.modules.document_center import repository as document_repository
+from app.modules.document_center import service as document_service
 from app.modules.document_center.enums import DocumentExtractStatus
+from app.ocr import OCRRequest, get_ocr_client
+from app.ocr.errors import OCRError
 from app.modules.document_processing import repository
 from app.modules.document_processing.enums import (
     DocumentExtractionMode,
@@ -71,6 +75,23 @@ def get_processing_job(db: Session, job_id: UUID) -> DocumentProcessingJob:
     return job
 
 
+def list_processing_jobs(
+    db: Session,
+    *,
+    document_id: UUID | None = None,
+    user_id: UUID | None = None,
+    status: DocumentProcessingStatus | str | None = None,
+    limit: int = 100,
+) -> list[DocumentProcessingJob]:
+    return repository.list_processing_jobs(
+        db,
+        document_id=document_id,
+        user_id=user_id,
+        status=_coerce_enum(DocumentProcessingStatus, status) if status else None,
+        limit=limit,
+    )
+
+
 def get_extraction_result(db: Session, result_id: UUID) -> DocumentExtractionResult:
     result = repository.get_extraction_result(db, result_id)
     if result is None:
@@ -99,12 +120,77 @@ def mark_job_failed(
         db,
         job_id,
         DocumentProcessingStatus.FAILED,
-        error_message=error_message,
+        error_message=_safe_error_message(error_message),
         finished_at=datetime.now(timezone.utc),
     )
     if job is None:
         raise DocumentProcessingJobNotFoundError("document processing job not found")
     return job
+
+
+def run_mock_ocr_for_job(
+    db: Session,
+    *,
+    job_id: UUID,
+    settings: Settings,
+) -> DocumentExtractionResult:
+    job = get_processing_job(db, job_id)
+    document = document_service.get_document(db, job.document_id)
+    mark_job_started(db, job_id)
+    try:
+        result = get_ocr_client(settings).extract_text(
+            OCRRequest(
+                document_id=str(document.id),
+                storage_key=document.file_path,
+                file_name=document.file_name,
+                mime_type=document.file_mime_type,
+            )
+        )
+        raw_text = result.text_preview[: settings.OCR_MAX_TEXT_CHARS] if settings.OCR_STORE_RAW_TEXT else None
+        extraction = save_extraction_result(
+            db,
+            document_id=document.id,
+            processing_job_id=job.id,
+            user_id=job.user_id,
+            family_id=job.family_id,
+            extraction_mode=DocumentExtractionMode.BASIC,
+            ai_summary=result.text_preview,
+            key_findings=[
+                {
+                    "type": "ocr_preview",
+                    "provider": result.provider,
+                    "is_mock": result.is_mock,
+                    "text_hash": result.text_hash,
+                    "language": result.language,
+                    "confidence": result.confidence,
+                    "page_count": result.page_count,
+                }
+            ],
+            suggested_events=[result.structured_hints],
+            raw_extracted_text=raw_text,
+            confidence_level=ConfidenceLevel.MEDIUM,
+            safety_notes=result.warnings,
+            status=DocumentExtractionResultStatus.NEEDS_REVIEW,
+        )
+        mark_job_success(db, job_id)
+        document_service.mark_document_extract_success(
+            db,
+            document.id,
+            ai_summary="OCR preview generated; pending user review.",
+            extracted_json={
+                "provider": result.provider,
+                "is_mock": result.is_mock,
+                "text_hash": result.text_hash,
+                "warnings": result.warnings,
+            },
+        )
+        return extraction
+    except Exception as exc:
+        mark_job_failed(db, job_id, _safe_error_message(str(exc)))
+        document_service.mark_document_extract_failed(db, document.id, error_message="OCR processing failed safely.")
+        if isinstance(exc, OCRError):
+            raise
+        raise
 
 
 def save_extraction_result(
@@ -139,6 +225,19 @@ def save_extraction_result(
         confidence_level=_coerce_enum(ConfidenceLevel, confidence_level),
         safety_notes=safety_notes,
         status=_coerce_enum(DocumentExtractionResultStatus, status),
+    )
+
+
+def list_extraction_results(
+    db: Session,
+    *,
+    document_id: UUID,
+    status: DocumentExtractionResultStatus | str | None = None,
+) -> list[DocumentExtractionResult]:
+    return repository.list_extraction_results(
+        db,
+        document_id,
+        status=_coerce_enum(DocumentExtractionResultStatus, status) if status else None,
     )
 
 
@@ -297,3 +396,13 @@ def _coerce_enum(enum_cls: type[StrEnum], value):
     if isinstance(value, enum_cls):
         return value
     return enum_cls(value)
+
+
+def _safe_error_message(value: str | None) -> str:
+    if not value:
+        return "processing failed safely"
+    lowered = value.lower()
+    blocked_markers = ("traceback", "select ", "insert ", "update ", "delete ", "c:\\", "/home/", "/mnt/", "file_path")
+    if any(marker in lowered for marker in blocked_markers):
+        return "processing failed safely"
+    return str(value).strip()[:300]

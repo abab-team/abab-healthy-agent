@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 512
     LLM_TEMPERATURE: float = 0.2
     DAILY_BRIEF_USE_LLM: bool = False
+    DOCUMENT_UPLOAD_ENABLED: bool = True
+    DOCUMENT_MAX_UPLOAD_MB: int = 10
+    DOCUMENT_STORAGE_BACKEND: str = "local"
+    DOCUMENT_STORAGE_DIR: str = "backend/storage/documents"
+    DOCUMENT_ALLOWED_MIME_TYPES: str = "application/pdf,image/png,image/jpeg"
+    OCR_ENABLED: bool = False
+    OCR_PROVIDER: str = "mock"
+    OCR_TIMEOUT_SECONDS: float = 30.0
+    OCR_MAX_TEXT_CHARS: int = 8000
+    OCR_STORE_RAW_TEXT: bool = False
     OPENAI_API_KEY: str = ""
     LOCAL_STORAGE_DIR: str = "backend/storage/local"
     S3_ENDPOINT: str = ""
@@ -82,6 +92,16 @@ class Settings(BaseSettings):
             for origin in self.CORS_ORIGINS.split(",")
             if origin.strip()
         ]
+
+    @property
+    def document_allowed_mime_types(self) -> set[str]:
+        if not self.DOCUMENT_ALLOWED_MIME_TYPES:
+            return set()
+        return {
+            mime.strip().lower()
+            for mime in self.DOCUMENT_ALLOWED_MIME_TYPES.split(",")
+            if mime.strip()
+        }
 
 
 # 函数职责：配置读取函数，集中加载环境变量和默认配置，供应用启动和业务模块使用。

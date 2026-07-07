@@ -11,6 +11,8 @@ export const routes = {
   createHealthEventDraft: "/create-health-event-draft" as Href,
   inviteMember: "/invite-member" as Href,
   permissionSettings: "/permission-settings" as Href,
+  documents: "/documents" as Href,
+  documentDetail: (id: string) => `/document/${id}` as Href,
   member: (id: string) => `/member/${id}` as Href,
   agentRun: (id: string) => `/agent-run/${id}` as Href,
   activity: (id: string) => `/activity/${id}` as Href

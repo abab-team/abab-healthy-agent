@@ -9,6 +9,7 @@ import type {
   ApiFamilyOverview,
   ApiMemberDetail,
   ApiResult,
+  DocumentPipelineDetail,
   HealthStatus,
   MedicalEventDraftInput,
   SymptomDraftInput
@@ -146,6 +147,38 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
       createMedicalEventDraftConfirmed: (input: MedicalEventDraftInput) => mockApi.createMedicalEventDraftConfirmed(input),
       createAlertPreview: (input: AlertCreateInput) => mockApi.createAlertPreview(input),
       createAlertConfirmed: (input: AlertCreateInput) => mockApi.createAlertConfirmed(input),
+      listDocuments: async () =>
+        ok({
+          items: [
+            {
+              ai_extract_status: "not_started",
+              created_at: "mock",
+              file_mime_type: "application/pdf",
+              file_name: "mock-report.pdf",
+              file_size: 1024,
+              id: "mock-document-1",
+              title: "Mock 健康资料"
+            }
+          ],
+          mockSections: ["document_upload", "ocr", "draft_generation"],
+          source: "mock" as const
+        }),
+      getDocumentPipelineDetail: async (documentId: string) =>
+        ok<DocumentPipelineDetail>({
+          document: {
+            ai_extract_status: "not_started",
+            created_at: "mock",
+            file_mime_type: "application/pdf",
+            file_name: "mock-report.pdf",
+            file_size: 1024,
+            id: documentId,
+            title: "Mock 健康资料"
+          },
+          extractionResults: [],
+          jobs: [],
+          mockSections: ["真实上传、OCR、草稿生成在 API mode 验证"],
+          source: "mock"
+        }),
       getAgentRun: (id: string) => mockApi.getAgentRun(id)
     };
   }
@@ -207,6 +240,39 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         return ok(await backendApi.createAlertConfirmed({ ...input, currentUserId }));
       } catch (error) {
         return fail<AgentRunResponse>(error);
+      }
+    },
+    listDocuments: async () => {
+      try {
+        return ok({ items: await backendApi.listMyDocuments(currentUserId), mockSections: [], source: "api" as const });
+      } catch (error) {
+        return fail(error);
+      }
+    },
+    getDocumentPipelineDetail: async (documentId: string): Promise<ApiResult<DocumentPipelineDetail>> => {
+      try {
+        const [document, jobs, extractionResults] = await Promise.all([
+          backendApi.getMyDocument(documentId, currentUserId),
+          backendApi.listMyDocumentJobs(documentId, currentUserId).catch(() => []),
+          backendApi.listMyExtractionResults(documentId, currentUserId).catch(() => [])
+        ]);
+        return ok({ document, extractionResults, jobs, mockSections: [], source: "api" });
+      } catch (error) {
+        return fail<DocumentPipelineDetail>(error);
+      }
+    },
+    createDocumentOcrJob: async (documentId: string) => {
+      try {
+        return ok(await backendApi.createMyDocumentOcrJob(documentId, currentUserId));
+      } catch (error) {
+        return fail(error);
+      }
+    },
+    runMockOcr: async (jobId: string) => {
+      try {
+        return ok(await backendApi.runMyMockOcr(jobId, currentUserId));
+      } catch (error) {
+        return fail(error);
       }
     },
     getAgentRun: async (id: string): Promise<ApiResult<AgentRunDetail>> => {
