@@ -1,10 +1,10 @@
 # Phase Progress
 
-## 当前状态摘要（Phase 15 后）
+## 当前状态摘要（Phase 16 后）
 
 本文档顶部为当前 source of truth；下方早期条目保留为历史阶段记录，不代表最新项目状态。
 
-当前项目已完成到 **Phase 15：部署 / 真机 QA / 作品集展示收口**。
+当前项目已完成到 **Phase 16：自然语言健康查询 workflow**。
 
 ### Phase 09-15 完成摘要
 
@@ -17,6 +17,7 @@
 | Phase 13 | 已完成 | 文档上传、document processing job、mock OCR preview、OCR 到健康事件草稿的受控链路。 |
 | Phase 14 | 已完成 | 内部 RAG simple retrieval、citations、RAG API、Agent 内部上下文增强；默认关闭，未接外部医学知识库。 |
 | Phase 15 | 已完成 | 部署 runbook、环境变量说明、生产安全清单、Docker 说明、真机 QA 文档、demo/截图/作品集材料与最终验收文档。 |
+| Phase 16 | 已完成 | 新增 `chat` workflow、deterministic intent/time/member parser、系统内只读健康查询 tools、移动端 AI 管家自然语言入口与 smoke。 |
 
 ### 当前已具备能力
 
@@ -24,7 +25,8 @@
 - Auth/JWT 与移动端 `api-auth` 登录态。
 - 移动端 MVP：家庭、成员、AI 管家、设置、写入 workflow、Agent Run 详情。
 - Agent Runtime、Tool Registry、Tool Executor、Safety Policy、trace/tool_calls/safety_checks。
-- 受控 Agent workflow：`daily_health_brief`、`symptom_draft_create`、`medical_event_draft_create`、`alert_create`。
+- 受控 Agent workflow：`chat`、`daily_health_brief`、`symptom_draft_create`、`medical_event_draft_create`、`alert_create`。
+- 自然语言健康查询：只查询系统内记录，固定映射到只读工具，不开放 `tool_name` / `input_data`。
 - 文档上传、document processing job、mock OCR preview。
 - 内部 RAG simple retrieval 与 Agent 上下文增强。
 - 部署、QA、demo、作品集文档。
@@ -48,7 +50,7 @@
 3. 作品集页面整理。
 4. 演示讲解稿和面试讲解练习。
 
-如后续继续开发，再单独进入 Phase 16，并优先做生产化部署、真实 OCR provider、RAG 持久化索引或 LangGraph 重构的专项 review。
+如后续继续开发，建议进入 Phase 17：LangGraph 可选编排增强，并继续保持默认关闭与 fallback 策略。
 
 ## 历史阶段记录
 

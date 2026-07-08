@@ -36,13 +36,13 @@ class AgentRuntimeTestCase(unittest.TestCase):
         self.db.close()
         engine.dispose()
 
-    def test_noop_workflow_success(self) -> None:
-        result = AgentRuntime().run(self.db, self._request("请帮我看看今天的健康记录"))
+    def test_chat_workflow_unknown_intent_returns_safe_message(self) -> None:
+        result = AgentRuntime().run(self.db, self._request("hello"))
 
         self.assertEqual(result.status, "completed")
         self.assertFalse(result.blocked)
         self.assertEqual(result.tool_calls_count, 0)
-        self.assertEqual(result.generated_content, "Agent runtime is ready. No AI workflow has been executed in this phase.")
+        self.assertIn("系统内记录", result.generated_content or "")
         trace = service.get_trace(self.db, result.trace_id)
         self.assertEqual(trace.status, AgentTraceStatus.SUCCESS)
 

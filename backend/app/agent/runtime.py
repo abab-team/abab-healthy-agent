@@ -14,6 +14,7 @@ from app.agent.workflows import AgentWorkflowRegistry, default_workflow_registry
 SAFE_FAILED_MESSAGE = "Agent runtime could not execute this workflow safely in the current phase."
 SAFE_BLOCKED_MESSAGE = "Agent runtime blocked this request before workflow execution."
 CONTROLLED_WORKFLOW_ALIASES = {
+    "chat": AgentWorkflowName.CHAT_WORKFLOW,
     "symptom_draft_create": AgentWorkflowName.FREE_TEXT_RECORD_WORKFLOW,
     "medical_event_draft_create": AgentWorkflowName.DOCUMENT_EXTRACT_WORKFLOW,
     "alert_create": AgentWorkflowName.DOCTOR_VISIT_SUMMARY_WORKFLOW,

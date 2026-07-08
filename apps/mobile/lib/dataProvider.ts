@@ -9,6 +9,7 @@ import type {
   ApiFamilyOverview,
   ApiMemberDetail,
   ApiResult,
+  ChatHealthQueryInput,
   DocumentPipelineDetail,
   HealthStatus,
   MedicalEventDraftInput,
@@ -141,6 +142,13 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           workflow_type: "daily_health_brief"
         });
       },
+      runChatHealthQuery: async (input: ChatHealthQueryInput) =>
+        ok<AgentRunResponse>({
+          generated_content: `根据演示数据，已收到你的问题：“${input.question}”。当前演示回答只整理系统内记录示例，不用于医疗判断。如有明显不适或紧急情况，请联系医生或当地急救服务。`,
+          status: "completed",
+          trace_id: `mock-chat-${Date.now()}`,
+          workflow_type: "chat"
+        }),
       createSymptomDraftPreview: (input: SymptomDraftInput) => mockApi.createSymptomDraftPreview(input),
       createSymptomDraftConfirmed: (input: SymptomDraftInput) => mockApi.createSymptomDraftConfirmed(input),
       createMedicalEventDraftPreview: (input: MedicalEventDraftInput) => mockApi.createMedicalEventDraftPreview(input),
@@ -196,6 +204,13 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
     runDailyHealthBrief: async (targetUserId = currentUserId, familyId?: string) => {
       try {
         return ok(await backendApi.runDailyHealthBrief({ currentUserId, familyId, targetUserId }));
+      } catch (error) {
+        return fail<AgentRunResponse>(error);
+      }
+    },
+    runChatHealthQuery: async (input: ChatHealthQueryInput) => {
+      try {
+        return ok(await backendApi.runChatHealthQuery({ ...input, currentUserId }));
       } catch (error) {
         return fail<AgentRunResponse>(error);
       }

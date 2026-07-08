@@ -118,6 +118,19 @@
 
 4. 其他 workflow 尚未接入 LLM。
    - 当前只有 `daily_health_brief` 可选使用 LLM。
+
+## Phase 16 记录
+
+1. 自然语言成员指代仍是提示信息，不是身份授权来源。
+   - `chat` workflow 可以解析“我、爸爸、妈妈、家人”等 member label。
+   - 解析结果只用于回答文案和意图辅助，不能决定 `actor_user_id`、`target_user_id` 或 `family_id`。
+   - API 调用方仍必须显式传入目标用户与 family context；family 数据访问继续由 Tool Executor + permissions 系统判断。
+   - 后续如要支持前端从自然语言中选择家庭成员，需要单独做 UX 与权限 review。
+
+2. `chat` workflow 当前为 deterministic parser。
+   - Phase 16 不调用 LLM，不接 LangGraph。
+   - 未识别意图会返回安全提示，不回退到通用问答。
+   - 不开放 `tool_name` / `input_data`，避免变成通用 tool execution。
    - 后续如接入草稿、提醒、问答或 LangGraph workflow，必须重新 review prompt、权限、Tool Executor、Safety Policy、trace/debug 与 fallback。
 ## Phase 11 记录
 

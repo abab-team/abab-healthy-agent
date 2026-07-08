@@ -94,6 +94,65 @@ class MedicalEventDraftCreateTool(AgentTool):
         }
 
 
+class DocumentsQueryTool(AgentTool):
+    metadata = AgentToolMetadata(
+        name="documents.query",
+        description="Read safe medical document metadata summaries for the target user.",
+        category="document",
+        access_mode="read",
+        risk_level="medium",
+        required_permission_type="documents",
+        required_permission_action="view",
+        requires_confirmation=False,
+        input_schema_name="DocumentsQueryInput",
+        output_schema_name="DocumentsQueryOutput",
+        safety_notes=("Never returns file_path, raw OCR, or full extracted text.",),
+    )
+
+    def validate_input(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"limit": _bounded_int(payload.get("limit", 10), field_name="limit", minimum=1, maximum=50)}
+
+    def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
+        db = _require_db(payload)
+        documents = document_service.list_user_documents(
+            db,
+            user_id=payload["_target_user_id"],
+            family_id=payload.get("_family_id"),
+        )[: payload["limit"]]
+        return {
+            "status": "ok",
+            "source": "system_records",
+            "empty": len(documents) == 0,
+            "count": len(documents),
+            "coverage_note": "Document metadata only; file paths and raw extracted text are omitted.",
+            "items": [_document_summary(document) for document in documents],
+        }
+
+
+def _document_summary(document) -> dict[str, Any]:
+    return {
+        "id": str(document.id),
+        "title": document.title,
+        "document_type": getattr(document.document_type, "value", document.document_type),
+        "file_name": document.file_name,
+        "document_date": document.document_date,
+        "ai_extract_status": getattr(document.ai_extract_status, "value", document.ai_extract_status),
+        "visibility": getattr(document.visibility, "value", document.visibility),
+    }
+
+
+def _bounded_int(value: Any, *, field_name: str, minimum: int, maximum: int) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be an integer")
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be an integer") from exc
+    if number < minimum or number > maximum:
+        raise ValueError(f"{field_name} must be between {minimum} and {maximum}")
+    return number
+
+
 def _medical_event_draft_json(
     value: Any,
     *,

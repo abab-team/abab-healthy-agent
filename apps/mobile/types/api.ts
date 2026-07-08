@@ -126,6 +126,7 @@ export type ReminderSummary = {
 };
 
 export type AgentWorkflowType =
+  | "chat"
   | "daily_health_brief"
   | "symptom_draft_create"
   | "medical_event_draft_create"
@@ -178,6 +179,10 @@ export type AlertCreateWorkflowPayload = {
 export type AgentRunRequest =
   | (AgentRunBaseRequest & {
       workflow_type: "daily_health_brief";
+      workflow_payload?: never;
+    })
+  | (AgentRunBaseRequest & {
+      workflow_type: "chat";
       workflow_payload?: never;
     })
   | (AgentRunBaseRequest & {
@@ -292,4 +297,8 @@ export type AlertCreateInput = ControlledWorkflowInput & {
   alertType?: string;
   level?: string;
   scheduledAt?: string;
+};
+
+export type ChatHealthQueryInput = ControlledWorkflowInput & {
+  question: string;
 };

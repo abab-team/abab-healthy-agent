@@ -7,6 +7,7 @@ import type {
   AlertCreateInput,
   AgentRunRequest,
   BloodPressureRecord,
+  ChatHealthQueryInput,
   DocumentExtractionResult,
   DocumentProcessingJob,
   Family,
@@ -196,6 +197,19 @@ export const backendApi = {
         target_user_id: input.targetUserId,
         user_message: "请根据系统内记录生成今日健康简报。",
         workflow_type: "daily_health_brief"
+      }
+    });
+  },
+
+  runChatHealthQuery(input: ChatHealthQueryInput & { currentUserId: string }) {
+    return postAgentRun({
+      currentUserId: input.currentUserId,
+      body: {
+        family_id: input.familyId,
+        source: "mobile_phase_16_chat",
+        target_user_id: input.targetUserId,
+        user_message: input.question,
+        workflow_type: "chat"
       }
     });
   },

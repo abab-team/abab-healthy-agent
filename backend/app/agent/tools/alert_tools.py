@@ -110,6 +110,49 @@ class ActiveAlertsListTool(AgentTool):
         }
 
 
+class AlertsQueryTool(AgentTool):
+    metadata = AgentToolMetadata(
+        name="alerts.query",
+        description="Read alert summaries for the target user.",
+        category="alert",
+        access_mode="read",
+        risk_level="low",
+        required_permission_type="alerts",
+        required_permission_action="view",
+        requires_confirmation=False,
+        input_schema_name="AlertsQueryInput",
+        output_schema_name="AlertsQueryOutput",
+        safety_notes=("Alerts are reminders from system records and are not medical judgments.",),
+    )
+
+    def validate_input(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"limit": _bounded_int(payload.get("limit", 10), field_name="limit", minimum=1, maximum=50)}
+
+    def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
+        db = _require_db(payload)
+        summary = alert_service.get_alert_summary(
+            db,
+            user_id=payload["_target_user_id"],
+            family_id=payload.get("_family_id"),
+        )
+        active_items = alert_service.get_active_alerts(
+            db,
+            user_id=payload["_target_user_id"],
+            family_id=payload.get("_family_id"),
+        )[: payload["limit"]]
+        return {
+            "status": "ok",
+            "source": "system_records",
+            "empty": summary.count == 0,
+            "count": summary.count,
+            "active_count": summary.active_count,
+            "due_count": summary.due_count,
+            "coverage_note": "Reminder records only; this is not an emergency service.",
+            "latest_alert": summary.latest_alert,
+            "items": [_alert_summary(alert) for alert in active_items],
+        }
+
+
 def _alert_summary(alert) -> dict[str, Any]:
     return {
         "id": str(alert.id),

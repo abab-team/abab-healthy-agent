@@ -1,7 +1,7 @@
 import { Link } from "expo-router";
 import type { Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 import { AgentActionCard } from "@/components/cards/AgentActionCard";
 import { CardBase } from "@/components/cards/CardBase";
@@ -36,6 +36,10 @@ export default function AgentScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
   const [brief, setBrief] = useState<AgentRunResponse | null>(null);
+  const [query, setQuery] = useState("最近一周我的血压记录怎么样？");
+  const [queryResult, setQueryResult] = useState<AgentRunResponse | null>(null);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [queryLoading, setQueryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,6 +52,26 @@ export default function AgentScreen() {
       setBrief(result.data);
     } else {
       setError(result.error?.message ?? "生成失败，请稍后重试。");
+    }
+  }
+
+  async function runChatQuery() {
+    const normalized = query.trim();
+    if (!normalized) {
+      setQueryError("请先输入想查询的系统内健康记录。");
+      return;
+    }
+    setQueryLoading(true);
+    setQueryError(null);
+    const result = await provider.runChatHealthQuery({
+      question: normalized,
+      targetUserId: session.currentUserId
+    });
+    setQueryLoading(false);
+    if (result.ok && result.data) {
+      setQueryResult(result.data);
+    } else {
+      setQueryError(result.error?.message ?? "查询失败，请稍后重试。");
     }
   }
 
@@ -64,6 +88,41 @@ export default function AgentScreen() {
       </View>
 
       <SafetyNotice />
+
+      <CardBase>
+        <SectionHeader title="问问系统内记录" action={session.dataMode === "api" ? "API 查询" : "演示查询"} />
+        <Text style={styles.description}>
+          可以询问血压、睡眠、步数、症状、健康事件、文档和提醒等系统内记录。当前入口只允许受控 chat workflow，不开放通用工具调用。
+        </Text>
+        <TextInput
+          multiline
+          onChangeText={setQuery}
+          placeholder="例如：最近一周我的血压记录怎么样？"
+          placeholderTextColor={colors.textMuted}
+          style={styles.queryInput}
+          value={query}
+        />
+        <View style={styles.suggestionRow}>
+          {["我最近一周睡眠记录怎么样？", "系统内有哪些待办提醒？", "最近有没有健康文档记录？"].map((item) => (
+            <Pressable key={item} onPress={() => setQuery(item)} style={styles.suggestionButton}>
+              <Text style={styles.suggestionText}>{item}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable style={styles.button} onPress={runChatQuery}>
+          <Text style={styles.buttonText}>{queryLoading ? "正在查询..." : "查询系统内记录"}</Text>
+        </Pressable>
+        {queryError ? <ApiErrorState message={queryError} /> : null}
+        {queryResult ? (
+          <View style={styles.briefBox}>
+            <Text style={styles.logTitle}>查询结果：{shortId(queryResult.trace_id)}</Text>
+            <Text style={styles.description}>{queryResult.generated_content}</Text>
+            <Link href={routes.agentRun(queryResult.trace_id)} style={styles.link}>
+              查看执行详情
+            </Link>
+          </View>
+        ) : null}
+      </CardBase>
 
       <CardBase>
         <SectionHeader title="今天可以做什么？" action={session.dataMode === "api" ? "后端已连接" : "演示数据"} />
@@ -217,6 +276,37 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
     marginTop: 14
+  },
+  queryInput: {
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 12,
+    minHeight: 88,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    textAlignVertical: "top"
+  },
+  suggestionButton: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 8
+  },
+  suggestionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10
+  },
+  suggestionText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "700"
   },
   subtitle: {
     color: colors.textMuted,

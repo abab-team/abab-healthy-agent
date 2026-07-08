@@ -86,6 +86,43 @@ class AgentApiTestCase(unittest.TestCase):
         for term in UNSAFE_TERMS:
             self.assertNotIn(term, response.text.lower())
 
+    def test_chat_workflow_can_run_through_api(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="chat",
+                user_message="最近一周我的血压记录怎么样？",
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["workflow_type"], "chat")
+        self.assertEqual(body["status"], "completed")
+        self.assertIn("根据系统内记录", body["generated_content"])
+        self.assertEqual(body["tool_calls_count"], 1)
+        for term in UNSAFE_TERMS:
+            self.assertNotIn(term, response.text.lower())
+
+    def test_chat_workflow_rejects_payload_and_generic_execution_fields(self) -> None:
+        payload = self._payload(
+            target_user_id=self.actor["id"],
+            workflow_type="chat",
+            user_message="最近一周我的睡眠记录怎么样？",
+            workflow_payload={"tool_name": "health_data.metric.summary"},
+        )
+
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=payload,
+        )
+
+        self.assertIn(response.status_code, {400, 422})
+        self.assertIn(response.json()["detail"]["code"], {"invalid_request", "validation_error"})
+
     def test_family_permission_allowed_runs_daily_health_brief(self) -> None:
         response = client.post(
             "/api/v1/agent/runs",

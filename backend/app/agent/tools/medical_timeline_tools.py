@@ -42,6 +42,44 @@ class MedicalFollowupsListTool(AgentTool):
         }
 
 
+class MedicalEventsQueryTool(AgentTool):
+    metadata = AgentToolMetadata(
+        name="medical_timeline.events.query",
+        description="Read stored medical timeline event summaries for the target user.",
+        category="medical_timeline",
+        access_mode="read",
+        risk_level="medium",
+        required_permission_type="medical_events",
+        required_permission_action="view",
+        requires_confirmation=False,
+        input_schema_name="MedicalEventsQueryInput",
+        output_schema_name="MedicalEventsQueryOutput",
+        safety_notes=("Returns stored event metadata only; no treatment advice or medical conclusion.",),
+    )
+
+    def validate_input(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"days": _bounded_int(payload.get("days", 365), field_name="days", minimum=1, maximum=365)}
+
+    def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
+        db = _require_db(payload)
+        summary = medical_timeline_service.get_medical_event_summary(
+            db,
+            user_id=payload["_target_user_id"],
+            family_id=payload.get("_family_id"),
+            days=payload["days"],
+        )
+        return {
+            "status": "ok",
+            "source": "system_records",
+            "empty": summary.count == 0,
+            "count": summary.count,
+            "follow_up_needed_count": summary.follow_up_needed_count,
+            "coverage_note": f"Based only on {summary.count} system medical timeline records.",
+            "latest_event": summary.latest_event,
+            "items": summary.events[:10],
+        }
+
+
 def _event_summary(event) -> dict[str, Any]:
     return {
         "id": str(event.id),

@@ -6,16 +6,16 @@ Family Health Agent 是一个面向家庭日常健康资料管理的移动端 Ag
 
 ## 当前阶段
 
-当前已完成到 **Phase 15：部署 / 真机 QA / 作品集展示收口**。
+当前已完成到 **Phase 16：自然语言健康查询 workflow**。
 
-Phase 15 的目标不是继续新增大功能，而是让项目达到：
+Phase 16 在 Phase 15 的部署 / 真机 QA / 作品集展示基础上，新增了受控自然语言健康查询能力：
 
-- 后端可按 runbook 启动。
-- demo 数据可复现。
-- 移动端可连接真实 API。
-- 核心 smoke 可通过。
-- 真机 QA 路径清楚。
-- 作品集和 demo 讲解材料完整。
+- 移动端 AI 管家可以询问系统内健康记录。
+- 后端 `chat` workflow 使用 deterministic parser 解析 intent / member label / time range。
+- 查询只能调用固定只读 Agent Tools。
+- 工具调用必须经过 Tool Executor 与 family permission。
+- 不开放通用 tool execution，不允许用户传 `tool_name` / `input_data`。
+- 不调用 LLM，不接 LangGraph。
 
 ## 当前能力
 
@@ -28,10 +28,13 @@ Phase 15 的目标不是继续新增大功能，而是让项目达到：
 - Agent Runtime / Tool Registry / Tool Executor / Safety Policy。
 - Agent trace / safety checks / tool calls 查询。
 - 受控 Agent workflows：
+  - `chat`
   - `daily_health_brief`
   - `symptom_draft_create`
   - `medical_event_draft_create`
   - `alert_create`
+- 自然语言健康查询工具：
+  - 指标 / 血压 / 症状 / 健康事件 / 文档 / 提醒的系统内安全摘要查询。
 - LLM Client：默认关闭，`daily_health_brief` 可选接入并带 fallback。
 - 文档上传、document processing job、mock OCR preview。
 - 内部 RAG simple retrieval：默认关闭，只返回系统内安全摘要和 citations。
@@ -41,6 +44,7 @@ Phase 15 的目标不是继续新增大功能，而是让项目达到：
 - Expo + React Native + TypeScript。
 - mock / api / api-auth mode。
 - 首页、家庭、成员详情、AI 管家、设置、Agent Run 详情。
+- AI 管家自然语言查询系统内健康记录。
 - 写入类 workflow 的 preview / confirm 体验。
 - 文档处理与 OCR preview 的 MVP 展示入口。
 
@@ -129,6 +133,8 @@ Demo 与作品集：
 - `docs/architecture/PHASE_PROGRESS.md`
 - `docs/architecture/KNOWN_RISKS.md`
 - `docs/architecture/RAG_DESIGN.md`
+- `docs/architecture/CHAT_WORKFLOW_DESIGN.md`
+- `docs/architecture/HEALTH_QUERY_TOOLS.md`
 - `docs/architecture/LLM_CLIENT_DESIGN.md`
 - `docs/architecture/AUTH_JWT_DESIGN.md`
 
@@ -146,6 +152,7 @@ scripts/smoke/document_processing_smoke.ps1
 scripts/smoke/ocr_document_smoke.ps1
 scripts/smoke/rag_retrieval_smoke.ps1
 scripts/smoke/rag_agent_smoke.ps1
+scripts/smoke/chat_health_query_smoke.ps1
 ```
 
 验证后不要提交 smoke DB、storage 文件、`__pycache__`、`.env`、API key 或用户附件。

@@ -99,6 +99,43 @@ class SymptomsSummaryTool(AgentTool):
         }
 
 
+class SymptomsQueryTool(AgentTool):
+    metadata = AgentToolMetadata(
+        name="health_record.symptoms.query",
+        description="Read safe symptom-record summaries for a natural-language health query.",
+        category="health_record",
+        access_mode="read",
+        risk_level="medium",
+        required_permission_type="symptoms",
+        required_permission_action="view",
+        requires_confirmation=False,
+        input_schema_name="SymptomsQueryInput",
+        output_schema_name="SymptomsQueryOutput",
+        safety_notes=("Returns counts and short structured summaries only; does not include raw_text.",),
+    )
+
+    def validate_input(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"days": _bounded_int(payload.get("days", 30), field_name="days", minimum=1, maximum=365)}
+
+    def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
+        db = _require_db(payload)
+        summary = health_record_service.get_symptom_summary(
+            db,
+            user_id=payload["_target_user_id"],
+            family_id=payload.get("_family_id"),
+            days=payload["days"],
+        )
+        data = asdict(summary)
+        data["records"] = data["records"][:10]
+        return {
+            "status": "ok",
+            "source": "system_records",
+            "empty": summary.count == 0,
+            "coverage_note": f"Based only on {summary.count} system symptom records.",
+            "summary": data,
+        }
+
+
 def _bounded_int(value: Any, *, field_name: str, minimum: int, maximum: int) -> int:
     if isinstance(value, bool):
         raise ValueError(f"{field_name} must be an integer")

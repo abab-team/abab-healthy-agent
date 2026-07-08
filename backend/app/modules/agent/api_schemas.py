@@ -30,11 +30,13 @@ AgentUserMessage = Annotated[str, required_text(2000), Field(min_length=1, max_l
 AgentWorkflowType = Annotated[str, required_text(64), Field(min_length=1, max_length=64)]
 AgentSource = Annotated[str | None, optional_text(100)]
 DAILY_HEALTH_BRIEF_WORKFLOW = "daily_health_brief"
+CHAT_WORKFLOW = "chat"
 SYMPTOM_DRAFT_CREATE_WORKFLOW = "symptom_draft_create"
 MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW = "medical_event_draft_create"
 ALERT_CREATE_WORKFLOW = "alert_create"
 ALLOWED_WORKFLOW_TYPES = {
     DAILY_HEALTH_BRIEF_WORKFLOW,
+    CHAT_WORKFLOW,
     SYMPTOM_DRAFT_CREATE_WORKFLOW,
     MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW,
     ALERT_CREATE_WORKFLOW,
@@ -121,6 +123,10 @@ def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, An
     if payload.workflow_type == DAILY_HEALTH_BRIEF_WORKFLOW:
         if raw_payload:
             raise ValueError("workflow_payload is not supported for daily_health_brief")
+        return None
+    if payload.workflow_type == CHAT_WORKFLOW:
+        if raw_payload:
+            raise ValueError("workflow_payload is not supported for chat")
         return None
     if payload.workflow_type == SYMPTOM_DRAFT_CREATE_WORKFLOW:
         return SymptomDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)

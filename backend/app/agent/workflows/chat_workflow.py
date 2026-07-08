@@ -1,6 +1,205 @@
-# 模块领域：Agent 工作流层
-# 领域说明：负责串联意图解析、权限校验、工具调用、结果汇总和安全输出。
-# 文件职责：工作流文件。编排多步骤业务流程，把权限、工具、规则和输出串起来。
-# 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
+from __future__ import annotations
 
-"""Agent workflows/chat_workflow.py placeholder."""
+from dataclasses import dataclass
+from typing import Any
+
+from app.agent.chat import HealthQueryIntent, HealthQueryPlan, parse_health_query
+from app.agent.enums import AgentWorkflowName
+from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
+from app.agent.tool_executor import AgentToolExecutor
+from app.agent.tool_registry import AgentToolRegistry
+from app.agent.tools import register_health_query_tools
+
+
+SAFE_UNKNOWN_QUERY_MESSAGE = (
+    "我现在可以根据系统内记录回答指标、血压、症状、健康事件、文档和提醒相关问题。"
+    "请尽量说明要查询的成员和时间范围。"
+)
+SYSTEM_RECORD_NOTE = "以下内容仅根据系统内记录整理，不用于医疗判断。"
+NO_RECORD_NOTE = "这只表示当前系统内没有相关记录，不代表现实中没有相关情况。"
+SAFETY_FOOTER = "如有明显不适或紧急情况，请联系医生或当地急救服务。"
+PARTIAL_UNAVAILABLE_MESSAGE = "部分信息因权限设置暂不可用。"
+
+
+class ChatHealthQueryWorkflow:
+    workflow_name = AgentWorkflowName.CHAT_WORKFLOW
+
+    def __init__(self, executor: AgentToolExecutor | None = None) -> None:
+        if executor is None:
+            executor = AgentToolExecutor(register_health_query_tools(AgentToolRegistry()))
+        self.executor = executor
+
+    def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
+        result = run_chat_health_query(context, executor=self.executor)
+        return AgentWorkflowResult(
+            message=result.answer,
+            generated_content=result.answer,
+            tool_calls_count=result.tool_calls_count,
+        )
+
+
+@dataclass(frozen=True)
+class ChatHealthQueryExecution:
+    plan: HealthQueryPlan
+    answer: str
+    tool_calls_count: int
+    graph_node_summary: list[str] | None = None
+
+
+def run_chat_health_query(context: AgentWorkflowContext, *, executor: AgentToolExecutor) -> ChatHealthQueryExecution:
+    plan = parse_health_query(context.request.user_message)
+    if plan.is_unknown or not plan.tool_name:
+        answer = "\n".join([SAFE_UNKNOWN_QUERY_MESSAGE, SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
+        return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
+
+    if plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
+        results = [
+            _execute_tool(context, executor, "health_data.metrics.recent", {"days": plan.time_range.days, "limit": 10}),
+            _execute_tool(context, executor, "health_record.symptoms.query", {"days": plan.time_range.days}),
+            _execute_tool(context, executor, "alerts.query", {"days": plan.time_range.days, "limit": 10}),
+        ]
+        answer = _compose_daily_status_answer(plan, results)
+        return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=len(results))
+
+    result = _execute_tool(context, executor, plan.tool_name, dict(plan.tool_input or {}))
+    answer = _compose_single_tool_answer(plan, result)
+    return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=1)
+
+
+def _execute_tool(
+    context: AgentWorkflowContext,
+    executor: AgentToolExecutor,
+    tool_name: str,
+    input_data: dict[str, Any],
+) -> ToolExecutionResult:
+    request = context.request
+    return executor.execute(
+        context.db,
+        ToolExecutionRequest(
+            trace_id=context.trace_id,
+            tool_name=tool_name,
+            actor_user_id=request.actor_user_id,
+            target_user_id=request.target_user_id,
+            family_id=request.family_id,
+            input_data=input_data,
+            confirmed=False,
+            safety_level=context.safety_level,
+            reason="chat_health_query",
+        ),
+    )
+
+
+def _compose_single_tool_answer(plan: HealthQueryPlan, result: ToolExecutionResult) -> str:
+    member = _member_phrase(plan)
+    prefix = f"根据系统内记录，{member}{_range_phrase(plan)}的查询结果如下："
+    if result.blocked or result.status != "completed":
+        return "\n".join([prefix, PARTIAL_UNAVAILABLE_MESSAGE, SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
+
+    data = result.output_data or {}
+    if plan.intent == HealthQueryIntent.QUERY_BLOOD_PRESSURE:
+        lines = _blood_pressure_lines(data)
+    elif plan.intent == HealthQueryIntent.QUERY_METRICS:
+        lines = _metric_lines(plan, data)
+    elif plan.intent == HealthQueryIntent.QUERY_SYMPTOMS:
+        lines = _symptom_lines(data)
+    elif plan.intent == HealthQueryIntent.QUERY_MEDICAL_EVENTS:
+        lines = _event_lines(data)
+    elif plan.intent == HealthQueryIntent.QUERY_DOCUMENTS:
+        lines = _document_lines(data)
+    elif plan.intent == HealthQueryIntent.QUERY_ALERTS:
+        lines = _alert_lines(data)
+    else:
+        lines = [SAFE_UNKNOWN_QUERY_MESSAGE]
+    return "\n".join([prefix, *lines, SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
+
+
+def _compose_daily_status_answer(plan: HealthQueryPlan, results: list[ToolExecutionResult]) -> str:
+    member = _member_phrase(plan)
+    lines = [f"根据系统内记录，{member}{_range_phrase(plan)}的健康记录概览如下："]
+    for result in results:
+        if result.blocked or result.status != "completed":
+            lines.append(f"- {PARTIAL_UNAVAILABLE_MESSAGE}")
+            continue
+        data = result.output_data or {}
+        count = int(data.get("count") or ((data.get("summary") or {}).get("count") or 0))
+        if count <= 0:
+            lines.append(f"- {data.get('coverage_note') or '系统内暂无相关记录。'} {NO_RECORD_NOTE}")
+        else:
+            lines.append(f"- 系统内找到 {count} 条相关记录；{data.get('coverage_note') or '仅统计已记录数据。'}")
+    lines.extend([SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
+    return "\n".join(lines)
+
+
+def _metric_lines(plan: HealthQueryPlan, data: dict[str, Any]) -> list[str]:
+    summary = data.get("summary") or {}
+    count = int(summary.get("count") or 0)
+    metric = plan.metric_type or summary.get("metric_type") or "metric"
+    if count <= 0:
+        return [f"- 系统内暂无 {metric} 相关记录。", f"- {NO_RECORD_NOTE}"]
+    lines = [f"- 系统内共有 {count} 条 {metric} 记录。"]
+    if plan.aggregation == "avg" and summary.get("avg_value") is not None:
+        lines.append(f"- 已记录数据的平均值：{summary.get('avg_value')} {summary.get('unit') or ''}".strip())
+    elif summary.get("latest_value") is not None:
+        lines.append(f"- 最近一次已记录值：{summary.get('latest_value')} {summary.get('unit') or ''}".strip())
+    lines.append(f"- {data.get('coverage_note') or '仅基于系统内已记录数据。'}")
+    return lines
+
+
+def _blood_pressure_lines(data: dict[str, Any]) -> list[str]:
+    summary = data.get("summary") or {}
+    count = int(summary.get("count") or 0)
+    if count <= 0:
+        return ["- 系统内暂无血压相关记录。", f"- {NO_RECORD_NOTE}"]
+    lines = [f"- 系统内共有 {count} 条血压记录。"]
+    if summary.get("latest_measured_at"):
+        lines.append(f"- 最近一次记录时间：{summary.get('latest_measured_at')}")
+    lines.append("- 本回答只整理记录数值，不做医学判断。")
+    return lines
+
+
+def _symptom_lines(data: dict[str, Any]) -> list[str]:
+    summary = data.get("summary") or {}
+    count = int(summary.get("count") or 0)
+    if count <= 0:
+        return ["- 系统内暂无症状相关记录。", f"- {NO_RECORD_NOTE}"]
+    lines = [f"- 系统内共有 {count} 条症状记录。"]
+    common = summary.get("common_symptoms") or []
+    if common:
+        first = common[0]
+        lines.append(f"- 出现次数较多的记录标签：{first.get('symptom_name')}，记录 {first.get('count')} 次。")
+    lines.append("- 本回答不推断原因。")
+    return lines
+
+
+def _event_lines(data: dict[str, Any]) -> list[str]:
+    count = int(data.get("count") or 0)
+    if count <= 0:
+        return ["- 系统内暂无健康事件相关记录。", f"- {NO_RECORD_NOTE}"]
+    return [f"- 系统内共有 {count} 条健康事件记录。", f"- 其中待随访标记 {data.get('follow_up_needed_count') or 0} 条。"]
+
+
+def _document_lines(data: dict[str, Any]) -> list[str]:
+    count = int(data.get("count") or 0)
+    if count <= 0:
+        return ["- 系统内暂无文档资料记录。", f"- {NO_RECORD_NOTE}"]
+    items = data.get("items") or []
+    lines = [f"- 系统内共有 {count} 条文档资料记录。"]
+    for item in items[:3]:
+        lines.append(f"- {item.get('title') or item.get('file_name')}: {item.get('ai_extract_status')}")
+    lines.append("- 文件路径和 OCR 全文不会在回答中展示。")
+    return lines
+
+
+def _alert_lines(data: dict[str, Any]) -> list[str]:
+    count = int(data.get("count") or 0)
+    if count <= 0:
+        return ["- 系统内暂无提醒记录。", f"- {NO_RECORD_NOTE}"]
+    return [f"- 系统内共有 {count} 条提醒记录。", f"- 当前 active 提醒 {data.get('active_count') or 0} 条。", "- 提醒不是急救服务。"]
+
+
+def _member_phrase(plan: HealthQueryPlan) -> str:
+    return f"{plan.member_label} " if plan.member_label else ""
+
+
+def _range_phrase(plan: HealthQueryPlan) -> str:
+    return f"{plan.time_range.label} "
