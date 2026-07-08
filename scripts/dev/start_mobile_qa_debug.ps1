@@ -47,10 +47,16 @@ function Get-LanIp {
 function Start-PowerShellWindow {
     param(
         [string]$Title,
-        [string]$Command
+        [string]$Command,
+        [switch]$Hidden
     )
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Command))
-    Start-Process powershell -ArgumentList @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encoded)
+    $args = @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encoded)
+    if ($Hidden) {
+        Start-Process powershell -WindowStyle Hidden -ArgumentList $args
+    } else {
+        Start-Process powershell -ArgumentList $args
+    }
     Write-Host "$Title window started." -ForegroundColor Green
 }
 
@@ -85,6 +91,7 @@ cd '$repoRoot'
 `$env:OCR_ENABLED = 'true'
 `$env:OCR_PROVIDER = 'mock'
 `$env:RAG_ENABLED = 'true'
+`$env:FHA_MOBILE_QA_BACKEND = '1'
 Write-Host 'Preparing mobile QA database...'
 & '$python' -m alembic -c backend/alembic.ini upgrade head
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
@@ -93,7 +100,7 @@ if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 Write-Host 'Starting FastAPI on 0.0.0.0:$BackendPort ...'
 & '$python' -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $BackendPort
 "@
-    Start-PowerShellWindow -Title "Backend" -Command $backendCommand
+    Start-PowerShellWindow -Title "Backend" -Command $backendCommand -Hidden
     Write-Host "After a few seconds, test: $apiBaseUrl/health" -ForegroundColor Green
 }
 
@@ -107,6 +114,7 @@ cd '$mobileRoot'
 `$env:EXPO_PUBLIC_DATA_MODE = '$DataMode'
 `$env:EXPO_PUBLIC_AUTH_MODE = '$AuthMode'
 `$env:EXPO_PUBLIC_API_BASE_URL = '$apiBaseUrl'
+`$env:FHA_MOBILE_QA_EXPO = '1'
 if (-not (Test-Path 'node_modules')) {
     Write-Host 'Installing mobile dependencies...'
     npm install
