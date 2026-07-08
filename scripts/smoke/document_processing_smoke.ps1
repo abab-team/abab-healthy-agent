@@ -1,3 +1,7 @@
+param(
+    [string]$Python = "python"
+)
+
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $repoRoot
@@ -26,4 +30,4 @@ assert detail.status_code == 200, detail.text
 listed = client.get(f"/api/v1/document-processing/me/documents/{document_id}/jobs", headers=headers)
 assert listed.status_code == 200 and len(listed.json()["items"]) == 1, listed.text
 print("document_processing_smoke ok", job_id)
-'@ | python -
+'@ | & $Python -

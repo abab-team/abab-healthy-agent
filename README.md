@@ -1,277 +1,178 @@
 # Family Health Agent
 
-Family Health Agent 是面向家庭长期使用的健康档案、家庭健康共享与受控 Agent 辅助系统。项目当前已完成 **Phase 13：健康资料上传 / 文档处理 / mock OCR / 待确认健康事件草稿闭环**：后端核心业务 API、权限闭环、API 安全、Agent Harness、Agent Tool Executor、受控 Agent workflow、Agent API、移动端 MVP、LLM provider 受控验证、最小登录态/JWT 会话闭环，以及文档处理最小闭环已经可验证运行。
+Family Health Agent 是一个面向家庭日常健康资料管理的移动端 Agent MVP。它支持家庭成员健康资料整理、家庭共享权限、文档上传与 mock OCR 预览、受控 Agent workflow、内部 RAG 检索增强、可选 LLM 健康简报，以及可追踪的 trace / tool calls / safety checks。
 
-本项目不是医疗诊断系统。系统只做生活健康管理、资料整理、趋势提醒和就医沟通辅助，不输出医学诊断、处方建议、药物剂量建议、停药/换药建议，也不把“系统内无记录”表达成“现实没有问题”。
+本项目不是医疗诊断系统，不提供处方、剂量、停药或自动急救建议。所有健康输出都应理解为“根据系统内记录进行整理”，不能替代医生判断或治疗建议。
 
 ## 当前阶段
 
-当前状态：
+当前已完成到 **Phase 15：部署 / 真机 QA / 作品集展示收口**。
 
-- Phase 00-09 已完成。
-- Phase 10.A 已新增 LLM Client 最小封装：默认 mock provider、默认 `LLM_ENABLED=false`，并预留 openai-compatible provider。
-- Phase 10.B 已将 LLM Client 可选接入 `daily_health_brief`，必须同时满足 `LLM_ENABLED=true` 与 `DAILY_BRIEF_USE_LLM=true` 才会调用 LLM。
-- Phase 10.C 已完成 `daily_health_brief` 的 LLM prompt 安全收口、输出 safety 收口、fallback reason 收口、trace/debug 摘要收口和测试补强。
-- Phase 11 已新增真实 provider 受控 smoke 路径、daily_health_brief LLM 质量评估 harness 与 provider 使用风险文档。
-- Phase 12 已新增 Auth/JWT 与用户会话闭环：密码哈希、登录、刷新、登出、`/auth/me`、JWT current user dependency、移动端登录态和 auth smoke。
-- Phase 13 已新增文档上传安全入口、processing job 查询、mock OCR abstraction、OCR extraction preview，以及通过 `medical_event_draft_create` 生成 pending 草稿的受控链路。
-- Phase 08 已完成 Agent Tool 权限收口、Agent API 最小入口、受控草稿 workflow、受控提醒 workflow。
-- Phase 09 已完成移动端 MVP：Expo + React Native App 支持 mock/api mode、只读 demo 数据、`daily_health_brief`、3 个受控写入 workflow、Agent Run 详情和开发者调试状态。
-- 当前不是完整产品，仍缺少生产级登录策略、OAuth/短信/邮箱验证、其他 workflow LLM 接入、LangGraph、真实 OCR provider、移动端原生文件选择器、RAG、生产部署和完整真机视觉 QA。
-- 当前阶段为 **Phase 13：文档处理最小闭环已完成**。默认配置下 `OCR_ENABLED=false`，mock OCR 需要显式开启；`AUTH_ENABLED=false` 时既有 `X-Current-User-Id` demo header fallback 仍可用于开发，生产前必须设置 `AUTH_DEMO_HEADER_ENABLED=false`。
+Phase 15 的目标不是继续新增大功能，而是让项目达到：
 
-## 已具备能力
+- 后端可按 runbook 启动。
+- demo 数据可复现。
+- 移动端可连接真实 API。
+- 核心 smoke 可通过。
+- 真机 QA 路径清楚。
+- 作品集和 demo 讲解材料完整。
 
-后端当前已有：
+## 当前能力
 
-- 数据模型、Alembic migration、demo seed 与 verify 脚本。
-- identity、family、permissions、health_profile、health_data、health_record、medical_timeline、document、reports、alerts、audit 等模块化业务基础。
-- 普通业务 API 与 family member API。
-- 家庭权限闭环、data access logs、统一错误响应。
-- API 输入校验、敏感字段拦截、file_path 安全校验与响应脱敏。
-- Agent Runtime、Safety Policy、Tool Registry、Tool Executor。
-- agent_traces、agent_safety_checks、agent_tool_calls 记录与查询。
-- 只读健康 Agent tools 与写入类 draft Agent tools。
-- 4 个受控 Agent workflow：
+后端：
+
+- FastAPI + SQLAlchemy + Alembic。
+- Auth/JWT 最小闭环：register / login / refresh / logout / me。
+- 家庭、成员、共享权限、健康档案、健康数据、症状、医疗事件、文档、报告、提醒等模块。
+- 统一错误响应、输入清洗、权限守卫、data access logs。
+- Agent Runtime / Tool Registry / Tool Executor / Safety Policy。
+- Agent trace / safety checks / tool calls 查询。
+- 受控 Agent workflows：
   - `daily_health_brief`
   - `symptom_draft_create`
   - `medical_event_draft_create`
   - `alert_create`
-- Agent API：
-  - `POST /api/v1/agent/runs`
-  - `GET /api/v1/agent/runs/{trace_id}`
-  - `GET /api/v1/agent/runs/{trace_id}/tool-calls`
-  - `GET /api/v1/agent/runs/{trace_id}/safety-checks`
-- LLM Client 最小底座：
-  - `mock` provider，默认不请求外部网络。
-  - `openai_compatible` provider，读取 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`。
-  - 默认 `LLM_ENABLED=false`。
-  - `daily_health_brief` 支持可选 LLM 生成，但默认不启用，失败会回退规则简报。
-- Auth/JWT 最小地基：
-  - `POST /api/v1/auth/register`
-  - `POST /api/v1/auth/login`
-  - `POST /api/v1/auth/refresh`
-  - `POST /api/v1/auth/logout`
-  - `GET /api/v1/auth/me`
-  - 使用现有 `users`、`login_sessions`、`refresh_tokens` 表，不新增 migration。
-  - 使用密码哈希、访问 token、刷新 token 与 refresh token 轮换；token 原文不入库。
+- LLM Client：默认关闭，`daily_health_brief` 可选接入并带 fallback。
+- 文档上传、document processing job、mock OCR preview。
+- 内部 RAG simple retrieval：默认关闭，只返回系统内安全摘要和 citations。
 
-## 未完成能力
+移动端：
 
-当前尚未完成：
+- Expo + React Native + TypeScript。
+- mock / api / api-auth mode。
+- 首页、家庭、成员详情、AI 管家、设置、Agent Run 详情。
+- 写入类 workflow 的 preview / confirm 体验。
+- 文档处理与 OCR preview 的 MVP 展示入口。
 
-- 正式 Web 前端。
-- 移动端完整真实 API 联调与发布。
-- 全局 JWT current user 迁移与生产级登录体系。
-- 其他业务 workflow 的 LLM 接入。
-- LangGraph workflow。
-- 真实 OCR provider / 移动端原生文件选择器 / RAG。
-- 生产部署、真实通知、真实设备接入。
-- 通用 tool execution API。当前刻意不开放任意 `tool_name` / `input_data` 执行。
+工程：
 
-## 移动端 API 接入状态
+- demo seed / verify。
+- 后端 API tests。
+- 前端 typecheck / lint / web export。
+- smoke scripts。
+- deployment / QA / portfolio 文档。
 
-`apps/mobile` 当前支持两种数据模式：
+## 尚未完成
 
-- `EXPO_PUBLIC_DATA_MODE=mock`：默认模式，全部使用本地 mock。
-- `EXPO_PUBLIC_DATA_MODE=api`：接入只读 demo 数据、`GET /health`、`daily_health_brief` 与 3 个受控写入类 workflow。
-
-手机真机访问电脑上的 FastAPI 不能使用 `localhost` 或 `127.0.0.1`，需要配置电脑局域网 IP，例如 `http://192.168.x.x:8000`。Phase 12 后移动端支持 `api-demo` 和 `api-auth`：前者使用 `X-Current-User-Id`，后者使用登录页和 `Authorization: Bearer`。
-
-写入类 workflow（`symptom_draft_create`、`medical_event_draft_create`、`alert_create`）在移动端 `api` mode 下已连接真实 Agent API，但仍只通过固定 workflow 调用，不开放通用 tool execution，不允许页面传 `tool_name` 或 `input_data`。
-
-Phase 09.3.B 已补充移动端与后端 smoke runbook，并在本机通过临时 SQLite smoke DB 验证 `/health`、`daily_health_brief`、Agent run / tool_calls / safety_checks 查询。详见 `docs/frontend/MOBILE_BACKEND_SMOKE_RUNBOOK.md`。
-
-Phase 09.3.C 已补充移动端只读 API 模式的 loading/error/empty 状态和 API/mock/待接入标识，并新增真机 QA 清单：`docs/frontend/MOBILE_DEVICE_QA_CHECKLIST.md`。
-
-Phase 09.3.D 已补充写入类 workflow 的 preview / confirm 接入：
-
-- `symptom_draft_create`：预览不写入，确认后创建待确认症状草稿。
-- `medical_event_draft_create`：预览不写入，确认后创建待确认健康事件草稿。
-- `alert_create`：预览不写入，确认后创建普通健康提醒。
-
-草稿列表和正式确认入库仍未真实接入，后续 Phase 再处理。
-
-Phase 09.3.E 已补充：
-
-- 写入页面的 mock/api、preview/confirm、loading、success、error 与安全阻断状态展示。
-- 写入成功后的 trace_id 摘要与 Agent Run 详情入口。
-- Agent Run 详情的安全摘要展示。
-- 写入 workflow QA 清单：`docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md`。
-
-## 重要说明
-
-当前不是“产品只有 4 个功能”。当前只是 **Agent API 对外开放了 4 个受控 workflow**。产品功能、普通 API、Agent Tool、Agent Workflow、前端页面是不同层级，后续会分别按功能覆盖矩阵推进。
-
-功能覆盖与后续 Phase 映射请阅读：
-
-- `docs/architecture/FEATURE_COVERAGE_MATRIX.md`
-- `docs/frontend/FRONTEND_MVP_SCOPE.md`
-- `docs/frontend/MOBILE_MVP_DEMO_SCRIPT.md`
-- `docs/frontend/MOBILE_MVP_ACCEPTANCE_CHECKLIST.md`
-- `docs/frontend/PHASE_09_FINAL_REVIEW.md`
-- `docs/architecture/PHASE_PROGRESS.md`
-- `docs/architecture/PHASE_08_SCOPE_RECONCILIATION.md`
-
-## 架构原则
-
-- Monorepo。
-- 模块化单体后端。
-- 多前端入口预留。
-- Agent Core 独立于业务模块。
-- 业务事实放在 `backend/app/modules/`。
-- Agent 不直接访问数据库，只能通过受控 Tool 调用业务 service。
-- 家人数据访问必须经过 `family_id` 与权限检查。
-- 写入类 Agent Tool 必须经过 confirmation。
-- 未确认草稿不能成为正式健康事实。
-
-## 目录结构
-
-```text
-family-health-agent/
-|-- apps/
-|-- backend/
-|-- packages/
-|-- infra/
-|-- docs/
-|-- prompts/
-|-- datasets/
-|-- tools/
-|-- docker-compose.yml
-|-- docker-compose.dev.yml
-|-- .env.example
-|-- README.md
-`-- Makefile
-```
-
-后端核心结构：
-
-```text
-backend/
-|-- app/
-|   |-- core/
-|   |-- db/
-|   |-- api/
-|   |-- modules/
-|   |-- agent/
-|   |-- integrations/
-|   |-- jobs/
-|   |-- workers/
-|   |-- common/
-|   `-- utils/
-|-- alembic/
-|-- tests/
-|-- scripts/
-`-- storage/
-```
-
-## 调整后的阶段顺序
-
-原始阶段计划仍保留在 `CODEX_IMPLEMENTATION_PLAN.md`。基于当前实际进度，Phase 08 后的执行顺序调整为：
-
-```text
-Phase 09: 可用前端 / 调试页面
-Phase 10: LLM Client 最小封装
-Phase 11: LLM 安全增强 Agent 输出
-Phase 12: LangGraph Workflows
-Phase 13: 文件上传 / OCR / 文档处理增强
-Phase 14: RAG / 健康知识库
-Phase 15: 真实 Auth / 部署 / 产品化收口
-```
-
-> 进度说明：Phase 12 的实际执行顺序已调整为先补齐 Auth/JWT 与用户会话边界，再继续推进 LangGraph。当前 Phase 12 已完成；LangGraph 仍未实现。
-
-Phase 09 优先做可用前端 / 调试页面，是为了更快验证已有普通 API、Agent API、权限、草稿确认、trace/tool_calls/safety_checks 的产品闭环。LLM 与 LangGraph 后移，避免在没有可操作界面的情况下继续堆叠不可见能力。
-
-## LLM Client 状态
-
-Phase 10.A 完成 LLM Client 底座。Phase 10.B/10.C 只把 LLM 可选接入 `daily_health_brief` 并完成安全收口：
-
-- 默认 `LLM_ENABLED=false`。
-- 默认 `LLM_PROVIDER=mock`。
-- 默认 `DAILY_BRIEF_USE_LLM=false`。
-- `mock` provider 返回稳定文本，适合测试和本地开发。
-- `openai_compatible` provider 只在显式启用且配置 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL` 后才会请求外部服务。
-- `daily_health_brief` 只有在 `LLM_ENABLED=true` 且 `DAILY_BRIEF_USE_LLM=true` 时才会调用 LLM。
-- LLM 只接收只读 tools 已整理后的结构化摘要，不接收 raw_text、file_path 或 raw_extracted_text。
-- LLM Client 不查数据库、不调用 tool、不写业务数据。
-- LLM 输出必须经过 Safety Policy；配置错误、调用失败、超时、空输出、response schema 不完整或安全拦截都会回退规则简报。
-- trace/debug 只记录 `llm_used`、`llm_provider`、`llm_model`、`fallback_used`、`fallback_reason`、`safety_filtered` 等安全摘要，不记录 API key、raw prompt、raw response 或敏感原文。
-- 其他 workflow 尚未接入 LLM。
-
-## 本地命令
-
-常用 Makefile 命令：
-
-```text
-make help
-make dev
-make backend-dev
-make test
-make lint
-make format
-make migrate
-make seed
-make verify-demo
-```
-
-任何开发任务开始前必须先阅读 `AGENTS.md`、`CODEX_IMPLEMENTATION_PLAN.md` 与相关架构文档，并严格遵守当前 Phase 范围。
-## Phase 11 LLM Provider Verification
-
-Phase 11 已完成真实 provider 受控 smoke 路径、daily_health_brief LLM 输出质量评估 harness，以及 LLM provider 使用风险文档收口。
-
-- 默认仍为 `LLM_ENABLED=false`、`LLM_PROVIDER=mock`、`DAILY_BRIEF_USE_LLM=false`。
-- `scripts/smoke/llm_provider_smoke.ps1` 默认只跑 mock provider；真实 provider 只有显式设置 `LLM_REAL_SMOKE_ENABLED=true` 且提供本地 `LLM_API_KEY` 时才会请求外部服务。
-- `scripts/smoke/daily_brief_llm_quality_smoke.ps1` 默认使用 mock provider 和合成摘要评估 `daily_health_brief` 输出质量。
-- 真实 provider 未配置时会安全 skip，不会伪装为在线通过。
-- smoke / evaluation 输出不记录 API key、raw prompt、raw response、真实健康原文、traceback、SQL 或本机敏感路径。
-- 当前仍只有 `daily_health_brief` 可选使用 LLM；其他 workflow 尚未接入 LLM。
-- LLM 仍不查数据库、不调用 tool、不写业务数据，不绕过 Agent Runtime、Safety Policy 或 Tool Executor。
-- 详细说明见 `docs/architecture/LLM_REAL_PROVIDER_RUNBOOK.md`、`docs/architecture/LLM_DAILY_BRIEF_EVALUATION.md`、`docs/architecture/PHASE_11_LLM_PROVIDER_VERIFICATION.md`。
-
-## Phase 12 Auth/JWT Foundation
-
-Phase 12 已新增最小 Auth/JWT 与用户会话闭环。
-
-- 默认 `AUTH_ENABLED=false`，`AUTH_DEMO_LOGIN_ENABLED=true`。
-- `Authorization: Bearer` 优先于 demo header。
-- `AUTH_DEMO_HEADER_ENABLED=true` 时保留 `X-Current-User-Id` fallback。
-- Auth API 复用现有 identity 表：`users`、`login_sessions`、`refresh_tokens`。
-- demo seed 用户写入 PBKDF2-SHA256 密码哈希，demo 密码仅用于本地开发 smoke。
-- `refresh_tokens.token_hash` 只保存 refresh token 哈希，logout 和 refresh 轮换会撤销旧 token。
-- 移动端支持 `EXPO_PUBLIC_AUTH_MODE=demo/auth`。
-- 设置页只展示 token 短摘要，不展示完整 token。
-- `.env.example` 只包含占位配置，不提交 `.env` 或真实密钥。
-- 生产前必须禁用 demo header，并接入 Native SecureStore 或等价安全存储。
-## Phase 13 Document Processing Foundation
-
-Phase 13 已新增健康资料上传与文档处理最小闭环。
-
-- `POST /api/v1/documents/me/upload` 支持受控 raw body 上传，要求 `Content-Type` 与 `X-File-Name`，只允许 PDF/PNG/JPG/JPEG。
-- 上传文件名会清洗，落盘使用内部 UUID storage key，API response 不返回本机绝对路径或 `file_path`。
-- `document_processing_jobs` 支持创建、列表、详情和安全失败状态。
-- 新增 `backend/app/ocr` mock OCR abstraction；默认 `OCR_ENABLED=false`，显式开启后只生成安全预览、hash、warnings 与 structured hints。
-- OCR result 默认不保存完整 `raw_extracted_text`。
-- OCR result 可通过既有 `medical_event_draft_create` Agent workflow 生成 pending `medical_event_draft`。
-- 未确认 preview 不写草稿；确认后也只创建待确认草稿，不创建正式 `medical_event`。
-- 真实 OCR provider、移动端原生文件选择器、OCR worker、正式草稿确认入库仍未实现。
-## Phase 14 RAG 当前状态
-
-Phase 14 已新增内部 RAG 检索地基。默认 `RAG_ENABLED=false`，开启后也只检索系统内部安全摘要，不接入外部医学知识库，不调用真实 embedding provider，不使用 vector DB。
-
-新增能力：
-
-- `backend/app/rag/**`：source policy、chunking、simple retrieval、动态内部索引。
-- `POST /api/v1/rag/search`：只返回 safe excerpt 与 citation，不生成医学回答。
-- `daily_health_brief`：RAG 开启时可追加系统内 citation，失败时回退原规则简报。
-- `medical_event_draft_create`：RAG 开启时可追加安全 `structured_hints.rag_sources`，仍只创建待确认草稿。
-
-仍未完成：
-
-- 真实 embedding provider。
-- vector DB。
+- 正式生产部署。
+- 真实 OCR provider。
+- OCR worker 队列。
+- RAG 持久化索引、真实 embedding provider、vector DB。
 - 外部医学知识库。
-- RAG chatbot。
-- 移动端 RAG 页面。
+- LangGraph workflow。
+- 真实推送通知。
+- 移动端生产发布包。
+- 完整真机视觉 QA。
+- 草稿正式确认入库的移动端闭环。
 
-RAG 不得返回 `raw_text`、`symptom_text`、`raw_extracted_text`、`file_path`、token、password、API key、traceback、SQL，也不得生成诊断、处方、剂量、停药建议。
+## 快速启动后端
+
+```powershell
+$env:PYTHONPATH="backend"
+$env:DATABASE_URL="sqlite:///backend/storage/local/demo.sqlite3"
+python -m alembic -c backend/alembic.ini upgrade head
+python backend/scripts/seed_demo_data.py
+python backend/scripts/verify_demo_data.py
+python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000
+```
+
+验证：
+
+```powershell
+curl http://127.0.0.1:8000/health
+```
+
+## 快速启动移动端
+
+```powershell
+cd apps/mobile
+npm install
+npm run web
+```
+
+Expo Go 真机访问电脑后端时，不能使用 `localhost`。请在 `apps/mobile/.env` 中配置电脑局域网 IP：
+
+```text
+EXPO_PUBLIC_DATA_MODE=api-auth
+EXPO_PUBLIC_API_BASE_URL=http://<电脑局域网IP>:8000
+```
+
+## 关键文档
+
+部署与配置：
+
+- `docs/deployment/MVP_DEPLOYMENT_RUNBOOK.md`
+- `docs/deployment/ENVIRONMENT_VARIABLES.md`
+- `docs/deployment/PRODUCTION_SAFETY_CHECKLIST.md`
+- `docs/deployment/DOCKER_RUNBOOK.md`
+
+移动端与 QA：
+
+- `docs/frontend/MOBILE_REAL_DEVICE_QA.md`
+- `docs/frontend/MOBILE_DEVICE_QA_CHECKLIST.md`
+- `docs/frontend/MOBILE_UX_FIX_LOG.md`
+- `docs/frontend/WRITE_WORKFLOW_QA_CHECKLIST.md`
+
+Demo 与作品集：
+
+- `docs/demo/MVP_DEMO_SCRIPT.md`
+- `docs/demo/DEMO_DATA_GUIDE.md`
+- `docs/demo/SCREENSHOT_CHECKLIST.md`
+- `docs/demo/FEATURE_WALKTHROUGH.md`
+- `docs/portfolio/PROJECT_OVERVIEW.md`
+- `docs/portfolio/TECHNICAL_HIGHLIGHTS.md`
+- `docs/portfolio/ARCHITECTURE_SUMMARY.md`
+- `docs/portfolio/INTERVIEW_TALK_TRACK.md`
+
+架构与风险：
+
+- `docs/architecture/PHASE_PROGRESS.md`
+- `docs/architecture/KNOWN_RISKS.md`
+- `docs/architecture/RAG_DESIGN.md`
+- `docs/architecture/LLM_CLIENT_DESIGN.md`
+- `docs/architecture/AUTH_JWT_DESIGN.md`
+
+## Smoke 验证
+
+推荐顺序：
+
+```powershell
+python -m compileall backend/app backend/tests
+python -m unittest discover backend/tests/api -v
+scripts/smoke/mobile_backend_smoke.ps1
+scripts/smoke/auth_smoke.ps1
+scripts/smoke/document_upload_smoke.ps1
+scripts/smoke/document_processing_smoke.ps1
+scripts/smoke/ocr_document_smoke.ps1
+scripts/smoke/rag_retrieval_smoke.ps1
+scripts/smoke/rag_agent_smoke.ps1
+```
+
+验证后不要提交 smoke DB、storage 文件、`__pycache__`、`.env`、API key 或用户附件。
+
+## 安全边界
+
+- LLM 不决定 `current_user_id`、`family_id`、`target_user_id`。
+- Agent 不直接访问数据库。
+- Tool 不直接访问数据库，只能调用 service。
+- 家人数据访问必须经过 family permission。
+- 写入类 workflow 必须 preview / confirm。
+- OCR/RAG/LLM 不直接写正式健康事实。
+- 系统不输出医学诊断、处方、剂量、停药建议。
+- 普通提醒不是急救服务。
+
+## Phase 15 后建议
+
+先完成：
+
+1. 用户本人真机完整体验。
+2. 录屏或截图。
+3. 作品集页面整理。
+4. 面试讲解练习。
+
+后续功能型阶段建议：
+
+- Phase 16.A：真实 OCR Provider 受控接入。
+- Phase 16.B：RAG 持久化索引与权限同步。
+- Phase 16.C：PostgreSQL / 云部署。
+- Phase 16.D：LangGraph Workflow 重构。

@@ -1,3 +1,7 @@
+param(
+    [string]$Python = "python"
+)
+
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $repoRoot
@@ -56,5 +60,5 @@ with SessionLocal() as db:
     assert len(list(db.scalars(select(MedicalEventDraft)))) == 1
     assert len(list(db.scalars(select(MedicalEvent)))) == 0
 print("ocr_document_smoke ok", run.json()["trace_id"])
-'@ | python -
+'@ | & $Python -
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

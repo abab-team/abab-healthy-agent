@@ -168,3 +168,30 @@ npm start
 ## 安全边界
 
 移动端文案必须保持“根据系统内记录”“不替代医生诊断或治疗建议”“普通提醒不是急救服务”。当前只接入最小 Auth/JWT，不实现 OAuth/短信/邮箱验证，不实现 LangGraph，不实现 OCR/upload/RAG。
+
+## Phase 15 真机演示说明
+
+Phase 15 的移动端目标是可演示 MVP，而不是生产发布包。
+
+推荐演示模式：
+
+```text
+EXPO_PUBLIC_DATA_MODE=api-auth
+EXPO_PUBLIC_API_BASE_URL=http://<电脑局域网IP>:8000
+```
+
+注意：
+
+- Expo Go 真机不能使用 `localhost` 或 `127.0.0.1` 访问电脑后端。
+- 手机和电脑需要在同一 Wi-Fi。
+- 后端需要以 `--host 0.0.0.0 --port 8000` 启动。
+- 防火墙需要允许端口 `8000`。
+- 当前仍是 MVP 演示体验，真实生产发布前需要补充 SecureStore、正式隐私策略、生产配置和完整真机 QA。
+
+写入类 workflow 仍然受控：
+
+- preview 不写入。
+- confirm 只创建待确认草稿或普通提醒。
+- 不开放通用 tool execution。
+- 不允许页面传 `tool_name` 或 `input_data`。
+- 不提供诊断、处方、剂量或停药建议。

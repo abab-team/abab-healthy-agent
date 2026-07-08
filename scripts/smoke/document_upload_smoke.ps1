@@ -1,3 +1,7 @@
+param(
+    [string]$Python = "python"
+)
+
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $repoRoot
@@ -21,4 +25,4 @@ body = response.json()
 assert "file_path" not in body
 assert body["file_name"] == "report.pdf"
 print("document_upload_smoke ok", body["id"])
-'@ | python -
+'@ | & $Python -

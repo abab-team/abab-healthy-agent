@@ -509,3 +509,32 @@ Phase 14：内部 RAG 检索与 Agent 上下文增强已执行。
 - 未让 RAG 写入正式健康事实。
 
 下一阶段建议：Phase 15：RAG 检索质量、持久化索引与撤权同步策略 review。
+
+## Phase 15 更新
+
+Phase 15：部署 / 真机 QA / 作品集展示收口已执行。
+
+完成范围：
+
+- 新增 MVP 演示部署 runbook：`docs/deployment/MVP_DEPLOYMENT_RUNBOOK.md`。
+- 新增环境变量说明：`docs/deployment/ENVIRONMENT_VARIABLES.md`。
+- 新增生产安全清单：`docs/deployment/PRODUCTION_SAFETY_CHECKLIST.md`。
+- 新增 Docker 开发演示说明：`docs/deployment/DOCKER_RUNBOOK.md`。
+- 新增移动端真机 QA 文档与 UX 修补记录：`docs/frontend/MOBILE_REAL_DEVICE_QA.md`、`docs/frontend/MOBILE_UX_FIX_LOG.md`。
+- 新增 demo 与作品集材料：`docs/demo/**`、`docs/portfolio/**`。
+- README 已收口为当前可演示 MVP 入口，覆盖快速启动、能力边界、关键文档、smoke 和后续计划。
+- 新增部署 smoke 辅助脚本：`scripts/smoke/deploy_mvp_smoke.ps1`、`scripts/smoke/mobile_lan_api_smoke.ps1`。
+
+Phase 15 结论：
+
+- 当前项目达到可演示 MVP 标准：本地/局域网运行路径清楚，移动端演示路径清楚，核心 smoke 可复现，作品集讲解材料完整。
+- 当前仍不是正式生产上线版本。
+- 真实手机扫码、触控体验、不同屏幕尺寸视觉 QA 仍需用户手动完成。
+- 生产部署前仍需关闭 demo header、设置强密钥、配置 HTTPS/CORS/持久化 storage、完成隐私与安全 review。
+
+下一步建议：
+
+1. 用户本人执行 Expo Go 真机 QA。
+2. 按 `docs/demo/SCREENSHOT_CHECKLIST.md` 完成截图/录屏。
+3. 整理作品集页面。
+4. 如继续功能开发，建议进入 Phase 16.A：真实 OCR Provider 受控接入。

@@ -192,3 +192,15 @@
 - `health_metrics` and `blood_pressure_records` still have no `family_id`; Phase 14 continues the existing user-owned facts plus family permission access strategy.
 - RAG is not a medical QA system. It must not generate diagnosis, prescription, dosage, stop-medication advice, normal/abnormal judgment, or high/low risk judgment.
 - External medical knowledge bases remain out of scope and require a separate safety, source, citation, and compliance review.
+
+## Phase 15 Deployment / QA / Portfolio Risks
+
+- Phase 15 closes the MVP demo path, not a production launch. The project still needs a separate production deployment review before external users or real health data are introduced.
+- `AUTH_DEMO_HEADER_ENABLED` remains useful for local development and smoke tests, but production or external trial deployments must set it to `false` and use Bearer token auth.
+- Production deployments must use strong random `JWT_SECRET_KEY` and `SECRET_KEY`. Example values in `.env.example` are placeholders only.
+- Local SQLite remains acceptable for demos. Production should use PostgreSQL or an equivalent managed database with backup and migration procedures.
+- Local document storage is a demo path. Production storage needs persistence, access control, encryption, retention, and malware-scanning review.
+- Real-device Expo Go QA still requires manual user validation. Codex can verify web export and smoke scripts, but cannot replace physical device checks for touch targets, line wrapping, network permissions, and visual layout.
+- Docker Compose is documented as a development/demo path. It is not a complete production architecture.
+- Real OCR provider, OCR worker, RAG persisted index, real embedding provider, vector DB, external medical knowledge base, and LangGraph remain out of scope for Phase 15.
+- Portfolio materials must not overstate the project as an AI doctor, diagnostic system, prescription system, or production medical product.
