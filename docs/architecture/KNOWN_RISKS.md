@@ -131,6 +131,18 @@
    - Phase 16 不调用 LLM，不接 LangGraph。
    - 未识别意图会返回安全提示，不回退到通用问答。
    - 不开放 `tool_name` / `input_data`，避免变成通用 tool execution。
+
+## Phase 17 记录
+
+1. LangGraph 当前为默认关闭的薄适配层。
+   - `LANGGRAPH_ENABLED=false` 时完全保持 Phase 16 行为。
+   - 开启 `LANGGRAPH_ENABLED=true` 与 `LANGGRAPH_CHAT_QUERY_ENABLED=true` 后，当前仅为 `chat` workflow 记录安全 graph node summary。
+   - 本阶段没有引入复杂多节点状态机，也没有让 graph 直接调用 tool、查数据库或写业务数据。
+
+2. `daily_health_brief` graph 仅保留配置开关。
+   - `LANGGRAPH_DAILY_BRIEF_ENABLED=false` 默认关闭。
+   - 本阶段不改 `daily_health_brief` 执行路径，避免影响已稳定的 LLM/RAG/fallback 逻辑。
+   - 后续如要将 daily brief 真正迁移到 graph，需要单独 review 规则简报、LLM fallback、RAG citations 与 safety output 例外。
    - 后续如接入草稿、提醒、问答或 LangGraph workflow，必须重新 review prompt、权限、Tool Executor、Safety Policy、trace/debug 与 fallback。
 ## Phase 11 记录
 

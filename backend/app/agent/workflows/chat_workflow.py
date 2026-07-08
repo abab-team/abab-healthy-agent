@@ -5,10 +5,12 @@ from typing import Any
 
 from app.agent.chat import HealthQueryIntent, HealthQueryPlan, parse_health_query
 from app.agent.enums import AgentWorkflowName
+from app.agent.langgraph.adapter import LangGraphExecutionAdapter
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
 from app.agent.tool_registry import AgentToolRegistry
 from app.agent.tools import register_health_query_tools
+from app.core.config import get_settings
 
 
 SAFE_UNKNOWN_QUERY_MESSAGE = (
@@ -24,13 +26,24 @@ PARTIAL_UNAVAILABLE_MESSAGE = "部分信息因权限设置暂不可用。"
 class ChatHealthQueryWorkflow:
     workflow_name = AgentWorkflowName.CHAT_WORKFLOW
 
-    def __init__(self, executor: AgentToolExecutor | None = None) -> None:
+    def __init__(
+        self,
+        executor: AgentToolExecutor | None = None,
+        *,
+        settings=None,
+        graph_adapter: LangGraphExecutionAdapter | None = None,
+    ) -> None:
         if executor is None:
             executor = AgentToolExecutor(register_health_query_tools(AgentToolRegistry()))
         self.executor = executor
+        self.settings = settings or get_settings()
+        self.graph_adapter = graph_adapter or LangGraphExecutionAdapter(self.settings)
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
-        result = run_chat_health_query(context, executor=self.executor)
+        result = self.graph_adapter.run_chat_health_query(
+            context,
+            lambda: run_chat_health_query(context, executor=self.executor),
+        )
         return AgentWorkflowResult(
             message=result.answer,
             generated_content=result.answer,

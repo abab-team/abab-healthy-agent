@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     RAG_EMBEDDING_PROVIDER: str = "mock"
     RAG_RETRIEVAL_PROVIDER: str = "simple"
     RAG_MIN_SCORE: float = 0.0
+    LANGGRAPH_ENABLED: bool = False
+    LANGGRAPH_CHAT_QUERY_ENABLED: bool = False
+    LANGGRAPH_DAILY_BRIEF_ENABLED: bool = False
+    LANGGRAPH_TRACE_NODE_SUMMARY: bool = True
     DOCUMENT_UPLOAD_ENABLED: bool = True
     DOCUMENT_MAX_UPLOAD_MB: int = 10
     DOCUMENT_STORAGE_BACKEND: str = "local"

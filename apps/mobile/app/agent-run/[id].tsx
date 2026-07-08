@@ -31,6 +31,9 @@ export default function AgentRunDetailScreen() {
     trace_id: traceId,
     workflow_type: "daily_health_brief" as const
   };
+  const graphSummary = safeDetail.safety_checks.find(
+    (check) => check.summary.includes("graph_nodes=") || check.summary.includes("chat_health_query_graph")
+  );
 
   return (
     <AppScreen>
@@ -68,6 +71,16 @@ export default function AgentRunDetailScreen() {
             <Text style={styles.summaryText}>{call.summary}</Text>
           </View>
         ))}
+      </CardBase>
+
+      <CardBase>
+        <SectionHeader title="图编排摘要" />
+        {graphSummary ? (
+          <Text style={styles.line}>{graphSummary.summary.replace("graph_nodes=", "执行路径：")}</Text>
+        ) : (
+          <Text style={styles.line}>图编排未启用时，系统使用原有 Agent Runtime 安全流程。</Text>
+        )}
+        <Text style={styles.line}>本摘要只展示节点名称，不展示原始输入、工具参数或内部错误详情。</Text>
       </CardBase>
 
       <CardBase>
