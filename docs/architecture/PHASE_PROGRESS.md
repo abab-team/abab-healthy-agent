@@ -1,5 +1,57 @@
 # Phase Progress
 
+## 当前状态摘要（Phase 15 后）
+
+本文档顶部为当前 source of truth；下方早期条目保留为历史阶段记录，不代表最新项目状态。
+
+当前项目已完成到 **Phase 15：部署 / 真机 QA / 作品集展示收口**。
+
+### Phase 09-15 完成摘要
+
+| Phase | 当前状态 | 摘要 |
+| --- | --- | --- |
+| Phase 09 | 已完成 | Expo 移动端 MVP、mock/api/api-auth mode、只读 API、受控写入 workflow、Agent Run 调试摘要、移动端演示路径。 |
+| Phase 10 | 已完成 | LLM Client 最小封装，`daily_health_brief` 可选 LLM；默认关闭，失败回退规则简报。 |
+| Phase 11 | 已完成 | 真实 provider 验证 runbook、LLM 输出质量评估与文档收口。 |
+| Phase 12 | 已完成 | Auth/JWT、Bearer token、refresh/logout、移动端登录态接入。 |
+| Phase 13 | 已完成 | 文档上传、document processing job、mock OCR preview、OCR 到健康事件草稿的受控链路。 |
+| Phase 14 | 已完成 | 内部 RAG simple retrieval、citations、RAG API、Agent 内部上下文增强；默认关闭，未接外部医学知识库。 |
+| Phase 15 | 已完成 | 部署 runbook、环境变量说明、生产安全清单、Docker 说明、真机 QA 文档、demo/截图/作品集材料与最终验收文档。 |
+
+### 当前已具备能力
+
+- 后端业务模块、API、权限闭环、data access logs、统一错误响应、输入清洗。
+- Auth/JWT 与移动端 `api-auth` 登录态。
+- 移动端 MVP：家庭、成员、AI 管家、设置、写入 workflow、Agent Run 详情。
+- Agent Runtime、Tool Registry、Tool Executor、Safety Policy、trace/tool_calls/safety_checks。
+- 受控 Agent workflow：`daily_health_brief`、`symptom_draft_create`、`medical_event_draft_create`、`alert_create`。
+- 文档上传、document processing job、mock OCR preview。
+- 内部 RAG simple retrieval 与 Agent 上下文增强。
+- 部署、QA、demo、作品集文档。
+
+### 当前仍未完成
+
+- LangGraph workflow。
+- 真实 OCR provider。
+- RAG 持久化索引、真实 embedding provider、vector DB。
+- 移动端生产发布包。
+- 完整真机视觉 QA。
+- 草稿正式确认入库的移动端完整闭环。
+- 生产级密钥管理、HTTPS、正式隐私策略和云部署。
+
+### 下一步建议
+
+下一步不建议继续加新功能。建议先完成：
+
+1. 用户本人真机 QA。
+2. 录屏 / 截图。
+3. 作品集页面整理。
+4. 演示讲解稿和面试讲解练习。
+
+如后续继续开发，再单独进入 Phase 16，并优先做生产化部署、真实 OCR provider、RAG 持久化索引或 LangGraph 重构的专项 review。
+
+## 历史阶段记录
+
 本文档记录 family-health-agent 的实际实施进度映射。原始阶段计划仍以 `CODEX_IMPLEMENTATION_PLAN.md` 为准；当实际实现与原计划阶段存在重叠时，以本文档说明当前状态与下一步边界。
 
 ## Phase 状态表
