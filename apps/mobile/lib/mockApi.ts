@@ -63,7 +63,7 @@ export const mockApi = {
 
   createSymptomDraftConfirmed(input: SymptomDraftInput) {
     return wait<AgentRunResponse>({
-      generated_content: "mock 已生成待确认症状草稿；真实提交需要 api mode。",
+      generated_content: "演示模式已生成待确认症状草稿；真实提交需要后端模式。",
       status: "completed",
       trace_id: "run-symptom-draft-preview",
       workflow_type: "symptom_draft_create"
@@ -83,7 +83,7 @@ export const mockApi = {
 
   createMedicalEventDraftConfirmed(_input: MedicalEventDraftInput) {
     return wait<AgentRunResponse>({
-      generated_content: "mock 已生成待确认健康事件草稿；真实提交需要 api mode。",
+      generated_content: "演示模式已生成待确认健康事件草稿；真实提交需要后端模式。",
       status: "completed",
       trace_id: "run-medical-event-draft-preview",
       workflow_type: "medical_event_draft_create"
@@ -103,7 +103,7 @@ export const mockApi = {
 
   createAlertConfirmed(_input: AlertCreateInput) {
     return wait<AgentRunResponse>({
-      generated_content: "mock 已创建普通健康提醒；真实提交需要 api mode。",
+      generated_content: "演示模式已创建普通健康提醒；真实提交需要后端模式。",
       status: "completed",
       trace_id: "run-alert-create-preview",
       workflow_type: "alert_create"

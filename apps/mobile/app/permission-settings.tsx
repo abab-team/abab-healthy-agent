@@ -19,7 +19,7 @@ export default function PermissionSettingsScreen() {
   return (
     <AppScreen>
       <Text style={styles.title}>共享权限设置</Text>
-      <SafetyNotice text="这里展示家庭共享权限的静态 mock 状态，真实权限仍以后端检查为准。" />
+      <SafetyNotice text="这里展示家庭共享权限的演示状态，真实权限仍以后端检查为准。" />
       <CardBase>
         <SectionHeader title="权限概览" />
         {permissionRows.map((row) => (

@@ -13,7 +13,9 @@ export function AppScreen({ children, scroll = true }: AppScreenProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
       {scroll ? (
-        <ScrollView showsVerticalScrollIndicator={false}>{content}</ScrollView>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {content}
+        </ScrollView>
       ) : (
         content
       )}
@@ -29,7 +31,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 18,
-    paddingBottom: 28,
+    paddingBottom: 96,
     gap: 14
+  },
+  scrollContent: {
+    flexGrow: 1
   }
 });

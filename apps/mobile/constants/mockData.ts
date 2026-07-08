@@ -185,7 +185,7 @@ export const agentRun = {
   workflowType: "daily_health_brief",
   status: "completed",
   generatedContent:
-    "根据系统内记录，已为你整理最近 7 天的家庭健康简报。本简报不能替代医生诊断或治疗建议。如有不适或紧急情况，请联系医生或当地急救服务。",
+    "根据系统内记录，已为你整理最近 7 天的家庭健康简报。本简报不能替代医生意见或治疗建议。如有不适或紧急情况，请联系医生或当地急救服务。",
   toolCalls: 5,
   safetyChecks: "通过"
 };

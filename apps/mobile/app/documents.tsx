@@ -29,13 +29,13 @@ export default function DocumentsScreen() {
       <ApiModeBadge mode={session.dataMode} />
       <CardBase>
         <SectionHeader title="资料处理闭环" />
-        <Text style={styles.line}>本阶段支持上传安全元数据、processing job、mock OCR 预览与待确认健康事件草稿。</Text>
+        <Text style={styles.line}>本阶段支持上传安全元数据、处理任务、演示 OCR 预览与待确认健康事件草稿。</Text>
         <Text style={styles.line}>OCR 结果不会直接成为医疗判断、用药安排或正式健康事实。</Text>
       </CardBase>
       {documents.loading ? <Text style={styles.line}>正在读取资料列表...</Text> : null}
       {documents.error ? <ApiErrorState message={documents.error} /> : null}
       <CardBase>
-        <SectionHeader title="系统内资料" action={session.dataMode === "api" ? "API" : "mock"} />
+        <SectionHeader title="系统内资料" action={session.dataMode === "api" ? "后端数据" : "演示数据"} />
         {items.length === 0 ? <Text style={styles.line}>系统内暂无资料。真实文件选择器将在后续移动端阶段完善。</Text> : null}
         {items.map((item: MedicalDocument) => (
           <Link key={item.id} href={routes.documentDetail(item.id)} asChild>

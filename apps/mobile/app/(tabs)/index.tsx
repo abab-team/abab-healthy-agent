@@ -1,6 +1,7 @@
-import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
 import { CardBase } from "@/components/cards/CardBase";
 import { MemberHealthCard } from "@/components/cards/MemberHealthCard";
 import { QuickActionGrid } from "@/components/cards/QuickActionGrid";
@@ -12,12 +13,11 @@ import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
-import { currentUser, members as mockMembers, recentActivities, todos } from "@/constants/mockData";
+import { currentUser, members as demoMembers, recentActivities, todos } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
-import { useState } from "react";
 import type { AgentRunResponse } from "@/types/api";
 
 function shortId(id: string): string {
@@ -31,17 +31,18 @@ export default function HomeScreen() {
   const [brief, setBrief] = useState<AgentRunResponse | null>(null);
   const [briefError, setBriefError] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
+
   const displayMembers = overview.data?.members ?? [];
   const cardMembers =
     displayMembers.length > 0
       ? displayMembers.map((member, index) => ({
-          avatar: mockMembers[index]?.avatar ?? "👤",
+          avatar: demoMembers[index]?.avatar ?? "👤",
           hrefId: member.user_id,
           name: member.display_name,
           status: member.share_status,
           tone: (index === 0 ? "mint" : index === 1 ? "blue" : "orange") as "mint" | "blue" | "orange"
         }))
-      : mockMembers.map((member) => ({
+      : demoMembers.map((member) => ({
           avatar: member.avatar,
           hrefId: member.id,
           name: member.name,
@@ -60,7 +61,7 @@ export default function HomeScreen() {
       </View>
 
       <CardBase>
-        <SectionHeader title="家庭今日概览" action={session.dataMode === "api" ? "API 只读" : "Mock"} />
+        <SectionHeader title="家庭今日概览" action={session.dataMode === "api" ? "系统数据" : "演示数据"} />
         <ApiModeBadge mode={overview.data?.source ?? session.dataMode} />
         {overview.loading ? <Text style={styles.hint}>正在读取家庭概览...</Text> : null}
         {overview.error ? <ApiErrorState message={overview.error} /> : null}
@@ -79,13 +80,11 @@ export default function HomeScreen() {
             />
           ))}
         </View>
-        {overview.data?.mockSections.length ? (
-          <Text style={styles.hint}>以下聚合仍为 mock：{overview.data.mockSections.join("、")}</Text>
-        ) : null}
+        {overview.data?.mockSections.length ? <Text style={styles.hint}>当前展示为演示数据。</Text> : null}
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="今日待办" action="mock 占位" />
+        <SectionHeader title="今日待办" action="演示中" />
         <MockDataBadge />
         {todos.map((todo) => (
           <TodoItem
@@ -101,8 +100,8 @@ export default function HomeScreen() {
       </CardBase>
 
       <CardBase style={styles.briefCard}>
-        <SectionHeader title="AI 今日简报" action={session.dataMode === "api" ? "daily_health_brief API" : "mock"} />
-        <Text style={styles.hint}>只调用受控 daily_health_brief，不接写入类 workflow。</Text>
+        <SectionHeader title="AI 今日简报" action={session.dataMode === "api" ? "已接入" : "演示中"} />
+        <Text style={styles.hint}>根据系统内记录生成简报，不替代医生意见或治疗建议。</Text>
         <Pressable
           style={styles.button}
           onPress={async () => {
@@ -124,19 +123,21 @@ export default function HomeScreen() {
           <View style={styles.briefResult}>
             <Text style={styles.hint}>Trace ID：{shortId(brief.trace_id)}</Text>
             <Text style={styles.briefText}>{brief.generated_content}</Text>
-            <Link href={routes.agentRun(brief.trace_id)} style={styles.link}>查看 Agent Run 详情</Link>
+            <Link href={routes.agentRun(brief.trace_id)} style={styles.link}>
+              查看执行详情
+            </Link>
           </View>
         ) : null}
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="快速记录" action="写入仍为 mock" />
-        <MockDataBadge label="mock / 不真实提交" />
+        <SectionHeader title="快速记录" action="演示模式" />
+        <MockDataBadge label="演示模式，不会提交真实数据" />
         <QuickActionGrid />
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="最近动态" action="mock 占位" />
+        <SectionHeader title="最近动态" action="演示中" />
         <MockDataBadge />
         {recentActivities.map((item, index) => (
           <Link key={item} href={routes.activity(`activity-${index + 1}`)}>

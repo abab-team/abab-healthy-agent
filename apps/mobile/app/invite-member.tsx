@@ -15,7 +15,7 @@ export default function InviteMemberScreen() {
   return (
     <AppScreen>
       <Text style={styles.title}>邀请成员</Text>
-      <SafetyNotice text="当前为静态 mock 邀请流程，不会发送真实短信、邮件或通知。" />
+      <SafetyNotice text="当前为演示邀请流程，不会发送真实短信、邮件或通知。" />
       <CardBase>
         <SectionHeader title="邀请信息" />
         <Text style={styles.label}>家庭：{family.name}</Text>
@@ -24,12 +24,12 @@ export default function InviteMemberScreen() {
           style={styles.button}
           onPress={() => {
             setSent(true);
-            Alert.alert("Mock 邀请已生成", "当前不会发送真实邀请。");
+            Alert.alert("演示邀请已生成", "当前不会发送真实邀请。");
           }}
         >
           <Text style={styles.buttonText}>生成邀请预览</Text>
         </Pressable>
-        {sent ? <StatusBadge label="已生成 mock 邀请" tone="mint" /> : null}
+        {sent ? <StatusBadge label="已生成演示邀请" tone="mint" /> : null}
       </CardBase>
     </AppScreen>
   );

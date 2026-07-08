@@ -16,6 +16,8 @@ export default function SettingsScreen() {
   const provider = getDataProvider(session.currentUserId);
   const health = useApiResource(() => Promise.resolve(provider.getHealthStatus()), [session.currentUserId, session.dataMode]);
 
+  const userGroups = settingsGroups.filter((group) => !group.some((item) => item.title === "开发者调试"));
+
   return (
     <AppScreen>
       <Text style={styles.title}>设置</Text>
@@ -27,10 +29,40 @@ export default function SettingsScreen() {
             <Text style={styles.userName}>{currentUser.name}</Text>
             <StatusBadge label={currentUser.badge} tone="mint" />
           </View>
-          <Text style={styles.userDescription}>用心记录每一天，守护家人健康</Text>
+          <Text style={styles.userDescription}>用心记录每一天，守护家人健康。</Text>
           <Text style={styles.userDescription}>当前家庭：{currentUser.familyName}</Text>
         </View>
       </CardBase>
+
+      {userGroups.map((group, index) => (
+        <CardBase key={index}>
+          {group.map((item) => (
+            <Pressable key={item.title} onPress={() => Alert.alert("演示设置", `${item.title} 当前为演示入口。`)}>
+              <SettingsListItem title={item.title} description={item.description} icon={item.icon as never} />
+            </Pressable>
+          ))}
+        </CardBase>
+      ))}
+
+      <CardBase>
+        <Text style={styles.sectionTitle}>数据来源</Text>
+        {dataSources.map((source) => (
+          <Text key={source} style={styles.source}>
+            {source}
+          </Text>
+        ))}
+        <Text style={styles.about}>文档处理与 OCR preview 已接入；真实 OCR provider 仍未实现。</Text>
+        <Text style={styles.about}>RAG 当前为后端 / Agent 内部增强，移动端暂无独立 RAG 页面。</Text>
+      </CardBase>
+
+      <CardBase>
+        <Text style={styles.sectionTitle}>关于 App</Text>
+        <Text style={styles.about}>
+          本 App 用于家庭日常健康记录、整理与提醒，不提供医疗判断、具体用药方案或急救服务。
+        </Text>
+      </CardBase>
+
+      <Text style={styles.debugHeading}>开发者调试</Text>
 
       <BackendStatusCard
         accessTokenPreview={session.authSession.accessTokenPreview}
@@ -47,12 +79,16 @@ export default function SettingsScreen() {
 
       <CardBase>
         <Text style={styles.sectionTitle}>登录态</Text>
-        <Text style={styles.about}>当前模式：{session.authMode === "auth" ? "api-auth / Bearer token" : "api-demo / X-Current-User-Id"}</Text>
+        <Text style={styles.about}>
+          当前模式：{session.authMode === "auth" ? "api-auth / Bearer token" : "api-demo / X-Current-User-Id"}
+        </Text>
         <Text style={styles.about}>
           当前用户：{session.authSession.user?.nickname ?? session.authSession.user?.email ?? currentUser.name}
         </Text>
         <Text style={styles.about}>Access Token：{session.authSession.accessTokenPreview}</Text>
-        <Text style={styles.about}>Refresh Token：{session.authSession.refreshTokenStored ? "已安全保存摘要，不展示完整 token" : "未保存"}</Text>
+        <Text style={styles.about}>
+          Refresh Token：{session.authSession.refreshTokenStored ? "已安全保存摘要，不展示完整 token" : "未保存"}
+        </Text>
         <View style={styles.actions}>
           <Pressable style={styles.secondaryButton} onPress={() => router.push("/login")}>
             <Text style={styles.secondaryButtonText}>打开登录页</Text>
@@ -65,45 +101,22 @@ export default function SettingsScreen() {
 
       <CardBase>
         <Text style={styles.sectionTitle}>Agent API 状态</Text>
-        <StatusBadge label="daily_health_brief 已接入" tone="mint" />
-        <StatusBadge label="symptom_draft_create 已接入" tone="mint" />
-        <StatusBadge label="medical_event_draft_create 已接入" tone="mint" />
-        <StatusBadge label="alert_create 已接入" tone="mint" />
-        <Text style={styles.about}>预览使用 confirmation=false，不会写入。</Text>
-        <Text style={styles.about}>确认使用 confirmation=true，只创建待确认草稿或普通健康提醒。</Text>
-        <Text style={styles.about}>草稿正式确认入库仍未实现。</Text>
-        <Text style={styles.about}>Auth/JWT 最小登录态已接入；LLM 仍只用于 daily_health_brief 可选路径。</Text>
-        <Text style={styles.about}>LangGraph、OCR/RAG 仍未实现。</Text>
+        <View style={styles.badgeWrap}>
+          <StatusBadge label="daily_health_brief 已接入" tone="mint" />
+          <StatusBadge label="symptom_draft_create 已接入" tone="mint" />
+          <StatusBadge label="medical_event_draft_create 已接入" tone="mint" />
+          <StatusBadge label="alert_create 已接入" tone="mint" />
+        </View>
+        <Text style={styles.about}>预览不会写入，确认后只会创建待确认草稿或普通健康提醒。</Text>
+        <Text style={styles.about}>草稿正式确认入库仍未完整接入移动端。</Text>
+        <Text style={styles.about}>LangGraph 尚未实现。</Text>
+        <Text style={styles.about}>真实 OCR provider、RAG 持久化索引、embedding/vector DB 仍未实现。</Text>
       </CardBase>
 
       <CardBase>
         <Text style={styles.sectionTitle}>真机访问提示</Text>
         <Text style={styles.about}>Web 本机调试可以使用 localhost。</Text>
         <Text style={styles.about}>Expo Go 真机不能使用 localhost，需要配置电脑局域网 IP。</Text>
-      </CardBase>
-
-      {settingsGroups.map((group, index) => (
-        <CardBase key={index}>
-          {group.map((item) => (
-            <Pressable key={item.title} onPress={() => Alert.alert("Mock 设置", `${item.title} 当前为静态占位。`)}>
-              <SettingsListItem title={item.title} description={item.description} icon={item.icon as never} />
-            </Pressable>
-          ))}
-        </CardBase>
-      ))}
-
-      <CardBase>
-        <Text style={styles.sectionTitle}>数据来源</Text>
-        {dataSources.map((source) => (
-          <Text key={source} style={styles.source}>{source}</Text>
-        ))}
-      </CardBase>
-
-      <CardBase>
-        <Text style={styles.sectionTitle}>关于 App</Text>
-        <Text style={styles.about}>
-          本 App 用于家庭日常健康记录、整理与提醒，不提供医疗判断、具体用药方案或急救服务。
-        </Text>
       </CardBase>
     </AppScreen>
   );
@@ -113,7 +126,8 @@ const styles = StyleSheet.create({
   about: {
     color: colors.textMuted,
     fontSize: 13,
-    lineHeight: 20
+    lineHeight: 20,
+    marginTop: 4
   },
   actions: {
     flexDirection: "row",
@@ -123,6 +137,17 @@ const styles = StyleSheet.create({
   },
   avatar: {
     fontSize: 54
+  },
+  badgeWrap: {
+    alignItems: "flex-start",
+    gap: 8,
+    marginBottom: 6
+  },
+  debugHeading: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+    marginTop: 4
   },
   sectionTitle: {
     color: colors.text,

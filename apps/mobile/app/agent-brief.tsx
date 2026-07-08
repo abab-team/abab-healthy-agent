@@ -18,7 +18,7 @@ export default function AgentBriefScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
   const [run, setRun] = useState<AgentRunResponse | null>(null);
-  const [status, setStatus] = useState("尚未生成，本页不会自动请求写入类 workflow。");
+  const [status, setStatus] = useState("尚未生成，本页不会自动发起写入动作。");
   const [loading, setLoading] = useState(false);
 
   async function refreshBrief() {
@@ -37,18 +37,18 @@ export default function AgentBriefScreen() {
   return (
     <AppScreen>
       <Text style={styles.title}>今日健康简报</Text>
-      <SafetyNotice text="根据系统内记录生成，仅供家庭健康管理参考，不能替代医生诊断或治疗建议。" />
+      <SafetyNotice text="根据系统内记录生成，仅供家庭健康管理参考，不能替代医生意见或治疗建议。" />
       <StatusBadge label={loading ? "生成中" : status} tone="plain" />
 
       <CardBase>
         <SectionHeader title="根据系统内记录" />
         <Text style={styles.paragraph}>
-          {run?.generated_content ?? "点击下方按钮后，api mode 会调用后端 daily_health_brief；mock mode 会返回本地模拟简报。"}
+          {run?.generated_content ?? "点击下方按钮后，后端模式会生成系统内健康简报；演示模式会返回本地演示简报。"}
         </Text>
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="成员摘要" action="mock 展示" />
+        <SectionHeader title="成员摘要" action="演示数据" />
         {members.map((member) => (
           <Text key={member.id} style={styles.line}>
             {member.name}：{member.status}
@@ -57,14 +57,14 @@ export default function AgentBriefScreen() {
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="今日待办" action="mock 展示" />
+        <SectionHeader title="今日待办" action="演示数据" />
         {todos.map((todo) => (
           <Text key={todo.id} style={styles.line}>{todo.title}</Text>
         ))}
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="提醒" action="mock 展示" />
+        <SectionHeader title="提醒" action="演示数据" />
         {reminders.map((reminder) => (
           <ReminderCard key={reminder.id} {...reminder} />
         ))}

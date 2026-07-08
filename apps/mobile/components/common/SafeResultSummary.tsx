@@ -14,10 +14,7 @@ type SafeResultSummaryProps = {
 };
 
 function shortId(id: string): string {
-  if (id.length <= 16) {
-    return id;
-  }
-  return `${id.slice(0, 8)}...${id.slice(-6)}`;
+  return id.length <= 16 ? id : `${id.slice(0, 8)}...${id.slice(-6)}`;
 }
 
 function summaryText(run: AgentRunResponse): string {
@@ -28,10 +25,7 @@ function toneForStatus(run: AgentRunResponse): "mint" | "orange" | "plain" {
   if (run.blocked || run.status === "blocked" || run.status === "failed") {
     return "orange";
   }
-  if (run.status === "completed") {
-    return "mint";
-  }
-  return "plain";
+  return run.status === "completed" ? "mint" : "plain";
 }
 
 export function SafeResultSummary({ title, run, note }: SafeResultSummaryProps) {
@@ -42,11 +36,10 @@ export function SafeResultSummary({ title, run, note }: SafeResultSummaryProps) 
         <StatusBadge label={run.status} tone={toneForStatus(run)} />
         <Text style={styles.shortTrace}>Trace {shortId(run.trace_id)}</Text>
       </View>
-      <Text style={styles.line}>Workflow：{run.workflow_type}</Text>
       <Text style={styles.generated}>{summaryText(run)}</Text>
       <Text style={styles.note}>{note}</Text>
       <Link href={routes.agentRun(run.trace_id)} style={styles.linkButton}>
-        查看 Agent Run 详情
+        查看执行详情
       </Link>
     </CardBase>
   );
@@ -57,12 +50,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     lineHeight: 22,
-    marginTop: 8
-  },
-  line: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
     marginTop: 8
   },
   linkButton: {

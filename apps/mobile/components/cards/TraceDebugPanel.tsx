@@ -16,17 +16,17 @@ export function TraceDebugPanel({ run, toolCalls, safetyChecks, href }: TraceDeb
     <CardBase style={styles.panel}>
       <View style={styles.item}>
         <Text style={styles.value}>{run}</Text>
-        <Text style={styles.label}>Run</Text>
+        <Text style={styles.label}>执行记录</Text>
       </View>
       <View style={styles.separator} />
       <View style={styles.item}>
         <Text style={styles.value}>{toolCalls}</Text>
-        <Text style={styles.label}>Tool Calls</Text>
+        <Text style={styles.label}>步骤摘要</Text>
       </View>
       <View style={styles.separator} />
       <View style={styles.item}>
         <Text style={styles.value}>{safetyChecks}</Text>
-        <Text style={styles.label}>Safety Checks</Text>
+        <Text style={styles.label}>安全检查</Text>
       </View>
     </CardBase>
   );
@@ -45,11 +45,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1
   },
-  value: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "800"
-  },
   label: {
     color: colors.textMuted,
     fontSize: 11,
@@ -58,5 +53,10 @@ const styles = StyleSheet.create({
   separator: {
     backgroundColor: "#d9e7f3",
     width: 1
+  },
+  value: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800"
   }
 });

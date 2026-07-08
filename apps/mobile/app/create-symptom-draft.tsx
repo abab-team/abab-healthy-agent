@@ -95,7 +95,7 @@ export default function CreateSymptomDraftScreen() {
       <Text style={styles.title}>创建症状草稿</Text>
       <SafetyNotice text="只整理你输入的健康记录，不能替代医生建议；如有紧急情况请联系医生或当地急救服务。" />
       <View style={styles.modeRow}>
-        <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API Agent workflow" : "Mock 静态预览"} />
+        <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "后端已连接" : "演示预览"} />
         <StatusBadge label={loading ? "处理中" : message} tone="plain" />
       </View>
       {error ? <ApiErrorState message={error} /> : null}

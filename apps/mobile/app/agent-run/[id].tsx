@@ -34,9 +34,9 @@ export default function AgentRunDetailScreen() {
 
   return (
     <AppScreen>
-      <Text style={styles.title}>Run 详情</Text>
-      <StatusBadge label={session.dataMode === "api" ? "API 安全摘要" : "Mock 安全摘要"} tone="blue" />
-      {detail.loading ? <Text style={styles.line}>正在读取 run / tool calls / safety checks...</Text> : null}
+      <Text style={styles.title}>执行详情</Text>
+      <StatusBadge label={session.dataMode === "api" ? "后端安全摘要" : "演示安全摘要"} tone="blue" />
+      {detail.loading ? <Text style={styles.line}>正在读取执行记录、步骤摘要和安全检查...</Text> : null}
       {detail.error ? <ApiErrorState message={detail.error} /> : null}
       <TraceDebugPanel run={shortId(safeDetail.trace_id)} toolCalls={safeDetail.tool_calls.length} safetyChecks="已脱敏" />
 
@@ -44,11 +44,11 @@ export default function AgentRunDetailScreen() {
         <SectionHeader title="运行状态" />
         <View style={styles.statusGrid}>
           <View style={styles.statusBox}>
-            <Text style={styles.boxLabel}>Workflow</Text>
+            <Text style={styles.boxLabel}>流程</Text>
             <Text style={styles.boxValue}>{safeDetail.workflow_type}</Text>
           </View>
           <View style={styles.statusBox}>
-            <Text style={styles.boxLabel}>Status</Text>
+            <Text style={styles.boxLabel}>状态</Text>
             <Text style={styles.boxValue}>{safeDetail.status}</Text>
           </View>
         </View>
@@ -59,8 +59,8 @@ export default function AgentRunDetailScreen() {
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="Tool Calls" />
-        {safeDetail.tool_calls.length === 0 ? <Text style={styles.line}>系统内暂无 tool call 摘要。</Text> : null}
+        <SectionHeader title="步骤摘要" />
+        {safeDetail.tool_calls.length === 0 ? <Text style={styles.line}>系统内暂无步骤摘要。</Text> : null}
         {safeDetail.tool_calls.map((call) => (
           <View key={call.id} style={styles.summaryRow}>
             <StatusBadge label={call.status} tone={call.status === "completed" ? "mint" : "orange"} />
@@ -71,8 +71,8 @@ export default function AgentRunDetailScreen() {
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="Safety Checks" />
-        {safeDetail.safety_checks.length === 0 ? <Text style={styles.line}>系统内暂无 safety check 摘要。</Text> : null}
+        <SectionHeader title="安全检查" />
+        {safeDetail.safety_checks.length === 0 ? <Text style={styles.line}>系统内暂无安全检查摘要。</Text> : null}
         {safeDetail.safety_checks.map((check) => (
           <View key={check.id} style={styles.summaryRow}>
             <StatusBadge label={`${check.stage} · ${check.status}`} tone={check.status === "passed" ? "mint" : "orange"} />

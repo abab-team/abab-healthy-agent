@@ -25,6 +25,13 @@ function shortId(id: string): string {
   return id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-6)}` : id;
 }
 
+function actionBadge(mode: "api" | "mock", workflowType: string): string {
+  if (mode !== "api") {
+    return workflowType === "daily_health_brief" ? "演示简报" : "演示预览";
+  }
+  return workflowType === "daily_health_brief" ? "已接入后端" : "写入前需确认";
+}
+
 export default function AgentScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
@@ -40,16 +47,16 @@ export default function AgentScreen() {
     if (result.ok && result.data) {
       setBrief(result.data);
     } else {
-      setError(result.error?.message ?? "生成失败");
+      setError(result.error?.message ?? "生成失败，请稍后重试。");
     }
   }
 
   return (
     <AppScreen>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerCopy}>
           <Text style={styles.title}>AI 健康管家</Text>
-          <Text style={styles.subtitle}>整理系统内记录，辅助管理家庭健康事项。</Text>
+          <Text style={styles.subtitle}>整理系统内记录，帮助你更轻松地管理家庭健康事项。</Text>
         </View>
         <View style={styles.bot}>
           <Ionicons name="hardware-chip-outline" size={34} color={colors.primaryDark} />
@@ -59,20 +66,22 @@ export default function AgentScreen() {
       <SafetyNotice />
 
       <CardBase>
-        <SectionHeader title="今天可以做什么？" action={session.dataMode === "api" ? "受控 workflow 已接 API" : "mock"} />
+        <SectionHeader title="今天可以做什么？" action={session.dataMode === "api" ? "后端已连接" : "演示数据"} />
         <ApiModeBadge mode={session.dataMode} />
         <Text style={styles.description}>
-          今日健康简报与 3 个写入类 workflow 已支持 api mode。所有写入都先预览，确认后也只创建待确认草稿或普通健康提醒。
+          今日健康简报、症状草稿、健康事件草稿和健康提醒都经过受控流程。预览不会写入，确认后也只会创建待确认草稿或普通健康提醒。
         </Text>
         <Pressable style={styles.button} onPress={runDailyBrief}>
-          <Text style={styles.buttonText}>{loading ? "生成中..." : "生成今日健康简报"}</Text>
+          <Text style={styles.buttonText}>{loading ? "正在整理..." : "生成今日健康简报"}</Text>
         </Pressable>
         {error ? <ApiErrorState message={error} /> : null}
         {brief ? (
           <View style={styles.briefBox}>
-            <Text style={styles.logTitle}>Trace：{shortId(brief.trace_id)}</Text>
+            <Text style={styles.logTitle}>执行记录：{shortId(brief.trace_id)}</Text>
             <Text style={styles.description}>{brief.generated_content}</Text>
-            <Link href={routes.agentRun(brief.trace_id)} style={styles.link}>查看本次 Agent Run</Link>
+            <Link href={routes.agentRun(brief.trace_id)} style={styles.link}>
+              查看执行详情
+            </Link>
           </View>
         ) : null}
         <View style={styles.recommendGrid}>
@@ -85,19 +94,16 @@ export default function AgentScreen() {
                 title={action.title}
                 tone={action.tone as "mint" | "blue" | "orange" | "purple"}
               />
-              {action.workflowType === "daily_health_brief" ? (
-                <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API" : "mock"} />
-              ) : (
-                <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API 受控确认" : "mock 预览"} />
-              )}
+              <ApiModeBadge mode={session.dataMode} label={actionBadge(session.dataMode, action.workflowType)} />
             </View>
           ))}
         </View>
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="待确认草稿" action="列表后续接入 ›" />
-        <MockDataBadge label="草稿列表仍为 mock" />
+        <SectionHeader title="待确认草稿" action="查看列表" />
+        <MockDataBadge label="草稿列表演示中" />
+        <Text style={styles.description}>草稿正式确认入库仍在后续接入，本页不会直接创建正式健康事实。</Text>
         {pendingDrafts.map((draft) => (
           <Link key={draft.id} href={routes.drafts}>
             <DraftReviewCard createdAt={draft.createdAt} summary={draft.summary} title={draft.title} type={draft.type} />
@@ -106,11 +112,15 @@ export default function AgentScreen() {
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="AI 执行记录" action="安全摘要 ›" />
+        <SectionHeader title="执行记录" action="安全摘要" />
         {agentLogs.map((log) => (
           <Link key={log.id} href={routes.agentRun(brief?.trace_id ?? agentRun.id)}>
             <View style={styles.logRow}>
-              <Ionicons name={log.status === "已完成" ? "checkmark-circle" : "time-outline"} size={22} color={log.status === "已完成" ? colors.primary : colors.warning} />
+              <Ionicons
+                name={log.status === "已完成" ? "checkmark-circle" : "time-outline"}
+                size={22}
+                color={log.status === "已完成" ? colors.primary : colors.warning}
+              />
               <View style={styles.logCopy}>
                 <Text style={styles.logTitle}>{log.title}</Text>
                 <Text style={styles.logTime}>{log.time}</Text>
@@ -123,7 +133,7 @@ export default function AgentScreen() {
 
       <TraceDebugPanel
         href={routes.agentRun(brief?.trace_id ?? agentRun.id)}
-        run={(brief?.trace_id ?? agentRun.id).replace("run-", "Run ")}
+        run={shortId(brief?.trace_id ?? agentRun.id)}
         safetyChecks={agentRun.safetyChecks}
         toolCalls={brief?.tool_calls_count ?? agentRun.toolCalls}
       />
@@ -132,6 +142,9 @@ export default function AgentScreen() {
 }
 
 const styles = StyleSheet.create({
+  actionWrap: {
+    width: "48%"
+  },
   bot: {
     alignItems: "center",
     backgroundColor: colors.blue,
@@ -139,9 +152,6 @@ const styles = StyleSheet.create({
     height: 62,
     justifyContent: "center",
     width: 62
-  },
-  actionWrap: {
-    width: "48%"
   },
   briefBox: {
     backgroundColor: colors.surfaceSoft,
@@ -172,6 +182,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingTop: 8
+  },
+  headerCopy: {
+    flex: 1,
+    paddingRight: 12
   },
   link: {
     color: colors.primaryDark,
@@ -207,6 +221,7 @@ const styles = StyleSheet.create({
   subtitle: {
     color: colors.textMuted,
     fontSize: 13,
+    lineHeight: 19,
     marginTop: 6
   },
   title: {

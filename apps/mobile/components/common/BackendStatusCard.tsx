@@ -35,7 +35,7 @@ export function BackendStatusCard({
       <Text style={styles.title}>开发者调试</Text>
       <ApiModeBadge mode={mode} />
       <Text style={styles.line}>Auth Mode：{authMode === "auth" ? "Authorization Bearer" : "Demo Header"}</Text>
-      <Text style={styles.line}>API Base URL：{apiBaseUrl || "未配置，api mode 将显示错误"}</Text>
+      <Text style={styles.line}>API Base URL：{apiBaseUrl || "未配置，后端模式将显示错误"}</Text>
       <Text style={styles.line}>
         {authMode === "auth" ? "当前用户 ID" : "X-Current-User-Id"}：{currentUserId || "未配置"}
       </Text>

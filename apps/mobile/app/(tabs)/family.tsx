@@ -1,16 +1,15 @@
-import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Link } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { FamilyMemberCard } from "@/components/cards/FamilyMemberCard";
 import { PermissionSummaryCard } from "@/components/cards/PermissionSummaryCard";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ApiModeBadge } from "@/components/common/ApiModeBadge";
-import { MockDataBadge } from "@/components/common/MockDataBadge";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
-import { members as mockMembers } from "@/constants/mockData";
+import { members as demoMembers } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
@@ -22,6 +21,17 @@ export default function FamilyScreen() {
   const overview = useApiResource(() => provider.getFamilyOverview(), [session.currentUserId]);
   const familyName = overview.data?.family.name ?? "幸福一家";
   const members = overview.data?.members ?? [];
+  const displayMembers =
+    members.length > 0
+      ? members
+      : demoMembers.map((member) => ({
+          display_name: member.name,
+          family_id: "family-demo",
+          id: member.id,
+          relationship_label: member.relation,
+          share_status: member.shareStatus,
+          user_id: member.id
+        }));
 
   return (
     <AppScreen>
@@ -33,45 +43,36 @@ export default function FamilyScreen() {
       </View>
 
       <CardBase style={styles.hero}>
-        <View>
+        <View style={styles.heroCopy}>
           <Text style={styles.familyName}>{familyName}</Text>
-          <Text style={styles.familySummary}>
-            {members.length || mockMembers.length} 位成员 · 家庭共享权限用于保护家人健康记录
-          </Text>
+          <Text style={styles.familySummary}>{displayMembers.length} 位成员 · 共同守护家人健康</Text>
           <ApiModeBadge mode={overview.data?.source ?? session.dataMode} />
-          <Text style={styles.avatars}>{mockMembers.map((member) => member.avatar).join("  ")}  ＋</Text>
+          <Text style={styles.avatars}>{demoMembers.map((member) => member.avatar).join("  ")}  ＋</Text>
         </View>
         <Ionicons name="home-outline" size={74} color="#8dddc9" />
       </CardBase>
 
       {overview.loading ? <Text style={styles.hint}>正在读取家庭成员...</Text> : null}
       {overview.error ? <ApiErrorState message={overview.error} /> : null}
-      {!overview.loading && !overview.error && members.length === 0 && session.dataMode === "api" ? (
+      {!overview.loading && !overview.error && displayMembers.length === 0 ? (
         <Text style={styles.hint}>系统内暂无家庭成员记录。</Text>
       ) : null}
-      {(members.length > 0 ? members : mockMembers.map((member) => ({
-        display_name: member.name,
-        family_id: "family-demo",
-        id: member.id,
-        relationship_label: member.relation,
-        share_status: member.shareStatus,
-        user_id: member.id
-      }))).map((member, index) => (
+
+      {displayMembers.map((member, index) => (
         <FamilyMemberCard
           key={member.id}
-          avatar={mockMembers[index]?.avatar ?? "👤"}
+          avatar={demoMembers[index]?.avatar ?? "👤"}
           id={member.user_id}
           name={member.display_name}
-          recentRecord={overview.data?.source === "api" ? "系统内记录摘要 · 后端只读接口" : mockMembers[index]?.recentRecord ?? "mock 记录"}
+          recentRecord={overview.data?.source === "api" ? "系统内记录摘要 · 后端只读接口" : demoMembers[index]?.recentRecord ?? "演示记录"}
           relation={member.relationship_label}
           shareStatus={member.share_status}
         />
       ))}
 
       <PermissionSummaryCard />
-      <MockDataBadge label="权限概览 mock / 后续接入明细" />
       <Text style={styles.hint}>
-        {session.dataMode === "api" ? "成员与家庭信息来自后端；权限明细入口仍为静态摘要。" : "当前为 mock 数据模式。"}
+        {session.dataMode === "api" ? "成员与家庭信息来自后端；权限概览为演示摘要。" : "当前展示为演示数据。"}
       </Text>
 
       <Link href={routes.inviteMember}>
@@ -115,6 +116,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     minHeight: 150
+  },
+  heroCopy: {
+    flex: 1
   },
   hint: {
     color: colors.textMuted,

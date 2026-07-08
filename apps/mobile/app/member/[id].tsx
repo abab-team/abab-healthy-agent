@@ -54,16 +54,16 @@ export default function MemberDetailScreen() {
       {detail.error ? <ApiErrorState message={detail.error} /> : null}
 
       <CardBase>
-        <SectionHeader title="近期记录" action={session.dataMode === "api" ? "API 只读 + mock 补位" : "mock"} />
+        <SectionHeader title="近期记录" action={session.dataMode === "api" ? "后端只读 + 演示补位" : "演示数据"} />
         <Text style={styles.line}>
-          {formatSummary(detail.data?.symptomSummary, "系统内暂无相关 API 摘要，当前展示 mock 占位。")}
+          {formatSummary(detail.data?.symptomSummary, "系统内暂无相关后端摘要，当前展示演示数据。")}
         </Text>
         <Text style={styles.line}>本页只做记录整理，不进行健康判断。</Text>
-        {detail.data?.mockSections.length ? <MockDataBadge label={`mock / 待接入：${detail.data.mockSections.join("、")}`} /> : null}
+        {detail.data?.mockSections.length ? <MockDataBadge label={`演示中：${detail.data.mockSections.join("、")}`} /> : null}
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="今日提醒" action={detail.data?.activeAlerts?.length ? "API" : "mock"} />
+        <SectionHeader title="今日提醒" action={detail.data?.activeAlerts?.length ? "后端数据" : "演示数据"} />
         {!detail.data?.activeAlerts?.length ? <MockDataBadge /> : null}
         {reminders.slice(0, 1).map((reminder) => (
           <ReminderCard key={reminder.id} {...reminder} />
@@ -81,8 +81,8 @@ export default function MemberDetailScreen() {
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="待确认草稿" action="mock" />
-        <MockDataBadge label="mock / 不真实提交" />
+        <SectionHeader title="待确认草稿" action="演示数据" />
+        <MockDataBadge label="演示模式，不真实提交" />
         <Link href={routes.drafts}>
           <DraftReviewCard {...pendingDrafts[0]} />
         </Link>

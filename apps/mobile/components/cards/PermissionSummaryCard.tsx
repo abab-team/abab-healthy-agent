@@ -6,6 +6,12 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { colors } from "@/constants/colors";
 import { routes } from "@/lib/routes";
 
+const rows = [
+  { label: "我", value: "全部共享" },
+  { label: "爸爸", value: "部分共享" },
+  { label: "妈妈", value: "部分共享" }
+];
+
 export function PermissionSummaryCard() {
   return (
     <Link href={routes.permissionSettings}>
@@ -13,24 +19,18 @@ export function PermissionSummaryCard() {
         <View style={styles.header}>
           <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
           <View style={styles.copy}>
-            <Text style={styles.title}>共享权限概览</Text>
-            <Text style={styles.description}>家庭成员之间已授权共享部分健康记录。</Text>
+            <Text style={styles.title}>权限概览</Text>
+            <Text style={styles.description}>家庭成员的健康记录会按共享权限展示。</Text>
           </View>
           <StatusBadge label="查看详情" tone="mint" />
         </View>
-        <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.value}>3</Text>
-            <Text style={styles.label}>成员总数</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.value}>6</Text>
-            <Text style={styles.label}>共享数据类目</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.value}>已开启</Text>
-            <Text style={styles.label}>共享状态</Text>
-          </View>
+        <View style={styles.rows}>
+          {rows.map((row) => (
+            <View key={row.label} style={styles.row}>
+              <Text style={styles.label}>{row.label}</Text>
+              <Text style={styles.value}>{row.value}</Text>
+            </View>
+          ))}
         </View>
       </CardBase>
     </Link>
@@ -38,43 +38,45 @@ export function PermissionSummaryCard() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12
-  },
   copy: {
     flex: 1
-  },
-  title: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "800"
   },
   description: {
     color: colors.textMuted,
     fontSize: 13,
     marginTop: 4
   },
-  stats: {
+  header: {
+    alignItems: "center",
     flexDirection: "row",
-    gap: 10,
-    marginTop: 16
+    gap: 12
   },
-  stat: {
+  label: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  row: {
+    alignItems: "center",
     backgroundColor: colors.surfaceSoft,
-    borderRadius: 14,
-    flex: 1,
-    padding: 12
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10
   },
-  value: {
+  rows: {
+    gap: 8,
+    marginTop: 14
+  },
+  title: {
     color: colors.text,
     fontSize: 17,
     fontWeight: "800"
   },
-  label: {
+  value: {
     color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 4
+    fontSize: 13,
+    fontWeight: "700"
   }
 });

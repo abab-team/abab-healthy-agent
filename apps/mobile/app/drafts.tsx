@@ -13,7 +13,7 @@ import type { DraftStatus } from "@/types/api";
 
 const statusLabel: Record<DraftStatus, string> = {
   pending: "待确认",
-  confirmed: "mock 已确认",
+  confirmed: "演示确认",
   later: "稍后处理"
 };
 
@@ -21,26 +21,26 @@ export default function DraftsScreen() {
   const [drafts, setDrafts] = useState(
     pendingDrafts.map((draft) => ({ ...draft, status: "pending" as DraftStatus, editing: false }))
   );
-  const [message, setMessage] = useState("当前为静态 mock，不会请求后端。");
+  const [message, setMessage] = useState("当前为演示列表，不会请求后端。");
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   async function updateStatus(id: string, status: DraftStatus) {
     setLoadingId(id);
-    setMessage("正在模拟提交...");
+    setMessage("正在演示提交...");
     const result = await mockApi.updateDraftStatus(id, status);
     setLoadingId(null);
     if (!result.ok) {
-      setMessage("mock 更新失败，请稍后再试。");
+      setMessage("演示更新失败，请稍后再试。");
       return;
     }
     setDrafts((current) => current.map((draft) => (draft.id === id ? { ...draft, status, editing: false } : draft)));
-    setMessage(status === "confirmed" ? "草稿已 mock 确认；正式确认入库仍未接入。" : "草稿已标记为稍后处理。");
+    setMessage(status === "confirmed" ? "草稿已演示确认；正式确认入库仍未接入。" : "草稿已标记为稍后处理。");
   }
 
   return (
     <AppScreen>
       <Text style={styles.title}>待确认草稿</Text>
-      <SafetyNotice text="草稿确认后才会进入正式记录；当前为静态 mock，不是真实提交。" />
+      <SafetyNotice text="草稿确认后才会进入正式记录；当前为演示列表，不是真实提交。" />
       <MockDataBadge label="草稿列表真实接入后续实现" />
       <StatusBadge label={message} tone="plain" />
 
@@ -61,13 +61,13 @@ export default function DraftsScreen() {
           )}
           <View style={styles.actions}>
             <Pressable style={styles.button} onPress={() => updateStatus(draft.id, "confirmed")}>
-              <Text style={styles.buttonText}>mock 确认</Text>
+              <Text style={styles.buttonText}>演示确认</Text>
             </Pressable>
             <Pressable
               style={[styles.button, styles.secondaryButton]}
               onPress={() => {
                 setDrafts((current) => current.map((item) => (item.id === draft.id ? { ...item, editing: true } : item)));
-                Alert.alert("Mock 编辑", "这里展示编辑区域，不会保存到后端。");
+                Alert.alert("演示编辑", "这里展示编辑区域，不会保存到后端。");
               }}
             >
               <Text style={styles.secondaryText}>修改</Text>

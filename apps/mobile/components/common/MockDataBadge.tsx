@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { colors } from "@/constants/colors";
 
-export function MockDataBadge({ label = "mock / 待接入" }: { label?: string }) {
+export function MockDataBadge({ label = "演示数据" }: { label?: string }) {
   return (
     <View style={styles.badge}>
       <Text style={styles.text}>{label}</Text>

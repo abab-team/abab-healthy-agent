@@ -106,7 +106,7 @@ export default function CreateAlertScreen() {
       <Text style={styles.title}>创建健康提醒</Text>
       <SafetyNotice text="提醒不是急救；系统只创建普通健康提醒，不提供紧急服务。" />
       <View style={styles.modeRow}>
-        <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API Agent workflow" : "Mock 静态预览"} />
+        <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "后端已连接" : "演示预览"} />
         <StatusBadge label={loading ? "处理中" : message} tone="plain" />
       </View>
       {error ? <ApiErrorState message={error} /> : null}

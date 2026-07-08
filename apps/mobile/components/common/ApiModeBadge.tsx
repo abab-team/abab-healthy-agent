@@ -4,8 +4,8 @@ import type { DataMode } from "@/types/api";
 
 export function ApiModeBadge({ mode, label }: { mode: DataMode; label?: string }) {
   return (
-    <View style={[styles.badge, mode === "api" ? styles.api : styles.mock]}>
-      <Text style={styles.text}>{label ?? (mode === "api" ? "API" : "Mock")}</Text>
+    <View style={[styles.badge, mode === "api" ? styles.api : styles.demo]}>
+      <Text style={styles.text}>{label ?? (mode === "api" ? "API 数据" : "演示数据")}</Text>
     </View>
   );
 }
@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 4
   },
-  mock: {
+  demo: {
     backgroundColor: colors.orange
   },
   text: {

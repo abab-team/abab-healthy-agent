@@ -7,7 +7,7 @@ type SafetyNoticeProps = {
 };
 
 export function SafetyNotice({
-  text = "AI 基于系统记录生成内容，仅供参考，不替代医生诊断与建议；写入前需要你确认；提醒不是急救服务。"
+  text = "AI 基于系统记录生成内容，仅供参考，不替代医生意见与医疗建议；写入前需要你确认；提醒不是急救服务。"
 }: SafetyNoticeProps) {
   return (
     <View style={styles.notice}>

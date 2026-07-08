@@ -101,7 +101,7 @@ export default function CreateHealthEventDraftScreen() {
       <Text style={styles.title}>创建健康事件草稿</Text>
       <SafetyNotice text="此页面只创建待确认草稿，不创建正式健康事件；内容不替代医生建议。" />
       <View style={styles.modeRow}>
-        <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "API Agent workflow" : "Mock 静态预览"} />
+        <ApiModeBadge mode={session.dataMode} label={session.dataMode === "api" ? "后端已连接" : "演示预览"} />
         <StatusBadge label={loading ? "处理中" : message} tone="plain" />
       </View>
       {error ? <ApiErrorState message={error} /> : null}

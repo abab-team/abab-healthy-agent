@@ -95,7 +95,7 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
       getFamilyOverview: async () => {
         const result = await mockApi.getFamilyOverview();
         if (!result.ok || !result.data) {
-          return fail<ApiFamilyOverview>(result.error?.message ?? "mock failed");
+          return fail<ApiFamilyOverview>(result.error?.message ?? "演示数据加载失败");
         }
         const data = result.data;
         return ok<ApiFamilyOverview>({
@@ -132,7 +132,7 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
       runDailyHealthBrief: async () => {
         const result = await mockApi.getAgentBrief();
         if (!result.ok || !result.data) {
-          return fail<AgentRunResponse>(result.error?.message ?? "mock failed");
+          return fail<AgentRunResponse>(result.error?.message ?? "演示简报加载失败");
         }
         return ok<AgentRunResponse>({
           generated_content: result.data.generatedContent,
@@ -152,12 +152,12 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           items: [
             {
               ai_extract_status: "not_started",
-              created_at: "mock",
+              created_at: "demo",
               file_mime_type: "application/pdf",
-              file_name: "mock-report.pdf",
+              file_name: "demo-report.pdf",
               file_size: 1024,
               id: "mock-document-1",
-              title: "Mock 健康资料"
+              title: "演示健康资料"
             }
           ],
           mockSections: ["document_upload", "ocr", "draft_generation"],
@@ -167,16 +167,16 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         ok<DocumentPipelineDetail>({
           document: {
             ai_extract_status: "not_started",
-            created_at: "mock",
+            created_at: "demo",
             file_mime_type: "application/pdf",
-            file_name: "mock-report.pdf",
+            file_name: "demo-report.pdf",
             file_size: 1024,
             id: documentId,
-            title: "Mock 健康资料"
+            title: "演示健康资料"
           },
           extractionResults: [],
           jobs: [],
-          mockSections: ["真实上传、OCR、草稿生成在 API mode 验证"],
+          mockSections: ["真实上传、OCR、草稿生成在后端模式验证"],
           source: "mock"
         }),
       getAgentRun: (id: string) => mockApi.getAgentRun(id)

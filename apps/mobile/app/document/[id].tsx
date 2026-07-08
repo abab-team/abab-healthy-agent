@@ -55,9 +55,9 @@ export default function DocumentDetailScreen() {
     const result = await provider.runMockOcr(latestJob.id);
     setLoading(false);
     if (result.ok && result.data) {
-      setActionMessage(`mock OCR 已完成：${shortId(result.data.id)}。仅展示安全预览。`);
+      setActionMessage(`演示 OCR 已完成：${shortId(result.data.id)}。仅展示安全预览。`);
     } else {
-      setActionError(result.error?.message ?? "mock OCR 失败");
+      setActionError(result.error?.message ?? "演示 OCR 失败");
     }
   }
 
@@ -72,8 +72,8 @@ export default function DocumentDetailScreen() {
 
       <CardBase>
         <SectionHeader title="文档安全摘要" />
-        <Text style={styles.name}>{data?.document.title ?? "Mock 健康资料"}</Text>
-        <Text style={styles.line}>文件名：{data?.document.file_name ?? "mock-report.pdf"}</Text>
+        <Text style={styles.name}>{data?.document.title ?? "演示健康资料"}</Text>
+        <Text style={styles.line}>文件名：{data?.document.file_name ?? "demo-report.pdf"}</Text>
         <Text style={styles.line}>处理状态：{data?.document.ai_extract_status ?? "not_started"}</Text>
         <Text style={styles.line}>本页不显示文件路径、原始 OCR 全文或本机路径。</Text>
       </CardBase>
@@ -89,28 +89,28 @@ export default function DocumentDetailScreen() {
           <Text style={styles.line}>系统内暂无 processing job。</Text>
         )}
         <Pressable style={styles.button} onPress={createOcrJob} disabled={loading || session.dataMode === "mock"}>
-          <Text style={styles.buttonText}>{session.dataMode === "mock" ? "mock mode 不真实创建" : "创建 OCR job"}</Text>
+          <Text style={styles.buttonText}>{session.dataMode === "mock" ? "演示模式不真实创建" : "创建 OCR 任务"}</Text>
         </Pressable>
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="Mock OCR 预览" action="Phase 13.C" />
+        <SectionHeader title="演示 OCR 预览" action="安全预览" />
         {latestResult ? (
           <>
             <Text style={styles.line}>{latestResult.ai_summary ?? "系统内已有 OCR 安全预览。"}</Text>
             <Text style={styles.line}>状态：{latestResult.status}</Text>
           </>
         ) : (
-          <Text style={styles.line}>暂无 OCR 预览。默认 OCR_ENABLED=false，需要后端显式开启 mock OCR。</Text>
+          <Text style={styles.line}>暂无 OCR 预览。默认 OCR_ENABLED=false，需要后端显式开启演示 OCR。</Text>
         )}
         <Pressable style={styles.button} onPress={runMockOcr} disabled={loading || session.dataMode === "mock"}>
-          <Text style={styles.buttonText}>{loading ? "处理中..." : "运行 mock OCR"}</Text>
+          <Text style={styles.buttonText}>{loading ? "处理中..." : "运行演示 OCR"}</Text>
         </Pressable>
       </CardBase>
 
       <CardBase>
         <SectionHeader title="生成健康事件草稿" action="Phase 13.D" />
-        <Text style={styles.line}>草稿必须通过 Agent workflow preview/confirm，不会直接生成正式健康事件。</Text>
+        <Text style={styles.line}>草稿必须通过受控预览与确认流程，不会直接生成正式健康事件。</Text>
         <Text style={styles.line}>禁止展示原始长文本、文件路径、密钥、错误堆栈或数据库语句。</Text>
         <Link href={routes.createHealthEventDraft} style={styles.link}>前往创建健康事件草稿</Link>
       </CardBase>

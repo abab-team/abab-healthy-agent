@@ -17,7 +17,7 @@ export default function ActivityDetailScreen() {
       <CardBase>
         <SectionHeader title="系统内记录摘要" />
         <Text style={styles.text}>{item}</Text>
-        <Text style={styles.text}>当前为静态 mock 详情页，不请求后端数据。</Text>
+        <Text style={styles.text}>当前为演示详情页，不请求后端数据。</Text>
       </CardBase>
     </AppScreen>
   );

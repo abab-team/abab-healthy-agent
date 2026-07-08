@@ -12,15 +12,28 @@ type WorkflowStatusCardProps = {
   confirmText: string;
 };
 
+function titleForWorkflow(workflowType: string): string {
+  if (workflowType === "symptom_draft_create") {
+    return "整理症状草稿";
+  }
+  if (workflowType === "medical_event_draft_create") {
+    return "整理健康事件草稿";
+  }
+  if (workflowType === "alert_create") {
+    return "创建健康提醒";
+  }
+  return "受控整理";
+}
+
 export function WorkflowStatusCard({ mode, workflowType, confirmText }: WorkflowStatusCardProps) {
   return (
     <CardBase>
-      <SectionHeader title="当前写入状态" />
-      <ApiModeBadge mode={mode} label={mode === "api" ? "API Agent workflow" : "Mock 静态预览"} />
+      <SectionHeader title="当前操作" />
+      <ApiModeBadge mode={mode} label={mode === "api" ? "已连接后端" : "演示模式"} />
       <Text style={styles.line}>
         {mode === "api"
-          ? `将通过 POST /api/v1/agent/runs 调用固定 workflow：${workflowType}。`
-          : "当前为静态预览，不会真实提交。"}
+          ? `${titleForWorkflow(workflowType)}会先预览，确认后才创建待确认草稿或普通健康提醒。`
+          : "当前为演示模式，不会提交真实数据。"}
       </Text>
       <ConfirmationStepCard confirmText={confirmText} />
     </CardBase>
