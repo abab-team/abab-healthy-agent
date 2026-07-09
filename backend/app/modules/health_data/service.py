@@ -328,6 +328,167 @@ def mark_import_job_finished(
 
 # 函数职责：业务函数，封装 健康指标模块 中的一段可复用逻辑。
 # 业务边界：调用方应根据返回值和异常语义处理成功与失败。
+def get_archive_trends(
+    db: Session,
+    *,
+    user_id: UUID,
+    metric_types: list[MetricType | str] | None = None,
+    days: int = 90,
+) -> dict:
+    selected = [_coerce_enum(MetricType, item) for item in metric_types] if metric_types else [
+        MetricType.SLEEP_DURATION,
+        MetricType.STEPS,
+        MetricType.WEIGHT,
+    ]
+    series: list[dict] = []
+    for metric_type in selected:
+        summary = get_metric_summary(db, user_id=user_id, metric_type=metric_type, days=days)
+        series.append(
+            {
+                "metric_type": summary.metric_type,
+                "label": _metric_label(summary.metric_type),
+                "unit": summary.unit,
+                "count": summary.count,
+                "points": [
+                    {
+                        "measured_at": record["measured_at"],
+                        "value": record["value_numeric"],
+                        "unit": record.get("unit"),
+                    }
+                    for record in reversed(summary.records)
+                    if record.get("value_numeric") is not None
+                ],
+                "summary": _trend_summary_text(summary.metric_type, summary.count),
+                "data_quality": summary.data_quality,
+            },
+        )
+    bp_summary = get_blood_pressure_summary(db, user_id=user_id, days=days)
+    series.append(
+        {
+            "metric_type": "blood_pressure",
+            "label": "Blood pressure",
+            "unit": "mmHg",
+            "count": bp_summary.count,
+            "points": [
+                {
+                    "measured_at": record["measured_at"],
+                    "systolic": record["systolic"],
+                    "diastolic": record["diastolic"],
+                    "pulse": record.get("pulse"),
+                }
+                for record in reversed(bp_summary.records)
+            ],
+            "summary": _trend_summary_text("blood_pressure", bp_summary.count),
+            "data_quality": bp_summary.data_quality,
+        },
+    )
+    return {
+        "days": days,
+        "generated_from": "system_records",
+        "disclaimer": "Based on system records only; this trend view does not replace doctor judgment.",
+        "series": series,
+    }
+
+
+def preview_health_data_import(
+    *,
+    rows: list[dict],
+    import_type: HealthDataImportType | str = HealthDataImportType.CSV,
+    file_name: str | None = None,
+) -> dict:
+    import_type = _coerce_enum(HealthDataImportType, import_type)
+    preview_rows: list[dict] = []
+    errors: list[dict] = []
+    for index, row in enumerate(rows):
+        normalized, row_errors = _normalize_import_row(row, index=index)
+        if row_errors:
+            errors.extend(row_errors)
+        else:
+            preview_rows.append(normalized)
+    return {
+        "import_type": import_type.value,
+        "file_name": file_name,
+        "total_count": len(rows),
+        "valid_count": len(preview_rows),
+        "invalid_count": len(errors),
+        "preview_rows": preview_rows[:50],
+        "errors": errors[:50],
+        "will_write": False,
+        "disclaimer": "Preview only. No health records are written until confirmation.",
+    }
+
+
+def confirm_health_data_import(
+    db: Session,
+    *,
+    user_id: UUID,
+    rows: list[dict],
+    import_type: HealthDataImportType | str = HealthDataImportType.CSV,
+    file_name: str | None = None,
+    confirmation: bool = False,
+) -> dict:
+    preview = preview_health_data_import(rows=rows, import_type=import_type, file_name=file_name)
+    if not confirmation:
+        return {
+            **preview,
+            "job_id": None,
+            "status": HealthDataImportStatus.PENDING.value,
+            "created_records_count": 0,
+        }
+    job = create_import_job(
+        db,
+        user_id=user_id,
+        import_type=preview["import_type"],
+        source=MetricSource.IMPORTED,
+        file_name=file_name,
+        file_path=None,
+    )
+    mark_import_job_started(db, job.id)
+    created = 0
+    for row in preview["preview_rows"]:
+        if row["metric_type"] == "blood_pressure":
+            add_blood_pressure_record(
+                db,
+                user_id=user_id,
+                systolic=row["systolic"],
+                diastolic=row["diastolic"],
+                pulse=row.get("pulse"),
+                measured_at=row["measured_at"],
+                source=MetricSource.IMPORTED,
+                confidence_level=ConfidenceLevel.MEDIUM,
+                note=row.get("note"),
+            )
+        else:
+            add_metric(
+                db,
+                user_id=user_id,
+                metric_type=row["metric_type"],
+                value_numeric=row["value_numeric"],
+                unit=row.get("unit"),
+                measured_at=row["measured_at"],
+                source=MetricSource.IMPORTED,
+                confidence_level=ConfidenceLevel.MEDIUM,
+                note=row.get("note"),
+            )
+        created += 1
+    status_job = mark_import_job_finished(
+        db,
+        job.id,
+        total_count=preview["total_count"],
+        success_count=created,
+        failed_count=preview["invalid_count"],
+        error_message="Some rows were skipped during import preview." if preview["invalid_count"] else None,
+    )
+    return {
+        **preview,
+        "job_id": status_job.id,
+        "status": status_job.status.value,
+        "created_records_count": created,
+        "will_write": True,
+        "disclaimer": "Confirmed import wrote only validated system records. It does not make medical judgments.",
+    }
+
+
 def _validate_blood_pressure_values(
     systolic: int,
     diastolic: int,
@@ -399,3 +560,76 @@ def _blood_pressure_record_dict(record: BloodPressureRecord) -> dict:
         "pulse": record.pulse,
         "measured_at": record.measured_at,
     }
+
+
+def _metric_label(metric_type: str) -> str:
+    labels = {
+        "sleep_duration": "Sleep duration",
+        "steps": "Steps",
+        "weight": "Weight",
+        "bmi": "BMI",
+        "heart_rate": "Heart rate",
+    }
+    return labels.get(metric_type, metric_type.replace("_", " ").title())
+
+
+def _trend_summary_text(metric_type: str, count: int) -> str:
+    if count == 0:
+        return "No system records in this range."
+    return f"{count} system record(s) in this range. This is a data summary only."
+
+
+def _normalize_import_row(row: dict, *, index: int) -> tuple[dict, list[dict]]:
+    errors: list[dict] = []
+    raw_metric_type = row.get("metric_type")
+    measured_at = row.get("measured_at")
+    if isinstance(measured_at, str):
+        try:
+            measured_at = datetime.fromisoformat(measured_at.replace("Z", "+00:00"))
+        except ValueError:
+            errors.append({"row": index, "field": "measured_at", "message": "invalid datetime"})
+    if measured_at is None:
+        errors.append({"row": index, "field": "measured_at", "message": "required"})
+    metric_type = str(raw_metric_type.value if isinstance(raw_metric_type, MetricType) else raw_metric_type or "")
+    if metric_type in {"blood_pressure", "blood-pressure"}:
+        systolic = row.get("systolic")
+        diastolic = row.get("diastolic")
+        pulse = row.get("pulse")
+        try:
+            _validate_blood_pressure_values(int(systolic), int(diastolic), int(pulse) if pulse is not None else None)
+        except (TypeError, ValueError, InvalidBloodPressureValueError):
+            errors.append({"row": index, "field": "blood_pressure", "message": "invalid blood pressure values"})
+        if errors:
+            return {}, errors
+        return {
+            "metric_type": "blood_pressure",
+            "measured_at": measured_at,
+            "systolic": int(systolic),
+            "diastolic": int(diastolic),
+            "pulse": int(pulse) if pulse is not None else None,
+            "note": row.get("note"),
+        }, []
+    try:
+        metric = _coerce_enum(MetricType, metric_type)
+    except ValueError:
+        errors.append({"row": index, "field": "metric_type", "message": "unsupported metric type"})
+        return {}, errors
+    value_numeric = row.get("value_numeric")
+    if value_numeric is None:
+        errors.append({"row": index, "field": "value_numeric", "message": "required for metric import"})
+    try:
+        numeric = float(value_numeric)
+    except (TypeError, ValueError):
+        errors.append({"row": index, "field": "value_numeric", "message": "must be numeric"})
+        numeric = None
+    if numeric is not None and numeric < 0:
+        errors.append({"row": index, "field": "value_numeric", "message": "must be non-negative"})
+    if errors:
+        return {}, errors
+    return {
+        "metric_type": metric.value,
+        "measured_at": measured_at,
+        "value_numeric": numeric,
+        "unit": row.get("unit"),
+        "note": row.get("note"),
+    }, []

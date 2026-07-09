@@ -9,6 +9,7 @@ import type {
   Alert,
   AlertCreateInput,
   AgentRunRequest,
+  ArchiveTrends,
   BloodPressureRecord,
   ChatHealthQueryInput,
   DocumentExtractionResult,
@@ -17,6 +18,8 @@ import type {
   FamilyMember,
   HealthProfile,
   HealthStatus,
+  ImportPreviewResult,
+  ImportPreviewRow,
   MedicalDocument,
   MedicalEventDraftInput,
   SymptomDraftInput,
@@ -133,6 +136,35 @@ export const backendApi = {
   getFamilyMemberBloodPressureSummary(familyId: string, targetUserId: string, currentUserId: string, days = 30) {
     return apiClient.get<Record<string, unknown>>(
       `/api/v1/families/${familyId}/members/${targetUserId}/health-data/blood-pressure/summary?days=${days}`,
+      currentUserId
+    );
+  },
+
+  getMyArchiveTrends(currentUserId: string, days = 90) {
+    return apiClient.get<ArchiveTrends>(`/api/v1/health-data/me/archive/trends?days=${days}`, currentUserId);
+  },
+
+  previewMyHealthDataImport(currentUserId: string, rows: ImportPreviewRow[]) {
+    return apiClient.post<ImportPreviewResult>(
+      "/api/v1/health-data/me/imports/preview",
+      {
+        file_name: "mobile-health-data-demo.csv",
+        import_type: "csv",
+        rows
+      },
+      currentUserId
+    );
+  },
+
+  confirmMyHealthDataImport(currentUserId: string, rows: ImportPreviewRow[]) {
+    return apiClient.post<ImportPreviewResult>(
+      "/api/v1/health-data/me/imports/confirm",
+      {
+        confirmation: true,
+        file_name: "mobile-health-data-demo.csv",
+        import_type: "csv",
+        rows
+      },
       currentUserId
     );
   },

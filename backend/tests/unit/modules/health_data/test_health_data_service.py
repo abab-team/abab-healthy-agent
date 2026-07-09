@@ -10,6 +10,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
+from app.db.base import Base
+from app.db.session import engine
 from app.db.session import SessionLocal
 from app.modules.health_data import service as health_data_service
 from app.modules.health_data.enums import MetricType
@@ -24,6 +26,11 @@ from app.modules.identity import service as identity_service
 # 类职责：HealthDataServiceTestCase 承载 健康指标模块 中的一组相关状态或行为。
 # 设计边界：保持职责集中，避免把跨模块编排逻辑塞进单个类型。继承/混入：TestCase。
 class HealthDataServiceTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+
     # 函数职责：业务函数，封装 健康指标模块 中的一段可复用逻辑。
     # 业务边界：调用方应根据返回值和异常语义处理成功与失败。
     # 类内部说明：
@@ -227,6 +234,92 @@ class HealthDataServiceTestCase(unittest.TestCase):
 
         self.assertEqual(metric_count, 0)
         self.assertEqual(pressure_count, 1)
+
+    def test_archive_trends_returns_system_record_summary_without_judgment(self) -> None:
+        health_data_service.add_metric(
+            self.db,
+            user_id=self.user.id,
+            metric_type=MetricType.STEPS,
+            value_numeric=3200,
+            unit="steps",
+        )
+        health_data_service.add_blood_pressure_record(
+            self.db,
+            user_id=self.user.id,
+            systolic=118,
+            diastolic=76,
+        )
+
+        result = health_data_service.get_archive_trends(
+            self.db,
+            user_id=self.user.id,
+            metric_types=[MetricType.STEPS],
+        )
+
+        self.assertEqual(result["generated_from"], "system_records")
+        self.assertIn("doctor judgment", result["disclaimer"])
+        self.assertEqual(result["series"][0]["metric_type"], "steps")
+        self.assertEqual(result["series"][0]["count"], 1)
+        self.assertNotIn("diagnosis", str(result).lower())
+        self.assertNotIn("risk", str(result).lower())
+
+    def test_import_preview_does_not_write_records(self) -> None:
+        rows = [
+            {
+                "metric_type": "steps",
+                "measured_at": datetime.now(timezone.utc),
+                "value_numeric": 5000,
+                "unit": "steps",
+            },
+            {
+                "metric_type": "blood_pressure",
+                "measured_at": datetime.now(timezone.utc),
+                "systolic": 120,
+                "diastolic": 80,
+            },
+        ]
+
+        preview = health_data_service.preview_health_data_import(rows=rows)
+        metric_count = self.db.scalar(select(func.count()).select_from(HealthMetric))
+        pressure_count = self.db.scalar(select(func.count()).select_from(BloodPressureRecord))
+
+        self.assertFalse(preview["will_write"])
+        self.assertEqual(preview["valid_count"], 2)
+        self.assertEqual(metric_count, 0)
+        self.assertEqual(pressure_count, 0)
+
+    def test_import_confirm_writes_only_validated_records(self) -> None:
+        rows = [
+            {
+                "metric_type": "weight",
+                "measured_at": datetime.now(timezone.utc),
+                "value_numeric": 62,
+                "unit": "kg",
+            },
+            {
+                "metric_type": "steps",
+                "measured_at": datetime.now(timezone.utc),
+                "value_numeric": -1,
+                "unit": "steps",
+            },
+        ]
+
+        result = health_data_service.confirm_health_data_import(
+            self.db,
+            user_id=self.user.id,
+            rows=rows,
+            confirmation=True,
+        )
+        metric_count = self.db.scalar(
+            select(func.count())
+            .select_from(HealthMetric)
+            .where(HealthMetric.user_id == self.user.id),
+        )
+
+        self.assertTrue(result["will_write"])
+        self.assertEqual(result["created_records_count"], 1)
+        self.assertEqual(result["invalid_count"], 1)
+        self.assertEqual(metric_count, 1)
 
 
 # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。

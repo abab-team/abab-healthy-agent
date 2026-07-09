@@ -10,8 +10,13 @@ from app.api.access_control import require_self_or_family_permission
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.health_data import service
 from app.modules.health_data.api_schemas import (
+    ArchiveTrendsResponse,
     BloodPressureCreateRequest,
     BloodPressureResponse,
+    ImportConfirmRequest,
+    ImportConfirmResponse,
+    ImportPreviewRequest,
+    ImportPreviewResponse,
     MetricCreateRequest,
     MetricResponse,
 )
@@ -68,6 +73,33 @@ def get_my_latest_metrics(
             db,
             user_id=current_user_id,
             metric_types=_parse_metric_types(metric_types),
+        )
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
+
+
+@router.get("/health-data/me/archive/trends", response_model=ArchiveTrendsResponse)
+def get_my_archive_trends(
+    metric_types: list[str] | None = Query(default=None),
+    days: int = Query(default=90, ge=1, le=365),
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    require_self_or_family_permission(
+        db=db,
+        current_user_id=current_user_id,
+        target_user_id=current_user_id,
+        permission_type="metrics",
+        action="view",
+        data_category="metrics",
+        access_reason="api_health_data_archive_trends",
+    )
+    try:
+        return service.get_archive_trends(
+            db,
+            user_id=current_user_id,
+            metric_types=_parse_metric_types(metric_types),
+            days=days,
         )
     except ValueError as exc:
         raise _bad_request(exc) from exc
@@ -130,6 +162,54 @@ def get_my_blood_pressure_summary(
         access_reason="api_health_data_self",
     )
     return service.get_blood_pressure_summary(db, user_id=current_user_id, days=days)
+
+
+@router.post("/health-data/me/imports/preview", response_model=ImportPreviewResponse)
+def preview_my_health_data_import(
+    payload: ImportPreviewRequest,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    require_self_or_family_permission(
+        db=db,
+        current_user_id=current_user_id,
+        target_user_id=current_user_id,
+        permission_type="metrics",
+        action="create",
+        data_category="metrics",
+        access_reason="api_health_data_import_preview",
+    )
+    return service.preview_health_data_import(
+        rows=[row.model_dump() for row in payload.rows],
+        import_type=payload.import_type,
+        file_name=payload.file_name,
+    )
+
+
+@router.post("/health-data/me/imports/confirm", response_model=ImportConfirmResponse)
+def confirm_my_health_data_import(
+    payload: ImportConfirmRequest,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+):
+    require_self_or_family_permission(
+        db=db,
+        current_user_id=current_user_id,
+        target_user_id=current_user_id,
+        permission_type="metrics",
+        action="create",
+        data_category="metrics",
+        access_reason="api_health_data_import_confirm",
+    )
+    result = service.confirm_health_data_import(
+        db,
+        user_id=current_user_id,
+        rows=[row.model_dump() for row in payload.rows],
+        import_type=payload.import_type,
+        file_name=payload.file_name,
+        confirmation=payload.confirmation,
+    )
+    return result
 
 
 @router.get("/families/{family_id}/members/{target_user_id}/health-data/metrics/recent")

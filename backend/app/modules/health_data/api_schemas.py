@@ -11,6 +11,7 @@ from app.modules.health_data.enums import (
     BloodPressureMeasurementContext,
     BloodPressurePosture,
     ConfidenceLevel,
+    HealthDataImportType,
     MetricSource,
     MetricType,
 )
@@ -85,3 +86,63 @@ class BloodPressureResponse(BaseModel):
     note: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class TrendSeriesResponse(BaseModel):
+    metric_type: str
+    label: str
+    unit: str | None = None
+    count: int
+    points: list[dict]
+    summary: str
+    data_quality: str
+
+
+class ArchiveTrendsResponse(BaseModel):
+    days: int
+    generated_from: str
+    disclaimer: str
+    series: list[TrendSeriesResponse]
+
+
+class ImportPreviewRow(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    metric_type: MetricType | str
+    measured_at: datetime
+    value_numeric: float | None = Field(default=None, ge=0, le=1_000_000)
+    unit: str | None = Field(default=None, max_length=32)
+    systolic: int | None = Field(default=None, gt=0, le=400)
+    diastolic: int | None = Field(default=None, gt=0, le=300)
+    pulse: int | None = Field(default=None, gt=0, le=300)
+    note: Note = None
+
+
+class ImportPreviewRequest(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    import_type: HealthDataImportType = HealthDataImportType.CSV
+    file_name: str | None = Field(default=None, max_length=255)
+    rows: list[ImportPreviewRow] = Field(default_factory=list, min_length=1, max_length=200)
+
+
+class ImportPreviewResponse(BaseModel):
+    import_type: str
+    file_name: str | None = None
+    total_count: int
+    valid_count: int
+    invalid_count: int
+    preview_rows: list[dict]
+    errors: list[dict]
+    will_write: bool
+    disclaimer: str
+
+
+class ImportConfirmRequest(ImportPreviewRequest):
+    confirmation: bool
+
+
+class ImportConfirmResponse(ImportPreviewResponse):
+    job_id: UUID | None = None
+    status: str
+    created_records_count: int

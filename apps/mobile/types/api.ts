@@ -125,6 +125,58 @@ export type ReminderSummary = {
   note: string;
 };
 
+export type ArchiveTrendPoint = {
+  measured_at: string;
+  value?: number | null;
+  systolic?: number | null;
+  diastolic?: number | null;
+  pulse?: number | null;
+  unit?: string | null;
+};
+
+export type ArchiveTrendSeries = {
+  metric_type: string;
+  label: string;
+  unit?: string | null;
+  count: number;
+  points: ArchiveTrendPoint[];
+  summary: string;
+  data_quality: string;
+};
+
+export type ArchiveTrends = {
+  days: number;
+  generated_from: string;
+  disclaimer: string;
+  series: ArchiveTrendSeries[];
+};
+
+export type ImportPreviewRow = {
+  metric_type: string;
+  measured_at: string;
+  value_numeric?: number;
+  unit?: string;
+  systolic?: number;
+  diastolic?: number;
+  pulse?: number;
+  note?: string;
+};
+
+export type ImportPreviewResult = {
+  import_type: string;
+  file_name?: string | null;
+  total_count: number;
+  valid_count: number;
+  invalid_count: number;
+  preview_rows: Record<string, unknown>[];
+  errors: Record<string, unknown>[];
+  will_write: boolean;
+  disclaimer: string;
+  job_id?: string | null;
+  status?: string;
+  created_records_count?: number;
+};
+
 export type AgentWorkflowType =
   | "chat"
   | "daily_health_brief"

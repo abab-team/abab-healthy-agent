@@ -1,5 +1,17 @@
 # Phase Progress
 
+## Current Status Summary (after Phase 25)
+
+Current source of truth: the project has completed **Phase 25: Archive Trends and Data Import Foundation**.
+
+- Phase 25 turns the archive area into a long-term health-record entry point.
+- Backend health-data service now provides safe trend summaries for metrics and blood pressure based on existing system records.
+- Backend API now supports self archive trend retrieval plus import preview / confirm for CSV/Excel-style rows.
+- Import preview writes no formal health data; confirm writes only rows that pass validation through existing service methods.
+- Mobile archive page now displays trend cards, a health timeline, document/draft entries, and an import preview/confirm panel.
+- The implementation does not add HealthKit / Health Connect, real device sync, diagnosis, prescription, dosage, stop-medication guidance, migration/model, or generic tool execution.
+- Next phase: Phase 26, production deployment and security readiness.
+
 ## Current Status Summary (after Phase 24)
 
 Current source of truth: the project has completed **Phase 24: Free Text Record and Doctor Visit Summary Workflows**.

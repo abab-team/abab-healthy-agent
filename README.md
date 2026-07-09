@@ -1,5 +1,18 @@
 # Family Health Agent
 
+## Current Status Summary (after Phase 25)
+
+The project has completed **Phase 25: Archive Trends and Data Import Foundation**.
+
+- Added a long-term health archive entry that focuses on system-record trends rather than medical judgment.
+- Added backend archive trend support for metrics and blood pressure using existing health-data models and service boundaries.
+- Added CSV/Excel-style import preview and confirm endpoints for self health data.
+- Preview mode writes nothing; confirm mode writes only validated system records through existing health-data services.
+- Mobile archive page now shows trend summaries, safe system-record wording, and import preview/confirm status.
+- No HealthKit / Health Connect integration, real device sync, diagnosis, prescription, dosage, or stop-medication guidance was added.
+- No new migration/model was added, and no generic tool execution was opened.
+- Next phase: Phase 26, production deployment and security readiness.
+
 ## Current Status Summary (after Phase 24)
 
 The project has completed **Phase 24: Free Text Record and Doctor Visit Summary Workflows**.

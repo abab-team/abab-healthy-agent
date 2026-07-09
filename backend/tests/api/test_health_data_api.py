@@ -84,6 +84,103 @@ class HealthDataApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["count"], 1)
 
+    def test_get_my_archive_trends(self) -> None:
+        self._post_my_metric()
+        self._post_my_blood_pressure()
+
+        response = client.get(
+            "/api/v1/health-data/me/archive/trends?metric_types=steps,weight&days=90",
+            headers=auth_headers(self.owner["id"]),
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body["generated_from"], "system_records")
+        self.assertGreaterEqual(len(body["series"]), 3)
+        self.assertIn("doctor", body["disclaimer"].lower())
+        self.assertNotIn("diagnosis", str(body).lower())
+
+    def test_import_preview_does_not_write_records(self) -> None:
+        response = client.post(
+            "/api/v1/health-data/me/imports/preview",
+            headers=auth_headers(self.owner["id"]),
+            json={
+                "import_type": "csv",
+                "file_name": "demo-health.csv",
+                "rows": [
+                    {
+                        "metric_type": "steps",
+                        "measured_at": "2026-07-01T08:00:00Z",
+                        "value_numeric": 4200,
+                        "unit": "steps",
+                    }
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertFalse(body["will_write"])
+        self.assertEqual(body["valid_count"], 1)
+        recent = client.get(
+            "/api/v1/health-data/me/metrics/recent?metric_types=steps",
+            headers=auth_headers(self.owner["id"]),
+        )
+        self.assertEqual(recent.json()["items"], [])
+
+    def test_import_confirm_requires_confirmation(self) -> None:
+        response = client.post(
+            "/api/v1/health-data/me/imports/confirm",
+            headers=auth_headers(self.owner["id"]),
+            json={
+                "confirmation": False,
+                "import_type": "csv",
+                "rows": [
+                    {
+                        "metric_type": "weight",
+                        "measured_at": "2026-07-01T08:00:00Z",
+                        "value_numeric": 62.5,
+                        "unit": "kg",
+                    }
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertFalse(body["will_write"])
+        self.assertEqual(body["created_records_count"], 0)
+
+    def test_import_confirm_writes_valid_rows_and_skips_invalid(self) -> None:
+        response = client.post(
+            "/api/v1/health-data/me/imports/confirm",
+            headers=auth_headers(self.owner["id"]),
+            json={
+                "confirmation": True,
+                "import_type": "csv",
+                "file_name": "demo-health.csv",
+                "rows": [
+                    {
+                        "metric_type": "weight",
+                        "measured_at": "2026-07-01T08:00:00Z",
+                        "value_numeric": 62.5,
+                        "unit": "kg",
+                    },
+                    {
+                        "metric_type": "unsupported_metric",
+                        "measured_at": "2026-07-01T08:00:00Z",
+                        "value_numeric": 1,
+                    },
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertTrue(body["will_write"])
+        self.assertEqual(body["created_records_count"], 1)
+        self.assertEqual(body["invalid_count"], 1)
+
     def test_create_my_blood_pressure(self) -> None:
         response = self._post_my_blood_pressure()
 

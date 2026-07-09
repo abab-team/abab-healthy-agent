@@ -9,12 +9,15 @@ import type {
   AgentMessageSummary,
   AgentSessionSummary,
   AlertCreateInput,
+  ArchiveTrends,
   ApiFamilyOverview,
   ApiMemberDetail,
   ApiResult,
   ChatHealthQueryInput,
   DocumentPipelineDetail,
   HealthStatus,
+  ImportPreviewResult,
+  ImportPreviewRow,
   MedicalEventDraftInput,
   SymptomDraftInput
 } from "@/types/api";
@@ -133,6 +136,9 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           source: "mock"
         });
       },
+      getArchiveTrends: async () => mockApi.getArchiveTrends(),
+      previewHealthDataImport: async (rows: ImportPreviewRow[]) => mockApi.previewHealthDataImport(rows),
+      confirmHealthDataImport: async (rows: ImportPreviewRow[]) => mockApi.confirmHealthDataImport(rows),
       runDailyHealthBrief: async () => {
         const result = await mockApi.getAgentBrief();
         if (!result.ok || !result.data) {
@@ -243,6 +249,27 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
     },
     getFamilyOverview: () => getApiFamilyOverview(currentUserId),
     getMemberDetail: (id: string) => getApiMemberDetail(id, currentUserId),
+    getArchiveTrends: async () => {
+      try {
+        return ok<ArchiveTrends>(await backendApi.getMyArchiveTrends(currentUserId));
+      } catch (error) {
+        return fail<ArchiveTrends>(error);
+      }
+    },
+    previewHealthDataImport: async (rows: ImportPreviewRow[]) => {
+      try {
+        return ok<ImportPreviewResult>(await backendApi.previewMyHealthDataImport(currentUserId, rows));
+      } catch (error) {
+        return fail<ImportPreviewResult>(error);
+      }
+    },
+    confirmHealthDataImport: async (rows: ImportPreviewRow[]) => {
+      try {
+        return ok<ImportPreviewResult>(await backendApi.confirmMyHealthDataImport(currentUserId, rows));
+      } catch (error) {
+        return fail<ImportPreviewResult>(error);
+      }
+    },
     runDailyHealthBrief: async (targetUserId = currentUserId, familyId?: string) => {
       try {
         return ok(await backendApi.runDailyHealthBrief({ currentUserId, familyId, targetUserId }));
