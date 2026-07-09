@@ -71,6 +71,7 @@ class AgentRuntime:
                     blocked=True,
                     safety_level=input_decision.safety_level,
                     generated_content=None,
+                    session_id=request.session_id,
                 )
 
             if not workflow_is_registered_name:
@@ -117,6 +118,7 @@ class AgentRuntime:
                 safety_level=safety_level,
                 tool_calls_count=workflow_result.tool_calls_count,
                 generated_content=generated_content,
+                session_id=request.session_id,
             )
         except AgentWorkflowNotRegisteredError as exc:
             service.fail_trace(

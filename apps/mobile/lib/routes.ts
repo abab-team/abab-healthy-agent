@@ -4,6 +4,7 @@ export const routes = {
   archive: "/archive" as Href,
   family: "/family" as Href,
   agent: "/agent" as Href,
+  agentMemory: "/agent-memory" as Href,
   settings: "/settings" as Href,
   drafts: "/drafts" as Href,
   agentBrief: "/agent-brief" as Href,

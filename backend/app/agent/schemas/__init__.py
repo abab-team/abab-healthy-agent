@@ -63,6 +63,7 @@ class AgentRunResult:
     safety_level: str
     tool_calls_count: int = 0
     generated_content: str | None = None
+    session_id: str | None = None
 
 
 @dataclass(frozen=True)

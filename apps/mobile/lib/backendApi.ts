@@ -1,6 +1,9 @@
 import { apiClient } from "@/lib/apiClient";
 import type {
   AgentRunResponse,
+  AgentMemoryItem,
+  AgentMessageSummary,
+  AgentSessionSummary,
   AgentSafetyCheckSummary,
   AgentToolCallSummary,
   Alert,
@@ -206,6 +209,7 @@ export const backendApi = {
       currentUserId: input.currentUserId,
       body: {
         family_id: input.familyId,
+        session_id: input.sessionId ?? undefined,
         source: "mobile_phase_16_chat",
         target_user_id: input.targetUserId,
         user_message: input.question,
@@ -360,5 +364,21 @@ export const backendApi = {
         summary: item.blocked_reason ?? item.input_risk_summary ?? item.revised_answer_summary ?? "安全检查摘要"
       }))
     );
+  },
+
+  listAgentSessions(currentUserId: string) {
+    return apiClient.get<AgentSessionSummary[]>("/api/v1/agent/sessions", currentUserId);
+  },
+
+  listAgentSessionMessages(sessionId: string, currentUserId: string) {
+    return apiClient.get<AgentMessageSummary[]>(`/api/v1/agent/sessions/${sessionId}/messages`, currentUserId);
+  },
+
+  listAgentMemory(currentUserId: string) {
+    return apiClient.get<AgentMemoryItem[]>("/api/v1/agent/memory", currentUserId);
+  },
+
+  deleteAgentMemory(memoryId: string, currentUserId: string) {
+    return apiClient.delete<{ deleted: boolean }>(`/api/v1/agent/memory/${memoryId}`, currentUserId);
   }
 };

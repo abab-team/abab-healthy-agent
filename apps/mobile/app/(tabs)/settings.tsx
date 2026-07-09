@@ -11,6 +11,7 @@ import { currentUser, dataSources, settingsGroups } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
+import { routes } from "@/lib/routes";
 
 export default function SettingsScreen() {
   const session = useDemoSession();
@@ -61,6 +62,14 @@ export default function SettingsScreen() {
         <Text style={styles.about}>
           本 App 用于家庭日常健康记录、整理与提醒。所有 AI 输出都基于系统内记录，不替代医生判断或治疗建议。
         </Text>
+      </CardBase>
+
+      <CardBase>
+        <Text style={styles.sectionTitle}>AI 记忆管理</Text>
+        <Text style={styles.about}>查看和删除安全偏好记忆。这里不会保存未经确认的医疗事实。</Text>
+        <Pressable style={styles.secondaryButton} onPress={() => router.push(routes.agentMemory)}>
+          <Text style={styles.secondaryButtonText}>打开 AI 记忆管理</Text>
+        </Pressable>
       </CardBase>
 
       <CardBase>

@@ -6,15 +6,16 @@ Family Health Agent 是一个面向家庭日常健康资料管理的移动端 Ag
 
 ## 当前阶段
 
-当前已完成到 **Phase 17：LangGraph 可选编排增强**。
+当前已完成到 **Phase 19：Agent Memory 能力增强**。
 
-Phase 17 在 Phase 16 的自然语言健康查询基础上，新增了默认关闭的 LangGraph 风格编排适配层：
+Phase 18 完成了移动端信息架构重排；Phase 19 在 Phase 16/17 的自然语言健康查询基础上，新增了安全的 Agent session 与 memory 能力：
 
-- `chat` workflow 可选记录 graph node summary。
-- 默认 `LANGGRAPH_ENABLED=false`，不改变现有确定性 workflow。
-- graph adapter 不查 DB、不调工具、不写数据。
+- `chat` workflow 支持 `session_id`，可连续追问系统内健康记录。
+- 支持“那上个月呢 / 我妈呢 / 和刚才一样”等短期上下文继承。
+- 新增可查看、可删除的安全长期偏好记忆。
+- Memory 不保存未经确认的医疗事实，不作为正式健康事实来源。
 - 仍不开放通用 tool execution，不允许用户传 `tool_name` / `input_data`。
-- `daily_health_brief` 只保留图编排配置开关，默认不接入。
+- LangGraph 仍为可选编排增强，默认关闭；Phase 20 尚未开始。
 
 ## 当前能力
 

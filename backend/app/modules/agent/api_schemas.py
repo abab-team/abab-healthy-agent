@@ -22,7 +22,7 @@ from app.api.validators import (
     optional_text,
     required_text,
 )
-from app.agent.models import AgentSafetyCheck, AgentToolCall, AgentTrace
+from app.agent.models import AgentMemoryItem, AgentMessage, AgentSafetyCheck, AgentSession, AgentToolCall, AgentTrace
 from app.agent.schemas import AgentRunResult
 
 
@@ -67,6 +67,7 @@ class AgentRunCreateRequest(BaseModel):
     workflow_type: AgentWorkflowType
     user_message: AgentUserMessage
     source: AgentSource = None
+    session_id: UUID | None = None
     confirmation: bool = False
     workflow_payload: dict[str, Any] | None = None
 
@@ -146,6 +147,40 @@ class AgentRunResponse(BaseModel):
     safety_level: str
     tool_calls_count: int
     generated_content: str | None = None
+    session_id: str | None = None
+
+
+class AgentSessionResponse(BaseModel):
+    id: UUID
+    family_id: UUID | None = None
+    title: str | None = None
+    last_active_at: datetime
+    created_at: datetime
+
+
+class AgentMessageResponse(BaseModel):
+    id: UUID
+    role: str
+    content_summary: str
+    intent: str | None = None
+    member_label: str | None = None
+    metric_type: str | None = None
+    time_range_label: str | None = None
+    time_range_days: int | None = None
+    tool_name: str | None = None
+    created_at: datetime
+
+
+class AgentMemoryItemResponse(BaseModel):
+    id: UUID
+    family_id: UUID | None = None
+    memory_type: str
+    content: str
+    confidence: int
+    source: str
+    is_user_editable: bool
+    created_at: datetime
+    updated_at: datetime
 
 
 class AgentTraceResponse(BaseModel):
@@ -205,6 +240,46 @@ def agent_run_response(result: AgentRunResult) -> AgentRunResponse:
         safety_level=result.safety_level,
         tool_calls_count=result.tool_calls_count,
         generated_content=_safe_text(result.generated_content, max_length=6000),
+        session_id=result.session_id,
+    )
+
+
+def agent_session_response(session: AgentSession) -> AgentSessionResponse:
+    return AgentSessionResponse(
+        id=session.id,
+        family_id=session.family_id,
+        title=_safe_text(session.title, max_length=120),
+        last_active_at=session.last_active_at,
+        created_at=session.created_at,
+    )
+
+
+def agent_message_response(message: AgentMessage) -> AgentMessageResponse:
+    return AgentMessageResponse(
+        id=message.id,
+        role=_safe_text(message.role, max_length=32) or "unknown",
+        content_summary=_safe_text(message.content_summary, max_length=500) or "",
+        intent=_safe_text(message.intent, max_length=100),
+        member_label=_safe_text(message.member_label, max_length=64),
+        metric_type=_safe_text(message.metric_type, max_length=64),
+        time_range_label=_safe_text(message.time_range_label, max_length=64),
+        time_range_days=message.time_range_days,
+        tool_name=_safe_text(message.tool_name, max_length=100),
+        created_at=message.created_at,
+    )
+
+
+def agent_memory_item_response(item: AgentMemoryItem) -> AgentMemoryItemResponse:
+    return AgentMemoryItemResponse(
+        id=item.id,
+        family_id=item.family_id,
+        memory_type=_safe_text(item.memory_type, max_length=64) or "unknown",
+        content=_safe_text(item.content, max_length=500) or "",
+        confidence=item.confidence,
+        source=_safe_text(item.source, max_length=64) or "system",
+        is_user_editable=item.is_user_editable,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
     )
 
 

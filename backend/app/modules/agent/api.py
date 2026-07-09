@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.agent.memory import service as memory_service
 from app.agent import service as agent_service
 from app.agent.runtime import AgentRuntime
 from app.agent.schemas import AgentRunRequest
@@ -12,12 +13,19 @@ from app.api.deps import get_current_user_id_for_demo, get_db
 from app.api.errors import raise_bad_request, raise_not_found
 from app.modules.agent.api_schemas import (
     ALLOWED_WORKFLOW_TYPES,
+    CHAT_WORKFLOW,
+    AgentMemoryItemResponse,
+    AgentMessageResponse,
     AgentRunCreateRequest,
     AgentRunResponse,
+    AgentSessionResponse,
     AgentSafetyCheckResponse,
     AgentToolCallResponse,
     AgentTraceResponse,
+    agent_memory_item_response,
+    agent_message_response,
     agent_run_response,
+    agent_session_response,
     agent_safety_check_response,
     agent_tool_call_response,
     agent_trace_response,
@@ -42,6 +50,7 @@ def create_agent_run(
         workflow_payload = workflow_payload_for_runtime(payload)
     except ValueError as exc:
         raise_bad_request(str(exc))
+    session_id = _prepare_session_id(db, payload, current_user_id)
     result = AgentRuntime().run(
         db,
         AgentRunRequest(
@@ -51,11 +60,54 @@ def create_agent_run(
             workflow_type=payload.workflow_type,
             user_message=payload.user_message,
             source=payload.source,
+            session_id=session_id,
             confirmation=payload.confirmation,
             workflow_payload=workflow_payload,
         ),
     )
     return agent_run_response(result)
+
+
+@router.get("/memory", response_model=list[AgentMemoryItemResponse])
+def list_agent_memory_items(
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> list[AgentMemoryItemResponse]:
+    return [agent_memory_item_response(item) for item in memory_service.list_memory_items(db, user_id=current_user_id)]
+
+
+@router.delete("/memory/{memory_id}")
+def delete_agent_memory_item(
+    memory_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    deleted = memory_service.delete_memory_item(db, user_id=current_user_id, memory_id=memory_id)
+    if not deleted:
+        raise_not_found()
+    db.commit()
+    return {"deleted": True}
+
+
+@router.get("/sessions", response_model=list[AgentSessionResponse])
+def list_agent_sessions(
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> list[AgentSessionResponse]:
+    return [agent_session_response(session) for session in memory_service.list_sessions(db, user_id=current_user_id)]
+
+
+@router.get("/sessions/{session_id}/messages", response_model=list[AgentMessageResponse])
+def list_agent_session_messages(
+    session_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> list[AgentMessageResponse]:
+    session = memory_service.get_session_for_user(db, session_id=session_id, user_id=current_user_id)
+    if session is None:
+        raise_not_found()
+    messages = memory_service.list_session_messages(db, session_id=session.id, user_id=current_user_id)
+    return [agent_message_response(message) for message in messages]
 
 
 @router.get("/runs/{trace_id}", response_model=AgentTraceResponse)
@@ -95,3 +147,20 @@ def _get_owned_trace_or_404(db: Session, trace_id: UUID, current_user_id: UUID):
     if trace is None or trace.current_user_id != current_user_id:
         raise_not_found()
     return trace
+
+
+def _prepare_session_id(db: Session, payload: AgentRunCreateRequest, current_user_id: UUID) -> str | None:
+    if payload.workflow_type != CHAT_WORKFLOW:
+        return None
+    if payload.session_id is not None:
+        session = memory_service.get_session_for_user(db, session_id=payload.session_id, user_id=current_user_id)
+        if session is None:
+            raise_not_found()
+        return str(session.id)
+    session = memory_service.get_or_create_session(
+        db,
+        user_id=current_user_id,
+        family_id=payload.family_id,
+        title=payload.user_message,
+    )
+    return str(session.id)

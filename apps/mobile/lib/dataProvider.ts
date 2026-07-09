@@ -5,6 +5,9 @@ import { mockApi } from "@/lib/mockApi";
 import type {
   AgentRunDetail,
   AgentRunResponse,
+  AgentMemoryItem,
+  AgentMessageSummary,
+  AgentSessionSummary,
   AlertCreateInput,
   ApiFamilyOverview,
   ApiMemberDetail,
@@ -145,6 +148,7 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
       runChatHealthQuery: async (input: ChatHealthQueryInput) =>
         ok<AgentRunResponse>({
           generated_content: `根据演示数据，已收到你的问题：“${input.question}”。当前演示回答只整理系统内记录示例，不用于医疗判断。如有明显不适或紧急情况，请联系医生或当地急救服务。`,
+          session_id: input.sessionId ?? "mock-session-1",
           status: "completed",
           trace_id: `mock-chat-${Date.now()}`,
           workflow_type: "chat"
@@ -187,7 +191,45 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           mockSections: ["真实上传、OCR、草稿生成在后端模式验证"],
           source: "mock"
         }),
-      getAgentRun: (id: string) => mockApi.getAgentRun(id)
+      getAgentRun: (id: string) => mockApi.getAgentRun(id),
+      listAgentSessions: async () =>
+        ok<AgentSessionSummary[]>([
+          {
+            created_at: "demo",
+            id: "mock-session-1",
+            last_active_at: "demo",
+            title: "演示对话"
+          }
+        ]),
+      listAgentSessionMessages: async () =>
+        ok<AgentMessageSummary[]>([
+          {
+            content_summary: "最近一周我的血压记录怎么样？",
+            created_at: "demo",
+            id: "mock-message-user-1",
+            role: "user"
+          },
+          {
+            content_summary: "根据演示数据，仅整理系统内记录，不替代医生判断。",
+            created_at: "demo",
+            id: "mock-message-ai-1",
+            role: "assistant"
+          }
+        ]),
+      listAgentMemory: async () =>
+        ok<AgentMemoryItem[]>([
+          {
+            confidence: 80,
+            content: "用户希望回答时优先说明系统内记录覆盖情况。",
+            created_at: "demo",
+            id: "mock-memory-1",
+            is_user_editable: true,
+            memory_type: "response_preference",
+            source: "demo",
+            updated_at: "demo"
+          }
+        ]),
+      deleteAgentMemory: async () => ok({ deleted: true })
     };
   }
 
@@ -310,6 +352,34 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         });
       } catch (error) {
         return fail<AgentRunDetail>(error);
+      }
+    },
+    listAgentSessions: async () => {
+      try {
+        return ok(await backendApi.listAgentSessions(currentUserId));
+      } catch (error) {
+        return fail<AgentSessionSummary[]>(error);
+      }
+    },
+    listAgentSessionMessages: async (sessionId: string) => {
+      try {
+        return ok(await backendApi.listAgentSessionMessages(sessionId, currentUserId));
+      } catch (error) {
+        return fail<AgentMessageSummary[]>(error);
+      }
+    },
+    listAgentMemory: async () => {
+      try {
+        return ok(await backendApi.listAgentMemory(currentUserId));
+      } catch (error) {
+        return fail<AgentMemoryItem[]>(error);
+      }
+    },
+    deleteAgentMemory: async (memoryId: string) => {
+      try {
+        return ok(await backendApi.deleteAgentMemory(memoryId, currentUserId));
+      } catch (error) {
+        return fail<{ deleted: boolean }>(error);
       }
     }
   };

@@ -6,6 +6,7 @@ from typing import Any
 from app.agent.chat import HealthQueryIntent, HealthQueryPlan, parse_health_query
 from app.agent.enums import AgentWorkflowName
 from app.agent.langgraph.adapter import LangGraphExecutionAdapter
+from app.agent.memory import service as memory_service
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
 from app.agent.tool_registry import AgentToolRegistry
@@ -60,9 +61,16 @@ class ChatHealthQueryExecution:
 
 
 def run_chat_health_query(context: AgentWorkflowContext, *, executor: AgentToolExecutor) -> ChatHealthQueryExecution:
+    memory_context = memory_service.load_session_context(
+        context.db,
+        user_id=context.request.actor_user_id,
+        session_id=context.request.session_id,
+    )
     plan = parse_health_query(context.request.user_message)
+    plan = memory_service.apply_session_context(context.request.user_message, plan, memory_context)
     if plan.is_unknown or not plan.tool_name:
         answer = "\n".join([SAFE_UNKNOWN_QUERY_MESSAGE, SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
+        _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
 
     if plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
@@ -72,11 +80,52 @@ def run_chat_health_query(context: AgentWorkflowContext, *, executor: AgentToolE
             _execute_tool(context, executor, "alerts.query", {"days": plan.time_range.days, "limit": 10}),
         ]
         answer = _compose_daily_status_answer(plan, results)
+        _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=len(results))
 
     result = _execute_tool(context, executor, plan.tool_name, dict(plan.tool_input or {}))
     answer = _compose_single_tool_answer(plan, result)
+    _record_session_messages(context, plan, answer)
     return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=1)
+
+
+def _record_session_messages(context: AgentWorkflowContext, plan: HealthQueryPlan, answer: str) -> None:
+    if not context.request.session_id:
+        return
+    memory_service.append_message(
+        context.db,
+        session_id=context.request.session_id,
+        role="user",
+        content=context.request.user_message,
+        intent=plan.intent.value,
+        target_user_id=context.request.target_user_id,
+        member_label=plan.member_label,
+        member_scope=plan.member_scope,
+        metric_type=plan.metric_type,
+        time_range_label=plan.time_range.label,
+        time_range_days=plan.time_range.days,
+        tool_name=plan.tool_name,
+    )
+    memory_service.append_message(
+        context.db,
+        session_id=context.request.session_id,
+        role="assistant",
+        content=answer,
+        intent=plan.intent.value,
+        target_user_id=context.request.target_user_id,
+        member_label=plan.member_label,
+        member_scope=plan.member_scope,
+        metric_type=plan.metric_type,
+        time_range_label=plan.time_range.label,
+        time_range_days=plan.time_range.days,
+        tool_name=plan.tool_name,
+    )
+    memory_service.create_safe_preference_memory(
+        context.db,
+        user_id=context.request.actor_user_id,
+        family_id=context.request.family_id,
+        message=context.request.user_message,
+    )
 
 
 def _execute_tool(

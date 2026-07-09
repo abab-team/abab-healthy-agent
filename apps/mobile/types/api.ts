@@ -135,6 +135,7 @@ export type AgentWorkflowType =
 type AgentRunBaseRequest = {
   target_user_id: string;
   family_id?: string;
+  session_id?: string;
   user_message: string;
   confirmation?: boolean;
   source?: string;
@@ -200,6 +201,7 @@ export type AgentRunRequest =
 
 export type AgentRunResponse = {
   trace_id: string;
+  session_id?: string | null;
   status: "completed" | "blocked" | "failed" | "preview";
   workflow_type: AgentWorkflowType;
   message?: string;
@@ -301,4 +303,38 @@ export type AlertCreateInput = ControlledWorkflowInput & {
 
 export type ChatHealthQueryInput = ControlledWorkflowInput & {
   question: string;
+  sessionId?: string | null;
+};
+
+export type AgentSessionSummary = {
+  id: string;
+  family_id?: string | null;
+  title?: string | null;
+  last_active_at: string;
+  created_at: string;
+};
+
+export type AgentMessageSummary = {
+  id: string;
+  role: "user" | "assistant" | string;
+  content_summary: string;
+  intent?: string | null;
+  member_label?: string | null;
+  metric_type?: string | null;
+  time_range_label?: string | null;
+  time_range_days?: number | null;
+  tool_name?: string | null;
+  created_at: string;
+};
+
+export type AgentMemoryItem = {
+  id: string;
+  family_id?: string | null;
+  memory_type: string;
+  content: string;
+  confidence: number;
+  source: string;
+  is_user_editable: boolean;
+  created_at: string;
+  updated_at: string;
 };

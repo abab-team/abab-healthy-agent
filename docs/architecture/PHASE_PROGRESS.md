@@ -1,5 +1,15 @@
 # Phase Progress
 
+## 当前状态摘要（Phase 19 后）
+
+当前项目已完成到 **Phase 19：Agent Memory 能力增强**。
+
+- Phase 18 已完成：移动端信息架构重排，底部导航调整为：首页 / 档案 / 家庭 / AI 管家 / 我的；新增档案页；AI 管家页回到对话与常用能力；家庭页权限卡片补齐；开发者调试弱化到“我的”页折叠区。
+- Phase 19 已完成：新增 `agent_sessions`、`agent_messages`、`agent_memory_items`；`chat` workflow 支持 session 上下文；支持“那上个月呢 / 我妈呢 / 和刚才一样 / 换成最近 30 天”等短期指代；新增 Memory list/delete API；移动端支持连续对话和 AI 记忆管理入口。
+- 当前仍未进入 Phase 20；尚未实现 Prompt Registry 或 LLM-assisted Planner。
+- Memory 只保存安全摘要和偏好，不保存未经确认的医疗事实，不作为正式健康事实来源。
+- 所有健康回答仍需表达为“基于系统内记录，不替代医生判断”。
+
 ## 当前状态摘要（Phase 17 后）
 
 本文档顶部为当前 source of truth；下方早期条目保留为历史阶段记录，不代表最新项目状态。

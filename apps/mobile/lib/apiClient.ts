@@ -2,7 +2,7 @@ import { apiBaseUrl, authMode } from "@/lib/apiConfig";
 import { getAccessTokenForRequest, refreshStoredAuthSession, shouldRefreshAuthSession } from "@/lib/authSession";
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   currentUserId?: string;
 };
@@ -100,6 +100,10 @@ export const apiClient = {
 
   patch<T>(path: string, body: unknown, currentUserId?: string): Promise<T> {
     return this.request<T>(path, { body, currentUserId, method: "PATCH" });
+  },
+
+  delete<T>(path: string, currentUserId?: string): Promise<T> {
+    return this.request<T>(path, { currentUserId, method: "DELETE" });
   }
 };
 

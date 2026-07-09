@@ -26,7 +26,7 @@ from app.agent.enums import (
     AgentWorkflowName,
 )
 from app.db.base import Base
-from app.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin, utc_now
+from app.db.mixins import SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin, utc_now
 from app.modules.health_data.enums import ConfidenceLevel
 
 
@@ -419,4 +419,97 @@ class AgentMemory(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_agent_memories_last_used_at", "last_used_at"),
         Index("ix_agent_memories_expires_at", "expires_at"),
         Index("ix_agent_memories_created_at", "created_at"),
+    )
+
+
+class AgentSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "agent_sessions"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    family_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("families.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    title: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index("ix_agent_sessions_user_id", "user_id"),
+        Index("ix_agent_sessions_family_id", "family_id"),
+        Index("ix_agent_sessions_last_active_at", "last_active_at"),
+        Index("ix_agent_sessions_created_at", "created_at"),
+    )
+
+
+class AgentMessage(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "agent_messages"
+
+    session_id: Mapped[UUID] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    content_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    intent: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    target_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    member_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    member_scope: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    metric_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    time_range_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    time_range_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tool_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index("ix_agent_messages_session_id", "session_id"),
+        Index("ix_agent_messages_role", "role"),
+        Index("ix_agent_messages_intent", "intent"),
+        Index("ix_agent_messages_target_user_id", "target_user_id"),
+        Index("ix_agent_messages_metric_type", "metric_type"),
+        Index("ix_agent_messages_created_at", "created_at"),
+    )
+
+
+class AgentMemoryItem(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
+    __tablename__ = "agent_memory_items"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    family_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("families.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    memory_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    structured_data_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False, default=80)
+    source: Mapped[str] = mapped_column(String(64), nullable=False, default="system")
+    is_user_editable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_agent_memory_items_user_id", "user_id"),
+        Index("ix_agent_memory_items_family_id", "family_id"),
+        Index("ix_agent_memory_items_memory_type", "memory_type"),
+        Index("ix_agent_memory_items_source", "source"),
+        Index("ix_agent_memory_items_is_user_editable", "is_user_editable"),
+        Index("ix_agent_memory_items_deleted_at", "deleted_at"),
+        Index("ix_agent_memory_items_expires_at", "expires_at"),
+        Index("ix_agent_memory_items_created_at", "created_at"),
     )

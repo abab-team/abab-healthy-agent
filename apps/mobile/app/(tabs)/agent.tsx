@@ -28,6 +28,12 @@ function shortId(id: string): string {
   return id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-6)}` : id;
 }
 
+type ConversationMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
+
 export default function AgentScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
@@ -35,6 +41,8 @@ export default function AgentScreen() {
   const [queryResult, setQueryResult] = useState<AgentRunResponse | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [queryLoading, setQueryLoading] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
 
   async function runChatQuery() {
     const normalized = query.trim();
@@ -46,11 +54,23 @@ export default function AgentScreen() {
     setQueryError(null);
     const result = await provider.runChatHealthQuery({
       question: normalized,
+      sessionId: chatSessionId,
       targetUserId: session.currentUserId
     });
     setQueryLoading(false);
     if (result.ok && result.data) {
       setQueryResult(result.data);
+      const nextSessionId = result.data.session_id ?? chatSessionId;
+      setChatSessionId(nextSessionId ?? null);
+      setMessages((items) => [
+        ...items,
+        { content: normalized, id: `user-${Date.now()}`, role: "user" },
+        {
+          content: result.data?.generated_content ?? result.data?.message ?? "系统内暂无可展示回答。",
+          id: `assistant-${Date.now()}`,
+          role: "assistant"
+        }
+      ]);
     } else {
       setQueryError(result.error?.message ?? "查询失败，请稍后再试。");
     }
@@ -73,6 +93,19 @@ export default function AgentScreen() {
       <CardBase style={styles.chatCard}>
         <SectionHeader title="问问系统内记录" action={session.dataMode === "api" ? "API 已接入" : "演示数据"} />
         <Text style={styles.description}>回答只基于系统内记录；记录可能不完整，不替代医生判断。</Text>
+        <Text style={styles.sessionText}>
+          当前对话：{chatSessionId ? shortId(chatSessionId) : "新会话"}。连续追问会沿用上一轮成员、指标和时间范围。
+        </Text>
+        {messages.length > 0 ? (
+          <View style={styles.messageList}>
+            {messages.slice(-6).map((item) => (
+              <View key={item.id} style={[styles.messageBubble, item.role === "user" ? styles.userBubble : styles.assistantBubble]}>
+                <Text style={styles.messageRole}>{item.role === "user" ? "你" : "AI 管家"}</Text>
+                <Text style={styles.messageText}>{item.content}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
         <TextInput
           multiline
           onChangeText={setQuery}
@@ -212,6 +245,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800"
   },
+  assistantBubble: {
+    backgroundColor: "#ffffff"
+  },
+  messageBubble: {
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 10
+  },
+  messageList: {
+    gap: 8,
+    marginTop: 10
+  },
+  messageRole: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  messageText: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4
+  },
   suggestionButton: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -231,6 +288,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700"
   },
+  sessionText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8
+  },
   subtitle: {
     color: colors.textMuted,
     fontSize: 13,
@@ -241,5 +304,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 24,
     fontWeight: "900"
+  },
+  userBubble: {
+    backgroundColor: colors.mint
   }
 });

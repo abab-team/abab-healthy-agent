@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import unittest
+import uuid
 
 from backend.tests.api.helpers import (
     SessionLocal,
@@ -14,6 +15,7 @@ from backend.tests.api.helpers import (
     reset_database,
 )
 
+from app.agent.models import AgentMemoryItem
 from app.modules.agent import api as agent_api
 from app.modules.alerts.models import Alert
 from app.modules.document_processing.models import MedicalEventDraft
@@ -101,10 +103,65 @@ class AgentApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(body["workflow_type"], "chat")
         self.assertEqual(body["status"], "completed")
+        self.assertIsNotNone(body["session_id"])
         self.assertIn("根据系统内记录", body["generated_content"])
         self.assertEqual(body["tool_calls_count"], 1)
         for term in UNSAFE_TERMS:
             self.assertNotIn(term, response.text.lower())
+
+    def test_chat_session_messages_can_be_listed_by_owner(self) -> None:
+        run_response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="chat",
+                user_message="最近 30 天血压记录怎么样？",
+            ),
+        )
+        session_id = run_response.json()["session_id"]
+
+        sessions_response = client.get("/api/v1/agent/sessions", headers=auth_headers(self.actor["id"]))
+        messages_response = client.get(f"/api/v1/agent/sessions/{session_id}/messages", headers=auth_headers(self.actor["id"]))
+        outsider_response = client.get(f"/api/v1/agent/sessions/{session_id}/messages", headers=auth_headers(self.outsider["id"]))
+
+        self.assertEqual(sessions_response.status_code, 200)
+        self.assertTrue(any(item["id"] == session_id for item in sessions_response.json()))
+        self.assertEqual(messages_response.status_code, 200)
+        self.assertGreaterEqual(len(messages_response.json()), 2)
+        self.assertEqual(outsider_response.status_code, 404)
+        for payload in (sessions_response.text, messages_response.text):
+            lowered = payload.lower()
+            self.assertNotIn("raw_text", lowered)
+            self.assertNotIn("api_key", lowered)
+            self.assertNotIn("password", lowered)
+
+    def test_memory_list_and_delete_are_scoped_to_owner(self) -> None:
+        with SessionLocal() as db:
+            memory = AgentMemoryItem(
+                user_id=uuid.UUID(self.actor["id"]),
+                memory_type="response_preference",
+                content="用户希望回答保持简洁。",
+                structured_data_json={"source": "api_test"},
+                confidence=80,
+                source="manual",
+                is_user_editable=True,
+            )
+            db.add(memory)
+            db.commit()
+            memory_id = str(memory.id)
+
+        list_response = client.get("/api/v1/agent/memory", headers=auth_headers(self.actor["id"]))
+        outsider_delete = client.delete(f"/api/v1/agent/memory/{memory_id}", headers=auth_headers(self.outsider["id"]))
+        delete_response = client.delete(f"/api/v1/agent/memory/{memory_id}", headers=auth_headers(self.actor["id"]))
+        list_after_delete = client.get("/api/v1/agent/memory", headers=auth_headers(self.actor["id"]))
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(len(list_response.json()), 1)
+        self.assertEqual(outsider_delete.status_code, 404)
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertTrue(delete_response.json()["deleted"])
+        self.assertEqual(list_after_delete.json(), [])
 
     def test_chat_workflow_rejects_payload_and_generic_execution_fields(self) -> None:
         payload = self._payload(
