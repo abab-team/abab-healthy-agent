@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 512
     LLM_TEMPERATURE: float = 0.2
     DAILY_BRIEF_USE_LLM: bool = False
+    LLM_PLANNER_ENABLED: bool = False
+    LLM_ANSWER_COMPOSER_ENABLED: bool = False
+    LLM_PLANNER_CONFIDENCE_THRESHOLD: float = 0.75
+    PROMPT_REGISTRY_ENABLED: bool = True
     RAG_ENABLED: bool = False
     RAG_PROVIDER: str = "simple"
     RAG_INDEX_INTERNAL_SOURCES: bool = True

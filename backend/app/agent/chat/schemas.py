@@ -36,6 +36,10 @@ class HealthQueryPlan:
     tool_name: str | None = None
     tool_input: dict | None = None
     safe_unknown_reason: str | None = None
+    confidence: float | None = None
+    needs_clarification: bool = False
+    clarification_question: str | None = None
+    planner_source: str = "rule"
 
     @property
     def is_unknown(self) -> bool:

@@ -1,5 +1,19 @@
 # Family Health Agent
 
+## 当前状态摘要（Phase 20 后）
+
+当前已完成到 **Phase 20：Prompt Registry + LLM-assisted Planner**。
+
+- Phase 18 已完成移动端信息架构重排。
+- Phase 19 已完成 Agent session / messages / memory foundation，支持连续追问与安全偏好记忆。
+- Phase 20 已新增版本化 Prompt Registry、受控 LLM Planner、Plan Validator 与可选 Answer Composer。
+- `chat` workflow 仍保持规则优先；只有规则解析 unknown 且 `LLM_PLANNER_ENABLED=true` 时，才会尝试 LLM 生成受控 JSON plan。
+- LLM 不直接选择 `tool_name` / `input_data`，不决定 `current_user_id` / `family_id` / `target_user_id`，不查数据库、不调工具、不写业务数据。
+- 系统校验 plan 后才映射白名单工具并通过 ToolExecutor 执行。
+- `LLM_PLANNER_ENABLED=false`、`LLM_ANSWER_COMPOSER_ENABLED=false` 为默认值。
+- 当前仍不开放通用 tool execution，不允许前端传 `tool_name` / `input_data`。
+- 所有健康回答仍必须基于系统内记录，不替代医生判断。
+
 Family Health Agent 是一个面向家庭日常健康资料管理的移动端 Agent MVP。它支持家庭成员健康资料整理、家庭共享权限、文档上传与 mock OCR 预览、受控 Agent workflow、内部 RAG 检索增强、可选 LLM 健康简报，以及可追踪的 trace / tool calls / safety checks。
 
 本项目不是医疗诊断系统，不提供处方、剂量、停药或自动急救建议。所有健康输出都应理解为“根据系统内记录进行整理”，不能替代医生判断或治疗建议。

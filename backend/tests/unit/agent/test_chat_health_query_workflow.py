@@ -14,6 +14,9 @@ from app.agent import service as agent_service  # noqa: E402
 from app.agent.enums import AgentTraceStatus, AgentWorkflowName  # noqa: E402
 from app.agent.runtime import AgentRuntime  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
+from app.agent.workflows import AgentWorkflowRegistry  # noqa: E402
+from app.agent.workflows.chat_workflow import ChatHealthQueryWorkflow  # noqa: E402
+from app.core.config import Settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.session import SessionLocal, engine  # noqa: E402
 from app.modules.document_center import service as document_service  # noqa: E402
@@ -124,6 +127,72 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.tool_calls_count, 0)
         self.assertEqual(calls, [])
         self.assertIn("系统内记录", result.generated_content or "")
+
+    def test_rule_matched_query_does_not_call_llm_planner(self) -> None:
+        class RaisingPlanner:
+            def plan(self, **kwargs):  # noqa: ANN001
+                raise AssertionError("planner should not run for rule-matched queries")
+
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            ChatHealthQueryWorkflow(
+                settings=Settings(LLM_PLANNER_ENABLED=True),
+                planner_service=RaisingPlanner(),
+            )
+        )
+
+        result = AgentRuntime(registry).run(
+            self.db,
+            self._request(self.actor.id, self.actor.id, "最近一周我的血压记录"),
+        )
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 1)
+
+    def test_unknown_query_can_use_controlled_llm_planner(self) -> None:
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            ChatHealthQueryWorkflow(
+                settings=Settings(LLM_PLANNER_ENABLED=True, LLM_ENABLED=True, LLM_PROVIDER="mock"),
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id, "pressure readings please"))
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 1)
+        self.assertEqual(calls[0].tool_name, "health_data.blood_pressure.summary")
+
+    def test_answer_composer_receives_only_safe_tool_summary_when_enabled(self) -> None:
+        class CapturingComposer:
+            def __init__(self) -> None:
+                self.safe_tool_result_summary = ""
+                self.calls = 0
+
+            def compose(self, **kwargs):  # noqa: ANN001
+                self.calls += 1
+                self.safe_tool_result_summary = kwargs["safe_tool_result_summary"]
+
+                class Result:
+                    answer = "根据系统内记录，已整理安全摘要。本回答不替代医生判断。"
+
+                return Result()
+
+        composer = CapturingComposer()
+        registry = AgentWorkflowRegistry()
+        registry.register(ChatHealthQueryWorkflow(settings=Settings(LLM_ANSWER_COMPOSER_ENABLED=True), answer_composer=composer))
+
+        result = AgentRuntime(registry).run(
+            self.db,
+            self._request(self.actor.id, self.actor.id, "最近一周我的血压记录"),
+        )
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(composer.calls, 1)
+        self.assertIn("system", composer.safe_tool_result_summary)
+        for term in ("raw_text", "file_path", "raw_extracted_text", "token", "password"):
+            self.assertNotIn(term, composer.safe_tool_result_summary.lower())
 
     def test_chat_documents_query_does_not_leak_file_path(self) -> None:
         document_service.create_document_metadata(

@@ -11,6 +11,32 @@ class MockLLMProvider(LLMProvider):
         self.model = model
 
     def generate(self, request: LLMRequest) -> LLMResponse:
+        if request.metadata.get("prompt_name") == "health_query_planner_v1":
+            return LLMResponse(
+                content=(
+                    '{"intent":"query_blood_pressure","member_scope":"self",'
+                    '"metric_type":"blood_pressure","time_range":"last_7_days",'
+                    '"aggregation":"summary","confidence":0.92,'
+                    '"needs_clarification":false,"clarification_question":null}'
+                ),
+                provider=self.name,
+                model=self.model,
+                is_mock=True,
+                usage=LLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+                finish_reason="mock",
+            )
+        if request.metadata.get("prompt_name") == "health_answer_composer_v1":
+            return LLMResponse(
+                content=(
+                    "Based on system records, I organized the available information. "
+                    "This does not replace a doctor's judgment."
+                ),
+                provider=self.name,
+                model=self.model,
+                is_mock=True,
+                usage=LLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+                finish_reason="mock",
+            )
         if request.metadata.get("workflow_type") == "daily_health_brief":
             return LLMResponse(
                 content=(

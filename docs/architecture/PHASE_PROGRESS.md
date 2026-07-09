@@ -1,5 +1,19 @@
 # Phase Progress
 
+## 当前状态摘要（Phase 20 后）
+
+当前项目已完成到 **Phase 20：Prompt Registry + LLM-assisted Planner**。
+
+- Phase 18：移动端信息架构与页面重排已完成。
+- Phase 19：Agent Memory foundation 已完成，包含 `agent_sessions`、`agent_messages`、`agent_memory_items`、短期上下文继承、长期安全偏好记忆、memory list/delete API 与移动端连续对话入口。
+- Phase 20：新增版本化 Prompt Registry、planner / answer composer / memory extractor / critic prompt 模板、LLM Planner Service、Plan Validator 与可选 Answer Composer。
+- `chat` workflow 保持 rule-first；规则命中时不调用 LLM；规则 unknown 且 `LLM_PLANNER_ENABLED=true` 时才尝试 LLM planner。
+- LLM planner 只能输出受控 JSON plan，不允许输出 `tool_name` / `input_data` / user id / family id / SQL / file path。
+- 系统校验 plan 后才映射白名单工具，并继续通过 ToolExecutor / Permission / Safety / Trace 边界执行。
+- 默认配置仍为 `LLM_PLANNER_ENABLED=false`、`LLM_ANSWER_COMPOSER_ENABLED=false`、`PROMPT_REGISTRY_ENABLED=true`。
+- 未开放通用 tool execution，未允许前端传 `tool_name` / `input_data`，未让 LLM / LangGraph / Memory 直接查 DB、调 tool 或写业务数据。
+- 下一阶段建议进入 Phase 21：Reflection / Critic。
+
 ## 当前状态摘要（Phase 19 后）
 
 当前项目已完成到 **Phase 19：Agent Memory 能力增强**。

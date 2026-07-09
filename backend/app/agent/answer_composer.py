@@ -1,0 +1,84 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from app.agent.prompts import PromptRegistry, get_prompt_registry
+from app.agent.safety import AgentSafetyPolicy
+from app.core.config import Settings, get_settings
+from app.llm.client import LLMClient, get_llm_client
+
+
+DEFAULT_SAFETY_BOUNDARY = (
+    "This answer is based on system records only and does not replace a doctor's judgment."
+)
+
+
+@dataclass(frozen=True)
+class AnswerComposerResult:
+    answer: str
+    llm_used: bool
+    fallback_used: bool
+    fallback_reason: str | None = None
+
+
+class LLMAnswerComposer:
+    def __init__(
+        self,
+        *,
+        settings: Settings | None = None,
+        prompt_registry: PromptRegistry | None = None,
+        llm_client: LLMClient | Any | None = None,
+        safety_policy: AgentSafetyPolicy | None = None,
+    ) -> None:
+        self.settings = settings or get_settings()
+        self.prompt_registry = prompt_registry or get_prompt_registry()
+        self.llm_client = llm_client
+        self.safety_policy = safety_policy or AgentSafetyPolicy()
+
+    def compose(
+        self,
+        *,
+        safe_tool_result_summary: str,
+        coverage_note: str,
+        user_question_excerpt: str = "",
+        fallback_answer: str,
+    ) -> AnswerComposerResult:
+        if not self.settings.LLM_ANSWER_COMPOSER_ENABLED:
+            return AnswerComposerResult(fallback_answer, llm_used=False, fallback_used=True, fallback_reason="composer_disabled")
+        try:
+            prompt = self.prompt_registry.get_prompt("health_answer_composer", version="v1")
+            user_prompt = prompt.render(
+                {
+                    "safe_tool_result_summary": _safe_excerpt(safe_tool_result_summary, 1200),
+                    "coverage_note": _safe_excerpt(coverage_note, 500),
+                    "safety_boundary": DEFAULT_SAFETY_BOUNDARY,
+                    "user_question_excerpt": _safe_excerpt(user_question_excerpt, 300),
+                }
+            )
+            client = self.llm_client or get_llm_client(self.settings)
+            response = client.generate_text(
+                system_prompt="Rewrite safe system-record summaries only. Do not add medical advice.",
+                user_prompt=user_prompt,
+                temperature=self.settings.LLM_TEMPERATURE,
+                max_tokens=self.settings.LLM_MAX_TOKENS,
+                metadata={
+                    "workflow_type": "chat_workflow",
+                    "prompt_name": "health_answer_composer_v1",
+                    "prompt_version": prompt.version,
+                },
+            )
+            content = (response.content or "").strip()
+            if not content:
+                return AnswerComposerResult(fallback_answer, llm_used=True, fallback_used=True, fallback_reason="empty_output")
+            decision = self.safety_policy.evaluate_output(content, workflow_type="chat_workflow")
+            if decision.blocked:
+                return AnswerComposerResult(fallback_answer, llm_used=True, fallback_used=True, fallback_reason=decision.reason_code)
+            return AnswerComposerResult(content, llm_used=True, fallback_used=False)
+        except Exception:
+            return AnswerComposerResult(fallback_answer, llm_used=True, fallback_used=True, fallback_reason="composer_failed")
+
+
+def _safe_excerpt(value: Any, max_length: int) -> str:
+    text = str(value or "").strip()
+    return text[:max_length]

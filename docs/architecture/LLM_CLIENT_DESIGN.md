@@ -1,5 +1,18 @@
 # LLM Client Design
 
+## Phase 20 Prompt Registry 与 Planner 补充
+
+Phase 20 在 LLM Client 底座之上新增版本化 Prompt Registry 与受控 LLM Planner。
+
+- `backend/app/agent/prompts/registry.py` 统一登记 planner、answer composer、memory extractor、critic prompt。
+- 每个 prompt 记录 `name`、`version`、`input_schema`、`output_schema`、`safety_notes`、`allowed_intents` 与 `created_at`。
+- `LLM_PLANNER_ENABLED=false` 为默认值；关闭时 `chat` workflow 仍完全使用规则解析。
+- 仅当规则解析为 unknown 且 `LLM_PLANNER_ENABLED=true` 时，planner 才会请求 LLM 生成 JSON plan。
+- LLM 输出不得包含 `tool_name`、`input_data`、用户 ID、family ID、SQL 或文件路径。
+- `PlanValidator` 校验 intent、metric_type、member_scope、time_range、aggregation、confidence 与 clarification 状态。
+- 工具选择由系统白名单映射完成，仍走 ToolExecutor / Permission / Safety / Trace。
+- `LLM_ANSWER_COMPOSER_ENABLED=false` 为默认值；开启后也只允许润色安全摘要，输出必须经过 SafetyPolicy。
+
 本文档记录 Phase 10.A 的 LLM Client 最小封装、Phase 10.B 对 `daily_health_brief` 的可选接入设计，以及 Phase 10.C 的 LLM 输出安全与 fallback 收口。
 
 ## 目标

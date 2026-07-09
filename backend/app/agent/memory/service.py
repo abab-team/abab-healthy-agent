@@ -347,6 +347,10 @@ def _replace_plan(plan: HealthQueryPlan, **updates: object | None) -> HealthQuer
         "tool_name": plan.tool_name,
         "tool_input": plan.tool_input,
         "safe_unknown_reason": plan.safe_unknown_reason,
+        "confidence": plan.confidence,
+        "needs_clarification": plan.needs_clarification,
+        "clarification_question": plan.clarification_question,
+        "planner_source": plan.planner_source,
     }
     data.update({key: value for key, value in updates.items() if value is not None})
     if data["tool_name"] is not None and data["safe_unknown_reason"] is not None:

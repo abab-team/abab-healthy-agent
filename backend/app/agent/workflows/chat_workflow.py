@@ -3,10 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from app.agent.answer_composer import LLMAnswerComposer
 from app.agent.chat import HealthQueryIntent, HealthQueryPlan, parse_health_query
 from app.agent.enums import AgentWorkflowName
 from app.agent.langgraph.adapter import LangGraphExecutionAdapter
 from app.agent.memory import service as memory_service
+from app.agent.planner import LLMPlannerService
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
 from app.agent.tool_registry import AgentToolRegistry
@@ -33,17 +35,27 @@ class ChatHealthQueryWorkflow:
         *,
         settings=None,
         graph_adapter: LangGraphExecutionAdapter | None = None,
+        planner_service: LLMPlannerService | None = None,
+        answer_composer: LLMAnswerComposer | None = None,
     ) -> None:
         if executor is None:
             executor = AgentToolExecutor(register_health_query_tools(AgentToolRegistry()))
         self.executor = executor
         self.settings = settings or get_settings()
         self.graph_adapter = graph_adapter or LangGraphExecutionAdapter(self.settings)
+        self.planner_service = planner_service or LLMPlannerService(settings=self.settings)
+        self.answer_composer = answer_composer or LLMAnswerComposer(settings=self.settings)
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         result = self.graph_adapter.run_chat_health_query(
             context,
-            lambda: run_chat_health_query(context, executor=self.executor),
+            lambda: run_chat_health_query(
+                context,
+                executor=self.executor,
+                settings=self.settings,
+                planner_service=self.planner_service,
+                answer_composer=self.answer_composer,
+            ),
         )
         return AgentWorkflowResult(
             message=result.answer,
@@ -60,7 +72,14 @@ class ChatHealthQueryExecution:
     graph_node_summary: list[str] | None = None
 
 
-def run_chat_health_query(context: AgentWorkflowContext, *, executor: AgentToolExecutor) -> ChatHealthQueryExecution:
+def run_chat_health_query(
+    context: AgentWorkflowContext,
+    *,
+    executor: AgentToolExecutor,
+    settings=None,
+    planner_service: LLMPlannerService | None = None,
+    answer_composer: LLMAnswerComposer | None = None,
+) -> ChatHealthQueryExecution:
     memory_context = memory_service.load_session_context(
         context.db,
         user_id=context.request.actor_user_id,
@@ -68,8 +87,16 @@ def run_chat_health_query(context: AgentWorkflowContext, *, executor: AgentToolE
     )
     plan = parse_health_query(context.request.user_message)
     plan = memory_service.apply_session_context(context.request.user_message, plan, memory_context)
+    if plan.is_unknown and (settings or get_settings()).LLM_PLANNER_ENABLED:
+        planner = planner_service or LLMPlannerService(settings=settings or get_settings())
+        planner_result = planner.plan(
+            user_message=context.request.user_message,
+            recent_session_context_summary=memory_context.summary_lines,
+            safe_memory_summary=(),
+        )
+        plan = planner_result.plan
     if plan.is_unknown or not plan.tool_name:
-        answer = "\n".join([SAFE_UNKNOWN_QUERY_MESSAGE, SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
+        answer = "\n".join([_unknown_or_clarification_message(plan), SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
         _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
 
@@ -80,11 +107,25 @@ def run_chat_health_query(context: AgentWorkflowContext, *, executor: AgentToolE
             _execute_tool(context, executor, "alerts.query", {"days": plan.time_range.days, "limit": 10}),
         ]
         answer = _compose_daily_status_answer(plan, results)
+        answer = _maybe_compose_answer(
+            answer_composer,
+            plan=plan,
+            fallback_answer=answer,
+            safe_tool_result_summary=_safe_result_summary(results),
+            user_question_excerpt=context.request.user_message,
+        )
         _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=len(results))
 
     result = _execute_tool(context, executor, plan.tool_name, dict(plan.tool_input or {}))
     answer = _compose_single_tool_answer(plan, result)
+    answer = _maybe_compose_answer(
+        answer_composer,
+        plan=plan,
+        fallback_answer=answer,
+        safe_tool_result_summary=_safe_result_summary([result]),
+        user_question_excerpt=context.request.user_message,
+    )
     _record_session_messages(context, plan, answer)
     return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=1)
 
@@ -128,6 +169,12 @@ def _record_session_messages(context: AgentWorkflowContext, plan: HealthQueryPla
     )
 
 
+def _unknown_or_clarification_message(plan: HealthQueryPlan) -> str:
+    if plan.needs_clarification and plan.clarification_question:
+        return plan.clarification_question
+    return SAFE_UNKNOWN_QUERY_MESSAGE
+
+
 def _execute_tool(
     context: AgentWorkflowContext,
     executor: AgentToolExecutor,
@@ -149,6 +196,42 @@ def _execute_tool(
             reason="chat_health_query",
         ),
     )
+
+
+def _maybe_compose_answer(
+    answer_composer: LLMAnswerComposer | None,
+    *,
+    plan: HealthQueryPlan,
+    fallback_answer: str,
+    safe_tool_result_summary: str,
+    user_question_excerpt: str,
+) -> str:
+    if answer_composer is None:
+        return fallback_answer
+    result = answer_composer.compose(
+        safe_tool_result_summary=safe_tool_result_summary,
+        coverage_note=f"system_records_only; range={plan.time_range.label}; days={plan.time_range.days}",
+        user_question_excerpt=user_question_excerpt,
+        fallback_answer=fallback_answer,
+    )
+    return result.answer
+
+
+def _safe_result_summary(results: list[ToolExecutionResult]) -> str:
+    parts = []
+    for result in results:
+        data = result.output_data or {}
+        parts.append(
+            {
+                "tool": result.tool_name,
+                "status": result.status,
+                "blocked": result.blocked,
+                "record_scope": "system_records_only",
+                "count": data.get("count") or (data.get("summary") or {}).get("count"),
+                "coverage_note": data.get("coverage_note"),
+            }
+        )
+    return str(parts)[:1200]
 
 
 def _compose_single_tool_answer(plan: HealthQueryPlan, result: ToolExecutionResult) -> str:

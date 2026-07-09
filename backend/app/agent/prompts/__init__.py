@@ -3,4 +3,14 @@
 # 文件职责：业务代码文件。承载本模块的一部分领域能力或工程能力。
 # 维护原则：本文件只补充业务/工程注释，不在注释中改变任何运行逻辑。
 
-"""Agent prompts/__init__.py placeholder."""
+from app.agent.prompts.registry import PromptRegistry, get_prompt_registry
+from app.agent.prompts.schemas import PromptNotFoundError, PromptRegistryError, PromptRenderError, PromptTemplate
+
+__all__ = [
+    "PromptNotFoundError",
+    "PromptRegistry",
+    "PromptRegistryError",
+    "PromptRenderError",
+    "PromptTemplate",
+    "get_prompt_registry",
+]
