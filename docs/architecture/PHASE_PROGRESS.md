@@ -22,6 +22,17 @@ Current source of truth: the project has completed **Phase 22: Stateful LangGrap
 - LangGraph does not directly query DB, call tools, write business data, choose user/family/target IDs, or bypass ToolExecutor / Permission / SafetyPolicy.
 - Next phase: Phase 23, Agent Evaluation harness.
 
+## Current Status Summary (after Phase 23)
+
+Current source of truth: the project has completed **Phase 23: Agent Evaluation Harness**.
+
+- Added `backend/tests/evaluation/agent_eval_cases/*.jsonl` with 220 synthetic cases.
+- Added a deterministic eval runner and local test coverage.
+- Evaluation dimensions include intent, member/time/tool selection, multi-turn memory follow-up metadata, permission boundary cases, safety red-team prompts, and answer grounding.
+- Latest local result: 220 passed / 0 failed.
+- No real user data, external LLM call, generic tool execution, migration/model, or business-data write was added.
+- Next phase: Phase 24, free text record and doctor summary workflows.
+
 ## 当前状态摘要（Phase 20 后）
 
 当前项目已完成到 **Phase 20：Prompt Registry + LLM-assisted Planner**。

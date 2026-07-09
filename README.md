@@ -22,6 +22,15 @@ The project has completed **Phase 22: Stateful LangGraph Orchestration**.
 - LangGraph does not directly query DB, call tools, write health data, choose users, or bypass permission and safety checks.
 - Graph summaries are safe display summaries only and must not contain raw prompt, raw response, token/key/password, file path, OCR full text, SQL, traceback, `tool_name`, or `input_data`.
 
+## Current Status Summary (after Phase 23)
+
+The project has completed **Phase 23: Agent Evaluation Harness**.
+
+- Added a deterministic synthetic evaluation set with 220 cases covering golden health queries, multi-turn memory follow-ups, permission boundaries, and medical-safety red-team prompts.
+- Added a local eval runner and Markdown report.
+- The harness reports intent accuracy, tool accuracy, safety pass rate, permission pass rate, and answer grounding rate.
+- Evaluation does not use real user data, external LLM calls, generic tool execution, or business-data writes.
+
 ## 当前状态摘要（Phase 20 后）
 
 当前已完成到 **Phase 20：Prompt Registry + LLM-assisted Planner**。
