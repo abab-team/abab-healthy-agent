@@ -1,5 +1,24 @@
 # Phase Progress
 
+## Current Status Summary (after RC 02)
+
+Current source of truth: after Phase 26, RC 02 migrated Agent single-run
+workflows to optional per-workflow LangGraph `StateGraph.compile()`
+orchestration.
+
+- Graphs are disabled by default and fall back to the previous workflow path.
+- Per-workflow graph runners now exist for chat health query, free text record,
+  doctor visit summary, document extraction preview, daily report preview,
+  internal health knowledge QA, symptom draft, medical event draft, alert
+  creation, and daily health brief.
+- Graph state safe summaries reject raw prompt, raw LLM response, raw text, raw
+  OCR, file path, SQL, token, password, key, `tool_name`, and `input_data`
+  fields.
+- ToolExecutor, family permission checks, SafetyPolicy, Critic, and Memory
+  remain the enforcement boundary.
+- No migration, model, generic tool execution API, external medical knowledge
+  base, real OCR provider, or frontend feature was added in RC 02.
+
 ## Current Status Summary (after Phase 26)
 
 Current source of truth: the project has completed **Phase 26: Production Deployment and Security Readiness**.

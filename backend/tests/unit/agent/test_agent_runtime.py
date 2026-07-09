@@ -77,14 +77,11 @@ class AgentRuntimeTestCase(unittest.TestCase):
         self.assertTrue(result.blocked)
         self.assertIsNone(result.generated_content)
 
-    def test_unregistered_workflow_returns_safe_error(self) -> None:
-        result = AgentRuntime().run(self.db, self._request("hello", workflow_type=AgentWorkflowName.DAILY_REPORT_WORKFLOW))
+    def test_all_declared_workflows_are_registered(self) -> None:
+        registry = AgentRuntime().registry
 
-        self.assertEqual(result.status, "failed")
-        self.assertTrue(result.blocked)
-        self.assertNotIn("Traceback", result.message)
-        trace = service.get_trace(self.db, result.trace_id)
-        self.assertEqual(trace.status, AgentTraceStatus.FAILED)
+        for workflow_name in AgentWorkflowName:
+            self.assertIsNotNone(registry.get(workflow_name))
 
     def test_unknown_workflow_string_returns_safe_error(self) -> None:
         result = AgentRuntime().run(self.db, self._request("hello", workflow_type="unknown_workflow"))

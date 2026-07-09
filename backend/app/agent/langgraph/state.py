@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypedDict
 from uuid import UUID
 
 
 SENSITIVE_STATE_KEYS = {
     "api_key",
+    "current_user_id",
+    "family_id_from_llm",
     "file_path",
     "input_data",
     "password",
@@ -19,8 +21,29 @@ SENSITIVE_STATE_KEYS = {
     "symptom_text",
     "token",
     "tool_name",
+    "target_user_id_from_llm",
     "traceback",
 }
+
+
+class BaseAgentGraphState(TypedDict, total=False):
+    trace_id: UUID
+    request_id: str
+    workflow_name: str
+    actor_user_id: UUID
+    target_user_id: UUID | None
+    family_id: UUID | None
+    user_message_excerpt: str
+    safety_level: str
+    node_summary: list[str]
+    graph_status: str
+    errors: list[str]
+    permission_status: str | None
+    critic_flags: list[str]
+    final_answer: str | None
+    generated_content: str | None
+    tool_calls_count: int
+    metadata: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -74,6 +97,65 @@ def append_node(state: HealthAgentGraphState, node_name: str, **updates: Any) ->
     next_state = HealthAgentGraphState(**values)
     validate_no_sensitive_state(next_state.safe_summary())
     return next_state
+
+
+def initial_graph_state(
+    *,
+    trace_id: UUID,
+    request_id: str,
+    workflow_name: str,
+    actor_user_id: UUID,
+    target_user_id: UUID | None,
+    family_id: UUID | None,
+    user_message: str,
+    safety_level: str,
+    graph_name: str,
+) -> BaseAgentGraphState:
+    state: BaseAgentGraphState = {
+        "trace_id": trace_id,
+        "request_id": request_id,
+        "workflow_name": workflow_name,
+        "actor_user_id": actor_user_id,
+        "target_user_id": target_user_id,
+        "family_id": family_id,
+        "user_message_excerpt": str(user_message or "")[:160],
+        "safety_level": safety_level,
+        "node_summary": [],
+        "graph_status": "running",
+        "errors": [],
+        "permission_status": None,
+        "critic_flags": [],
+        "final_answer": None,
+        "generated_content": None,
+        "tool_calls_count": 0,
+        "metadata": {"graph": graph_name},
+    }
+    validate_no_sensitive_state(graph_safe_summary(state))
+    return state
+
+
+def append_graph_node(state: BaseAgentGraphState, node_name: str, **updates: Any) -> BaseAgentGraphState:
+    next_state: BaseAgentGraphState = dict(state)
+    next_state.update(updates)
+    next_state["node_summary"] = [*state.get("node_summary", []), node_name]
+    validate_no_sensitive_state(graph_safe_summary(next_state))
+    return next_state
+
+
+def graph_safe_summary(state: BaseAgentGraphState) -> dict[str, Any]:
+    summary = {
+        "workflow_name": state.get("workflow_name"),
+        "safety_level": state.get("safety_level"),
+        "graph_status": state.get("graph_status"),
+        "permission_status": state.get("permission_status"),
+        "tool_calls_count": state.get("tool_calls_count", 0),
+        "node_summary": list(state.get("node_summary", [])),
+        "critic_flags": list(state.get("critic_flags", [])),
+        "errors": list(state.get("errors", [])),
+        "metadata": dict(state.get("metadata", {})),
+    }
+    validate_no_sensitive_state(summary)
+    return summary
 
 
 def validate_no_sensitive_state(value: Any, *, path: str = "state") -> None:

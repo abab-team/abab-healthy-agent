@@ -8,8 +8,11 @@ from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult
 from app.agent.workflows.alert_create import AlertCreateWorkflow
 from app.agent.workflows.chat_workflow import ChatHealthQueryWorkflow
 from app.agent.workflows.daily_health_brief import DailyHealthBriefWorkflow
+from app.agent.workflows.daily_report_workflow import DailyReportWorkflow
+from app.agent.workflows.document_extract_workflow import DocumentExtractWorkflow
 from app.agent.workflows.doctor_visit_summary_workflow import DoctorVisitSummaryWorkflow
 from app.agent.workflows.free_text_record_workflow import FreeTextRecordWorkflow
+from app.agent.workflows.health_knowledge_qa_workflow import HealthKnowledgeQAWorkflow
 from app.agent.workflows.medical_event_draft_create import MedicalEventDraftCreateWorkflow
 from app.agent.workflows.symptom_draft_create import SymptomDraftCreateWorkflow
 
@@ -55,6 +58,9 @@ def default_workflow_registry() -> AgentWorkflowRegistry:
     registry.register(DailyHealthBriefWorkflow())
     registry.register(FreeTextRecordWorkflow())
     registry.register(DoctorVisitSummaryWorkflow())
+    registry.register(DocumentExtractWorkflow())
+    registry.register(DailyReportWorkflow())
+    registry.register(HealthKnowledgeQAWorkflow())
     registry.register(SymptomDraftCreateWorkflow())
     registry.register(MedicalEventDraftCreateWorkflow())
     registry.register(AlertCreateWorkflow())

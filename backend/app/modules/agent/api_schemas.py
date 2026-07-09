@@ -36,6 +36,9 @@ MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW = "medical_event_draft_create"
 ALERT_CREATE_WORKFLOW = "alert_create"
 FREE_TEXT_RECORD_WORKFLOW = "free_text_record_workflow"
 DOCTOR_VISIT_SUMMARY_WORKFLOW = "doctor_visit_summary_workflow"
+DOCUMENT_EXTRACT_WORKFLOW = "document_extract_workflow"
+DAILY_REPORT_WORKFLOW = "daily_report_workflow"
+HEALTH_KNOWLEDGE_QA_WORKFLOW = "health_knowledge_qa_workflow"
 ALLOWED_WORKFLOW_TYPES = {
     DAILY_HEALTH_BRIEF_WORKFLOW,
     CHAT_WORKFLOW,
@@ -44,6 +47,9 @@ ALLOWED_WORKFLOW_TYPES = {
     ALERT_CREATE_WORKFLOW,
     FREE_TEXT_RECORD_WORKFLOW,
     DOCTOR_VISIT_SUMMARY_WORKFLOW,
+    DOCUMENT_EXTRACT_WORKFLOW,
+    DAILY_REPORT_WORKFLOW,
+    HEALTH_KNOWLEDGE_QA_WORKFLOW,
 }
 SENSITIVE_KEYS = {
     "access_token",
@@ -130,6 +136,24 @@ class DoctorVisitSummaryWorkflowPayload(BaseModel):
     limit: int = Field(default=10, ge=1, le=50)
 
 
+class DocumentExtractWorkflowPayload(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    document_id: UUID | None = None
+    file_name: OptionalTitle = None
+    mime_type: ShortText = None
+
+
+class DailyReportWorkflowPayload(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    days: int = Field(default=7, ge=1, le=365)
+
+
+class HealthKnowledgeQAWorkflowPayload(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+
 def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, Any] | None:
     raw_payload = payload.workflow_payload or {}
     if payload.workflow_type == DAILY_HEALTH_BRIEF_WORKFLOW:
@@ -150,6 +174,12 @@ def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, An
         return _alert_payload_for_runtime(AlertCreateWorkflowPayload.model_validate(raw_payload))
     if payload.workflow_type == DOCTOR_VISIT_SUMMARY_WORKFLOW:
         return DoctorVisitSummaryWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
+    if payload.workflow_type == DOCUMENT_EXTRACT_WORKFLOW:
+        return DocumentExtractWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
+    if payload.workflow_type == DAILY_REPORT_WORKFLOW:
+        return DailyReportWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
+    if payload.workflow_type == HEALTH_KNOWLEDGE_QA_WORKFLOW:
+        return HealthKnowledgeQAWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
     raise ValueError("workflow_type is not available")
 
 

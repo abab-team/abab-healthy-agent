@@ -9,6 +9,7 @@ from app.agent.chat import HealthQueryIntent, HealthQueryPlan, parse_health_quer
 from app.agent.critic import AnswerCriticService, CriticReviewRequest, ToolResultSummary
 from app.agent.enums import AgentSafetyLevel, AgentWorkflowName
 from app.agent.langgraph.adapter import LangGraphExecutionAdapter
+from app.agent.langgraph.dispatcher import AgentGraphDispatcher
 from app.agent.memory import service as memory_service
 from app.agent.planner import LLMPlannerService
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
@@ -46,26 +47,40 @@ class ChatHealthQueryWorkflow:
         self.executor = executor
         self.settings = settings or get_settings()
         self.graph_adapter = graph_adapter or LangGraphExecutionAdapter(self.settings)
+        self.graph_dispatcher = AgentGraphDispatcher(self.settings)
         self.planner_service = planner_service or LLMPlannerService(settings=self.settings)
         self.answer_composer = answer_composer or LLMAnswerComposer(settings=self.settings)
         self.critic_service = critic_service or AnswerCriticService(settings=self.settings)
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
-        result = self.graph_adapter.run_chat_health_query(
-            context,
-            lambda: run_chat_health_query(
+        from app.agent.langgraph.graphs.chat_health_query_graph import ChatHealthQueryGraph
+
+        def fallback() -> AgentWorkflowResult:
+            result = run_chat_health_query(
                 context,
                 executor=self.executor,
                 settings=self.settings,
                 planner_service=self.planner_service,
                 answer_composer=self.answer_composer,
                 critic_service=self.critic_service,
+            )
+            return AgentWorkflowResult(
+                message=result.answer,
+                generated_content=result.answer,
+                tool_calls_count=result.tool_calls_count,
+            )
+
+        return self.graph_dispatcher.run_or_fallback(
+            context,
+            self.workflow_name,
+            ChatHealthQueryGraph(
+                executor=self.executor,
+                settings=self.settings,
+                planner_service=self.planner_service,
+                answer_composer=self.answer_composer,
+                critic_service=self.critic_service,
             ),
-        )
-        return AgentWorkflowResult(
-            message=result.answer,
-            generated_content=result.answer,
-            tool_calls_count=result.tool_calls_count,
+            fallback,
         )
 
 

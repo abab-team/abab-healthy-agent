@@ -4,10 +4,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.agent.enums import AgentWorkflowName
+from app.agent.langgraph.dispatcher import AgentGraphDispatcher
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
 from app.agent.tool_registry import AgentToolRegistry
 from app.agent.tools import register_health_query_tools
+from app.core.config import get_settings
 
 
 DEFAULT_DAYS = 30
@@ -26,13 +28,25 @@ PARTIAL_UNAVAILABLE_MESSAGE = "Some information is unavailable because of permis
 class DoctorVisitSummaryWorkflow:
     workflow_name = AgentWorkflowName.DOCTOR_VISIT_SUMMARY_WORKFLOW
 
-    def __init__(self, executor: AgentToolExecutor | None = None) -> None:
+    def __init__(self, executor: AgentToolExecutor | None = None, *, settings=None) -> None:
         if executor is None:
             registry = register_health_query_tools(AgentToolRegistry())
             executor = AgentToolExecutor(registry)
         self.executor = executor
+        self.settings = settings or get_settings()
+        self.graph_dispatcher = AgentGraphDispatcher(self.settings)
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
+        from app.agent.langgraph.graphs.doctor_visit_summary_graph import DoctorVisitSummaryGraph
+
+        return self.graph_dispatcher.run_or_fallback(
+            context,
+            self.workflow_name,
+            DoctorVisitSummaryGraph(workflow=self),
+            lambda: self._run_without_graph(context),
+        )
+
+    def _run_without_graph(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         options = _workflow_options(context)
         results = _DoctorVisitToolResults(
             blood_pressure=self._call_tool(context, "health_data.blood_pressure.summary", {"days": options.days}),

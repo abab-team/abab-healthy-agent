@@ -3,10 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from app.agent.enums import AgentTraceStatus, AgentWorkflowName
+from app.agent.langgraph.dispatcher import AgentGraphDispatcher
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
 from app.agent.tool_registry import AgentToolRegistry
 from app.agent.tools.alert_tools import AlertCreateTool
+from app.core.config import get_settings
 
 
 WORKFLOW_TYPE = "alert_create"
@@ -19,29 +21,39 @@ COMPLETED_MESSAGE = "Reminder alert created from confirmed user input."
 class AlertCreateWorkflow:
     workflow_name = AgentWorkflowName.ALERT_CREATE_WORKFLOW
 
-    def __init__(self, executor: AgentToolExecutor | None = None) -> None:
+    def __init__(self, executor: AgentToolExecutor | None = None, *, settings=None) -> None:
         if executor is None:
             registry = AgentToolRegistry()
             registry.register(AlertCreateTool())
             executor = AgentToolExecutor(registry)
         self.executor = executor
+        self.settings = settings or get_settings()
+        self.graph_dispatcher = AgentGraphDispatcher(self.settings)
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
-        tool_result = self.executor.execute(
-            context.db,
-            ToolExecutionRequest(
-                trace_id=context.trace_id,
-                tool_name=TOOL_NAME,
-                actor_user_id=context.request.actor_user_id,
-                target_user_id=context.request.target_user_id,
-                family_id=context.request.family_id,
-                input_data=_tool_input(context),
-                confirmed=context.request.confirmation,
-                safety_level=context.safety_level,
-                reason=WORKFLOW_TYPE,
+        from app.agent.langgraph.graphs.alert_create_graph import AlertCreateGraph
+
+        return self.graph_dispatcher.run_or_fallback(
+            context,
+            self.workflow_name,
+            AlertCreateGraph(executor=self.executor),
+            lambda: _workflow_result(
+                self.executor.execute(
+                    context.db,
+                    ToolExecutionRequest(
+                        trace_id=context.trace_id,
+                        tool_name=TOOL_NAME,
+                        actor_user_id=context.request.actor_user_id,
+                        target_user_id=context.request.target_user_id,
+                        family_id=context.request.family_id,
+                        input_data=_tool_input(context),
+                        confirmed=context.request.confirmation,
+                        safety_level=context.safety_level,
+                        reason=WORKFLOW_TYPE,
+                    ),
+                )
             ),
         )
-        return _workflow_result(tool_result)
 
 
 def _tool_input(context: AgentWorkflowContext) -> dict[str, Any]:

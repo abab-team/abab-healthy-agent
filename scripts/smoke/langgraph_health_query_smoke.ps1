@@ -89,7 +89,7 @@ try {
   if ($run.workflow_type -ne "chat" -or $run.status -ne "completed") {
     throw "langgraph chat smoke failed"
   }
-  if (-not ($joined -match "graph_nodes=input_safety")) {
+  if (-not (($joined -match "graph_nodes=") -and ($joined -match "input_safety"))) {
     throw "langgraph node summary missing"
   }
   if ($joined -match "raw_text|file_path|raw_extracted_text|token|password|api_key") {

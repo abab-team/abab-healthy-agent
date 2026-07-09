@@ -1,5 +1,24 @@
 # Family Health Agent
 
+## Current Status Summary (after RC 02)
+
+The Agent workflow layer now has real optional LangGraph `StateGraph.compile()`
+orchestration for Agent single-run workflows. Graph execution is still disabled
+by default and falls back to the previous workflow path unless explicitly
+enabled per workflow.
+
+- Migrated chat health query, free text record, doctor visit summary, daily
+  health brief, symptom draft, medical event draft, alert creation, document
+  extraction preview, daily report preview, and internal health knowledge QA
+  into per-workflow graph runners.
+- Added graph state sanitization for raw prompts, raw LLM output, raw text,
+  raw OCR, file paths, SQL, tokens, passwords, keys, `tool_name`, and
+  `input_data`.
+- Preserved ToolExecutor, permission checks, SafetyPolicy, Critic, Memory, and
+  fallback boundaries.
+- No migration, model, generic tool execution API, external medical knowledge
+  base, real OCR provider, or frontend feature was added.
+
 ## Current Status Summary (after Phase 26)
 
 The project has completed **Phase 26: Production Deployment and Security Readiness**.

@@ -5,6 +5,7 @@ from typing import Any
 
 from app.agent import service as agent_service
 from app.agent.enums import AgentSafetyLevel, AgentWorkflowName
+from app.agent.langgraph.dispatcher import AgentGraphDispatcher
 from app.agent.safety import AgentSafetyPolicy
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
@@ -67,8 +68,19 @@ class DailyHealthBriefWorkflow:
         self.executor = executor
         self.settings = settings
         self.llm_client = llm_client
+        self.graph_dispatcher = AgentGraphDispatcher(settings or get_settings())
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
+        from app.agent.langgraph.graphs.daily_health_brief_graph import DailyHealthBriefGraph
+
+        return self.graph_dispatcher.run_or_fallback(
+            context,
+            self.workflow_name,
+            DailyHealthBriefGraph(workflow=self),
+            lambda: self._run_without_graph(context),
+        )
+
+    def _run_without_graph(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         request = context.request
         results = _BriefToolResults(
             profile=self._call_tool(context, "health_profile.get", {}),

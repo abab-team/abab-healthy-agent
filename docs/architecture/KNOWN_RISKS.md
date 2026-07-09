@@ -237,3 +237,16 @@
 - Production or external trial deployments must keep `AUTH_DEMO_HEADER_ENABLED=false`, `DEBUG=false`, strong secrets, explicit CORS origins, PostgreSQL, and secure object storage.
 - Real OCR provider, persistent RAG index, real embedding provider, vector DB, external medical knowledge base, rate limiting, malware scanning, and full observability still require separate implementation and review.
 - The system must continue to avoid diagnosis, prescription, dosage, stop-medication guidance, and normal/abnormal medical judgment in production-like environments.
+
+## RC 02 LangGraph Risks
+
+- LangGraph execution is optional and disabled by default. A production-like
+  rollout must enable workflow flags gradually and monitor graph fallback rates.
+- Document extraction and daily report graph paths are MVP previews. They do not
+  add persistent extraction/report storage beyond already reviewed services.
+- Health knowledge QA remains limited to internal safe context. External medical
+  knowledge requires a separate source, safety, and citation review.
+- Graph node summaries are intentionally safe and compact. They are not a raw
+  graph replay log and must not be expanded to include raw prompts, raw LLM
+  responses, file paths, raw OCR, SQL, tokens, keys, `tool_name`, or
+  `input_data`.
