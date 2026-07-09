@@ -10,7 +10,9 @@ TEST_DB_PATH = Path(tempfile.gettempdir()) / "family_health_agent_phase19_memory
 os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{TEST_DB_PATH.as_posix()}")
 
 from app.agent import service as agent_service  # noqa: E402
+from app.agent.enums import AgentMemoryStatus, AgentMemoryType  # noqa: E402
 from app.agent.memory import service as memory_service  # noqa: E402
+from app.agent.models import AgentMemory  # noqa: E402
 from app.agent.runtime import AgentRuntime  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
 from app.db.base import Base  # noqa: E402
@@ -133,12 +135,59 @@ class AgentMemoryTestCase(unittest.TestCase):
             message="以后回答请简洁一点。",
         )
         self.assertIsNotNone(memory)
+        self.assertIsInstance(memory, AgentMemory)
+        self.assertEqual(memory.memory_type, AgentMemoryType.USER_PREFERENCE)
         self.assertEqual(len(memory_service.list_memory_items(self.db, user_id=self.actor.id)), 1)
 
         deleted = memory_service.delete_memory_item(self.db, user_id=self.actor.id, memory_id=memory.id)
 
         self.assertTrue(deleted)
+        self.assertEqual(self.db.get(AgentMemory, memory.id).status, AgentMemoryStatus.DELETED)
         self.assertEqual(memory_service.list_memory_items(self.db, user_id=self.actor.id), [])
+
+    def test_safe_preference_memory_deduplicates_same_active_memory(self) -> None:
+        first = memory_service.create_safe_preference_memory(
+            self.db,
+            user_id=self.actor.id,
+            family_id=None,
+            message="I prefer short answers from now on.",
+        )
+        second = memory_service.create_safe_preference_memory(
+            self.db,
+            user_id=self.actor.id,
+            family_id=None,
+            message="I prefer short answers from now on.",
+        )
+
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(second)
+        self.assertEqual(first.id, second.id)
+        memories = memory_service.list_memory_items(self.db, user_id=self.actor.id)
+        self.assertEqual(len(memories), 1)
+
+    def test_list_memory_items_only_returns_current_user_active_memory(self) -> None:
+        actor_memory = memory_service.create_safe_preference_memory(
+            self.db,
+            user_id=self.actor.id,
+            family_id=None,
+            message="I prefer short answers from now on.",
+        )
+        target_memory = memory_service.create_safe_preference_memory(
+            self.db,
+            user_id=self.target.id,
+            family_id=None,
+            message="I prefer short answers from now on.",
+        )
+        self.assertIsNotNone(actor_memory)
+        self.assertIsNotNone(target_memory)
+        target_memory.status = AgentMemoryStatus.DELETED
+        self.db.flush()
+
+        actor_items = memory_service.list_memory_items(self.db, user_id=self.actor.id)
+        target_items = memory_service.list_memory_items(self.db, user_id=self.target.id)
+
+        self.assertEqual([item.id for item in actor_items], [actor_memory.id])
+        self.assertEqual(target_items, [])
 
     def test_unsafe_medical_claim_is_not_saved_as_memory(self) -> None:
         memory = memory_service.create_safe_preference_memory(

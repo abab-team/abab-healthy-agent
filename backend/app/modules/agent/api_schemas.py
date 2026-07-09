@@ -22,7 +22,7 @@ from app.api.validators import (
     optional_text,
     required_text,
 )
-from app.agent.models import AgentMemoryItem, AgentMessage, AgentSafetyCheck, AgentSession, AgentToolCall, AgentTrace
+from app.agent.models import AgentMemory, AgentMessage, AgentSafetyCheck, AgentSession, AgentToolCall, AgentTrace
 from app.agent.schemas import AgentRunResult
 
 
@@ -269,15 +269,15 @@ def agent_message_response(message: AgentMessage) -> AgentMessageResponse:
     )
 
 
-def agent_memory_item_response(item: AgentMemoryItem) -> AgentMemoryItemResponse:
+def agent_memory_item_response(item: AgentMemory) -> AgentMemoryItemResponse:
     return AgentMemoryItemResponse(
         id=item.id,
         family_id=item.family_id,
-        memory_type=_safe_text(item.memory_type, max_length=64) or "unknown",
+        memory_type=_safe_text(item.memory_type.value, max_length=64) or "unknown",
         content=_safe_text(item.content, max_length=500) or "",
-        confidence=item.confidence,
-        source=_safe_text(item.source, max_length=64) or "system",
-        is_user_editable=item.is_user_editable,
+        confidence=_confidence_score(item.confidence_level.value),
+        source=_safe_text(item.source.value, max_length=64) or "system",
+        is_user_editable=item.status.value == "active",
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -349,6 +349,16 @@ def _safe_mapping(value: dict[str, Any] | None) -> dict[str, Any] | None:
             continue
         summary[key_text] = _safe_value(item)
     return summary
+
+
+def _confidence_score(level: str) -> int:
+    if level == "high":
+        return 90
+    if level == "medium":
+        return 70
+    if level == "low":
+        return 40
+    return 50
 
 
 def _safe_value(value: Any) -> Any:

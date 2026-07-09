@@ -4,15 +4,17 @@ from dataclasses import dataclass
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.agent import safety
+from app.agent.enums import AgentMemorySource, AgentMemoryStatus, AgentMemoryType, AgentMemoryVisibility
 from app.agent.chat.member_resolver import resolve_member_label
 from app.agent.chat.schemas import HealthQueryPlan
 from app.agent.chat.time_range_parser import parse_time_range
-from app.agent.models import AgentMemoryItem, AgentMessage, AgentSession
+from app.agent.models import AgentMemory, AgentMessage, AgentSession
 from app.db.mixins import utc_now
+from app.modules.health_data.enums import ConfidenceLevel
 
 
 SHORT_CONTEXT_LIMIT = 8
@@ -243,7 +245,7 @@ def create_safe_preference_memory(
     user_id: UUID,
     family_id: UUID | None,
     message: str,
-) -> AgentMemoryItem | None:
+) -> AgentMemory | None:
     text = (message or "").strip()
     lowered = text.lower()
     if not text or _contains_any(lowered, UNSAFE_MEMORY_MARKERS):
@@ -262,26 +264,46 @@ def create_safe_preference_memory(
 
     if memory_type is None or content is None:
         return None
-    item = AgentMemoryItem(
+    normalized_type = _agent_memory_type(memory_type)
+    stmt = select(AgentMemory).where(
+        AgentMemory.user_id == user_id,
+        AgentMemory.memory_type == normalized_type,
+        AgentMemory.content == content,
+        AgentMemory.status == AgentMemoryStatus.ACTIVE,
+    )
+    existing = db.scalar(stmt)
+    if existing is not None:
+        existing.last_used_at = utc_now()
+        existing.updated_at = utc_now()
+        db.flush()
+        return existing
+
+    item = AgentMemory(
         user_id=user_id,
         family_id=family_id,
-        memory_type=memory_type,
+        memory_type=normalized_type,
         content=content,
-        structured_data_json={"source": "chat_preference"},
-        confidence=80,
-        source="user_confirmed_preference",
-        is_user_editable=True,
+        source=AgentMemorySource.USER_INPUT,
+        confidence_level=ConfidenceLevel.HIGH,
+        visibility=AgentMemoryVisibility.FAMILY_CONTEXT if family_id else AgentMemoryVisibility.PRIVATE,
+        status=AgentMemoryStatus.ACTIVE,
+        last_used_at=utc_now(),
     )
     db.add(item)
     db.flush()
     return item
 
 
-def list_memory_items(db: Session, *, user_id: UUID, limit: int = 100) -> list[AgentMemoryItem]:
+def list_memory_items(db: Session, *, user_id: UUID, limit: int = 100) -> list[AgentMemory]:
+    now = utc_now()
     stmt = (
-        select(AgentMemoryItem)
-        .where(AgentMemoryItem.user_id == user_id, AgentMemoryItem.deleted_at.is_(None))
-        .order_by(AgentMemoryItem.created_at.desc())
+        select(AgentMemory)
+        .where(
+            AgentMemory.user_id == user_id,
+            AgentMemory.status == AgentMemoryStatus.ACTIVE,
+            or_(AgentMemory.expires_at.is_(None), AgentMemory.expires_at > now),
+        )
+        .order_by(AgentMemory.last_used_at.desc().nullslast(), AgentMemory.created_at.desc())
         .limit(max(1, min(limit, 200)))
     )
     return list(db.scalars(stmt))
@@ -291,17 +313,26 @@ def delete_memory_item(db: Session, *, user_id: UUID, memory_id: UUID | str) -> 
     parsed_memory_id = _parse_uuid(memory_id)
     if parsed_memory_id is None:
         return False
-    stmt = select(AgentMemoryItem).where(
-        AgentMemoryItem.id == parsed_memory_id,
-        AgentMemoryItem.user_id == user_id,
-        AgentMemoryItem.deleted_at.is_(None),
+    stmt = select(AgentMemory).where(
+        AgentMemory.id == parsed_memory_id,
+        AgentMemory.user_id == user_id,
+        AgentMemory.status == AgentMemoryStatus.ACTIVE,
     )
     item = db.scalar(stmt)
     if item is None:
         return False
-    item.deleted_at = utc_now()
+    item.status = AgentMemoryStatus.DELETED
+    item.updated_at = utc_now()
     db.flush()
     return True
+
+
+def _agent_memory_type(memory_type: str) -> AgentMemoryType:
+    if memory_type == "response_preference":
+        return AgentMemoryType.USER_PREFERENCE
+    if memory_type == "attention_focus":
+        return AgentMemoryType.ATTENTION_FOCUS
+    return AgentMemoryType.USER_PREFERENCE
 
 
 def _replace_plan(plan: HealthQueryPlan, **updates: object | None) -> HealthQueryPlan:

@@ -26,7 +26,7 @@ from app.agent.enums import (
     AgentWorkflowName,
 )
 from app.db.base import Base
-from app.db.mixins import SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin, utc_now
+from app.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin, utc_now
 from app.modules.health_data.enums import ConfidenceLevel
 
 
@@ -481,35 +481,4 @@ class AgentMessage(UUIDPrimaryKeyMixin, Base):
         Index("ix_agent_messages_target_user_id", "target_user_id"),
         Index("ix_agent_messages_metric_type", "metric_type"),
         Index("ix_agent_messages_created_at", "created_at"),
-    )
-
-
-class AgentMemoryItem(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
-    __tablename__ = "agent_memory_items"
-
-    user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    family_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("families.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    memory_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    structured_data_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    confidence: Mapped[int] = mapped_column(Integer, nullable=False, default=80)
-    source: Mapped[str] = mapped_column(String(64), nullable=False, default="system")
-    is_user_editable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    __table_args__ = (
-        Index("ix_agent_memory_items_user_id", "user_id"),
-        Index("ix_agent_memory_items_family_id", "family_id"),
-        Index("ix_agent_memory_items_memory_type", "memory_type"),
-        Index("ix_agent_memory_items_source", "source"),
-        Index("ix_agent_memory_items_is_user_editable", "is_user_editable"),
-        Index("ix_agent_memory_items_deleted_at", "deleted_at"),
-        Index("ix_agent_memory_items_expires_at", "expires_at"),
-        Index("ix_agent_memory_items_created_at", "created_at"),
     )

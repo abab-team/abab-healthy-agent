@@ -15,10 +15,12 @@ from backend.tests.api.helpers import (
     reset_database,
 )
 
-from app.agent.models import AgentMemoryItem
+from app.agent.enums import AgentMemorySource, AgentMemoryStatus, AgentMemoryType, AgentMemoryVisibility
+from app.agent.models import AgentMemory
 from app.modules.agent import api as agent_api
 from app.modules.alerts.models import Alert
 from app.modules.document_processing.models import MedicalEventDraft
+from app.modules.health_data.enums import ConfidenceLevel
 from app.modules.health_record.models import HealthRecordDraft, SymptomRecord
 from app.modules.medical_timeline.models import MedicalEvent
 
@@ -138,14 +140,14 @@ class AgentApiTestCase(unittest.TestCase):
 
     def test_memory_list_and_delete_are_scoped_to_owner(self) -> None:
         with SessionLocal() as db:
-            memory = AgentMemoryItem(
+            memory = AgentMemory(
                 user_id=uuid.UUID(self.actor["id"]),
-                memory_type="response_preference",
+                memory_type=AgentMemoryType.USER_PREFERENCE,
                 content="用户希望回答保持简洁。",
-                structured_data_json={"source": "api_test"},
-                confidence=80,
-                source="manual",
-                is_user_editable=True,
+                source=AgentMemorySource.MANUAL,
+                confidence_level=ConfidenceLevel.HIGH,
+                visibility=AgentMemoryVisibility.PRIVATE,
+                status=AgentMemoryStatus.ACTIVE,
             )
             db.add(memory)
             db.commit()
