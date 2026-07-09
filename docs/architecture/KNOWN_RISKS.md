@@ -229,3 +229,11 @@
 - Docker Compose is documented as a development/demo path. It is not a complete production architecture.
 - Real OCR provider, OCR worker, RAG persisted index, real embedding provider, vector DB, external medical knowledge base, and LangGraph remain out of scope for Phase 15.
 - Portfolio materials must not overstate the project as an AI doctor, diagnostic system, prescription system, or production medical product.
+
+## Phase 26 Production Readiness Risks
+
+- Phase 26 adds production deployment and security readiness checks, but does not perform a real public launch.
+- `tools/check_production_readiness.py` and `scripts/smoke/production_readiness_smoke.ps1` are preflight checks. Passing them does not replace infrastructure review, incident response planning, backup restoration drills, or legal/privacy review.
+- Production or external trial deployments must keep `AUTH_DEMO_HEADER_ENABLED=false`, `DEBUG=false`, strong secrets, explicit CORS origins, PostgreSQL, and secure object storage.
+- Real OCR provider, persistent RAG index, real embedding provider, vector DB, external medical knowledge base, rate limiting, malware scanning, and full observability still require separate implementation and review.
+- The system must continue to avoid diagnosis, prescription, dosage, stop-medication guidance, and normal/abnormal medical judgment in production-like environments.

@@ -23,6 +23,7 @@ COMPOSE := docker compose -f docker-compose.dev.yml
 # make test PYTHON=python3
 # 可以临时改成 python3
 PYTHON ?= python
+ENV_FILE ?= .env
 
 
 # =========================================================
@@ -30,7 +31,7 @@ PYTHON ?= python
 # =========================================================
 # .PHONY 表示这些名字不是实际文件名，而是 make 命令名。
 # 否则如果目录里刚好有一个叫 test 的文件，make test 可能会被误判为已完成。
-.PHONY: help dev backend-dev test lint format migrate seed verify-demo
+.PHONY: help dev backend-dev test lint format migrate seed verify-demo production-check production-smoke
 
 
 # =========================================================
@@ -49,6 +50,8 @@ help:
 	@echo "  make migrate      - run Alembic migrations to head"
 	@echo "  make seed         - seed deterministic Phase 03 demo data"
 	@echo "  make verify-demo  - verify Phase 03 demo data"
+	@echo "  make production-check ENV_FILE=.env - run Phase 26 production readiness checks"
+	@echo "  make production-smoke - run Phase 26 production readiness smoke"
 
 
 # =========================================================
@@ -243,3 +246,9 @@ seed:
 
 verify-demo:
 	$(PYTHON) backend/scripts/verify_demo_data.py
+
+production-check:
+	$(PYTHON) tools/check_production_readiness.py --env-file $(ENV_FILE)
+
+production-smoke:
+	powershell -ExecutionPolicy Bypass -File scripts/smoke/production_readiness_smoke.ps1 -Python $(PYTHON)

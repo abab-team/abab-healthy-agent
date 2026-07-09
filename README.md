@@ -1,5 +1,16 @@
 # Family Health Agent
 
+## Current Status Summary (after Phase 26)
+
+The project has completed **Phase 26: Production Deployment and Security Readiness**.
+
+- Added a production readiness checker for environment posture and secret/config hygiene.
+- Added a production readiness smoke script that validates the checker with a temporary safe sample environment.
+- Added a production readiness runbook covering backend, database, storage, HTTPS/CORS, mobile configuration, and Agent safety boundaries.
+- Updated risk documentation to clarify that Phase 26 is deployment preparation, not a real public launch.
+- No backend business API, database model, migration, frontend feature, LLM workflow, LangGraph path, OCR provider, RAG provider, or generic tool execution was added.
+- Next step: user-run deployment/QA rehearsal, screenshot/recording capture, and infrastructure-specific production review.
+
 ## Current Status Summary (after Phase 25)
 
 The project has completed **Phase 25: Archive Trends and Data Import Foundation**.

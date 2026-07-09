@@ -1,5 +1,17 @@
 # Phase Progress
 
+## Current Status Summary (after Phase 26)
+
+Current source of truth: the project has completed **Phase 26: Production Deployment and Security Readiness**.
+
+- Phase 26 adds production deployment readiness checks and documentation.
+- Added `tools/check_production_readiness.py` to validate production posture for env, debug, auth, demo header, secrets, PostgreSQL, CORS, OCR/RAG raw storage, external medical knowledge, and real LLM provider key requirements.
+- Added `scripts/smoke/production_readiness_smoke.ps1`, which validates the checker using a temporary safe sample env file and deletes it afterward.
+- Added `docs/deployment/PRODUCTION_READINESS_RUNBOOK.md` for preflight deployment review.
+- Updated deployment and risk docs to state that Phase 26 is production readiness preparation, not a real launch.
+- No backend business API, model, migration, Agent tool execution boundary change, frontend feature, real OCR provider, vector DB, or generic tool execution was added.
+- Next step: user-run deployment/QA rehearsal, screenshots/recording, infrastructure-specific security review, and only then any real external trial.
+
 ## Current Status Summary (after Phase 25)
 
 Current source of truth: the project has completed **Phase 25: Archive Trends and Data Import Foundation**.
