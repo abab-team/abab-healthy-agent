@@ -1,5 +1,6 @@
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { useState } from "react";
 import { BackendStatusCard } from "@/components/common/BackendStatusCard";
 import { CardBase } from "@/components/cards/CardBase";
 import { SettingsListItem } from "@/components/common/SettingsListItem";
@@ -15,21 +16,22 @@ export default function SettingsScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
   const health = useApiResource(() => Promise.resolve(provider.getHealthStatus()), [session.currentUserId, session.dataMode]);
+  const [debugOpen, setDebugOpen] = useState(false);
 
-  const userGroups = settingsGroups.filter((group) => !group.some((item) => item.title === "开发者调试"));
+  const userGroups = settingsGroups.filter((group) => !group.some((item) => item.icon === "construct-outline"));
 
   return (
     <AppScreen>
-      <Text style={styles.title}>设置</Text>
+      <Text style={styles.title}>我的</Text>
 
       <CardBase style={styles.userCard}>
         <Text style={styles.avatar}>👩🏻</Text>
         <View style={styles.userCopy}>
           <View style={styles.userTitle}>
             <Text style={styles.userName}>{currentUser.name}</Text>
-            <StatusBadge label={currentUser.badge} tone="mint" />
+            <StatusBadge label="当前演示用户" tone="mint" />
           </View>
-          <Text style={styles.userDescription}>用心记录每一天，守护家人健康。</Text>
+          <Text style={styles.userDescription}>记录每天的健康变化，管理家庭共享与隐私设置。</Text>
           <Text style={styles.userDescription}>当前家庭：{currentUser.familyName}</Text>
         </View>
       </CardBase>
@@ -37,9 +39,7 @@ export default function SettingsScreen() {
       {userGroups.map((group, index) => (
         <CardBase key={index}>
           {group.map((item) => (
-            <Pressable key={item.title} onPress={() => Alert.alert("演示设置", `${item.title} 当前为演示入口。`)}>
-              <SettingsListItem title={item.title} description={item.description} icon={item.icon as never} />
-            </Pressable>
+            <SettingsListItem key={item.title} title={item.title} description={item.description} icon={item.icon as never} />
           ))}
         </CardBase>
       ))}
@@ -53,64 +53,70 @@ export default function SettingsScreen() {
         ))}
         <Text style={styles.about}>文档处理与 OCR preview 已接入；真实 OCR provider 仍未实现。</Text>
         <Text style={styles.about}>RAG 当前为后端 / Agent 内部增强，移动端暂无独立 RAG 页面。</Text>
+        <Text style={styles.about}>RAG 持久化索引、embedding/vector DB 仍未实现。</Text>
       </CardBase>
 
       <CardBase>
         <Text style={styles.sectionTitle}>关于 App</Text>
         <Text style={styles.about}>
-          本 App 用于家庭日常健康记录、整理与提醒，不提供医疗判断、具体用药方案或急救服务。
+          本 App 用于家庭日常健康记录、整理与提醒。所有 AI 输出都基于系统内记录，不替代医生判断或治疗建议。
         </Text>
       </CardBase>
 
-      <Text style={styles.debugHeading}>开发者调试</Text>
-
-      <BackendStatusCard
-        accessTokenPreview={session.authSession.accessTokenPreview}
-        apiBaseUrl={session.apiBaseUrl}
-        authMode={session.authMode}
-        currentUserId={session.currentUserId}
-        health={health.data}
-        healthError={health.error}
-        loading={health.loading}
-        mode={session.dataMode}
-        onRefresh={() => void health.reload()}
-        warnings={session.warnings}
-      />
-
       <CardBase>
-        <Text style={styles.sectionTitle}>登录态</Text>
-        <Text style={styles.about}>
-          当前模式：{session.authMode === "auth" ? "api-auth / Bearer token" : "api-demo / X-Current-User-Id"}
-        </Text>
-        <Text style={styles.about}>
-          当前用户：{session.authSession.user?.nickname ?? session.authSession.user?.email ?? currentUser.name}
-        </Text>
-        <Text style={styles.about}>Access Token：{session.authSession.accessTokenPreview}</Text>
-        <Text style={styles.about}>
-          Refresh Token：{session.authSession.refreshTokenStored ? "已安全保存摘要，不展示完整 token" : "未保存"}
-        </Text>
-        <View style={styles.actions}>
-          <Pressable style={styles.secondaryButton} onPress={() => router.push("/login")}>
-            <Text style={styles.secondaryButtonText}>打开登录页</Text>
-          </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => void session.authSession.logout()}>
-            <Text style={styles.secondaryButtonText}>退出登录</Text>
-          </Pressable>
-        </View>
-      </CardBase>
+        <Pressable onPress={() => setDebugOpen((value) => !value)} style={styles.debugHeader}>
+          <Text style={styles.sectionTitle}>开发者调试</Text>
+          <StatusBadge label={debugOpen ? "收起" : "展开"} tone="plain" />
+        </Pressable>
+        <Text style={styles.about}>调试信息仅用于本地联调，普通用户无需查看。</Text>
+        {debugOpen ? (
+          <View style={styles.debugContent}>
+            <BackendStatusCard
+              accessTokenPreview={session.authSession.accessTokenPreview}
+              apiBaseUrl={session.apiBaseUrl}
+              authMode={session.authMode}
+              currentUserId={session.currentUserId}
+              health={health.data}
+              healthError={health.error}
+              loading={health.loading}
+              mode={session.dataMode}
+              onRefresh={() => void health.reload()}
+              warnings={session.warnings}
+            />
 
-      <CardBase>
-        <Text style={styles.sectionTitle}>Agent API 状态</Text>
-        <View style={styles.badgeWrap}>
-          <StatusBadge label="daily_health_brief 已接入" tone="mint" />
-          <StatusBadge label="symptom_draft_create 已接入" tone="mint" />
-          <StatusBadge label="medical_event_draft_create 已接入" tone="mint" />
-          <StatusBadge label="alert_create 已接入" tone="mint" />
-        </View>
-        <Text style={styles.about}>预览不会写入，确认后只会创建待确认草稿或普通健康提醒。</Text>
-        <Text style={styles.about}>草稿正式确认入库仍未完整接入移动端。</Text>
-        <Text style={styles.about}>LangGraph 尚未实现。</Text>
-        <Text style={styles.about}>真实 OCR provider、RAG 持久化索引、embedding/vector DB 仍未实现。</Text>
+            <CardBase>
+              <Text style={styles.sectionTitle}>登录状态</Text>
+              <Text style={styles.about}>
+                当前模式：{session.authMode === "auth" ? "api-auth / Bearer token" : "api-demo / X-Current-User-Id"}
+              </Text>
+              <Text style={styles.about}>
+                当前用户：{session.authSession.user?.nickname ?? session.authSession.user?.email ?? currentUser.name}
+              </Text>
+              <Text style={styles.about}>Access Token：{session.authSession.accessTokenPreview}</Text>
+              <View style={styles.actions}>
+                <Pressable style={styles.secondaryButton} onPress={() => router.push("/login")}>
+                  <Text style={styles.secondaryButtonText}>打开登录页</Text>
+                </Pressable>
+                <Pressable style={styles.secondaryButton} onPress={() => void session.authSession.logout()}>
+                  <Text style={styles.secondaryButtonText}>退出登录</Text>
+                </Pressable>
+              </View>
+            </CardBase>
+
+            <CardBase>
+              <Text style={styles.sectionTitle}>Agent 能力状态</Text>
+              <View style={styles.badgeWrap}>
+                <StatusBadge label="daily_health_brief 已接入" tone="mint" />
+                <StatusBadge label="chat 健康查询已接入" tone="mint" />
+                <StatusBadge label="写入 workflow 需确认" tone="mint" />
+                <StatusBadge label="LangGraph 可选关闭" tone="plain" />
+              </View>
+              <Text style={styles.about}>预览不会写入；确认后只会创建待确认草稿或普通健康提醒。</Text>
+              <Text style={styles.about}>草稿正式确认入库仍未完整接入移动端。</Text>
+              <Text style={styles.about}>LangGraph 仅为后端可选编排增强；真实生产配置仍需后续部署验收。</Text>
+            </CardBase>
+          </View>
+        ) : null}
       </CardBase>
 
       <CardBase>
@@ -143,11 +149,14 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 6
   },
-  debugHeading: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "900",
-    marginTop: 4
+  debugContent: {
+    gap: 12,
+    marginTop: 12
+  },
+  debugHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
   },
   sectionTitle: {
     color: colors.text,

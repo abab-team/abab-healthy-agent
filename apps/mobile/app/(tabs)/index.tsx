@@ -3,22 +3,30 @@ import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
 import { CardBase } from "@/components/cards/CardBase";
-import { MemberHealthCard } from "@/components/cards/MemberHealthCard";
 import { QuickActionGrid } from "@/components/cards/QuickActionGrid";
-import { TodoItem } from "@/components/cards/TodoItem";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
-import { ApiModeBadge } from "@/components/common/ApiModeBadge";
-import { MockDataBadge } from "@/components/common/MockDataBadge";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
-import { currentUser, members as demoMembers, recentActivities, todos } from "@/constants/mockData";
-import { useApiResource } from "@/hooks/useApiResource";
+import { currentUser, reminders } from "@/constants/mockData";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
 import type { AgentRunResponse } from "@/types/api";
+
+const todayMetrics = [
+  { label: "睡眠", value: "6.8 小时", note: "最近 7 天记录", icon: "moon-outline", tone: "blue" },
+  { label: "步数", value: "6,420", note: "今日演示数据", icon: "footsteps-outline", tone: "mint" },
+  { label: "心率", value: "72 次/分", note: "最近一次记录", icon: "heart-outline", tone: "purple" },
+  { label: "血压", value: "120/78", note: "系统内最近记录", icon: "pulse-outline", tone: "orange" }
+] as const;
+
+const familySummary = [
+  "爸爸：最近有血压记录摘要",
+  "妈妈：有一个复查提醒",
+  "家庭共享：按成员权限展示"
+];
 
 function shortId(id: string): string {
   return id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-6)}` : id;
@@ -27,102 +35,57 @@ function shortId(id: string): string {
 export default function HomeScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
-  const overview = useApiResource(() => provider.getFamilyOverview(), [session.currentUserId]);
   const [brief, setBrief] = useState<AgentRunResponse | null>(null);
   const [briefError, setBriefError] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
 
-  const displayMembers = overview.data?.members ?? [];
-  const cardMembers =
-    displayMembers.length > 0
-      ? displayMembers.map((member, index) => ({
-          avatar: demoMembers[index]?.avatar ?? "👤",
-          hrefId: member.user_id,
-          name: member.display_name,
-          status: member.share_status,
-          tone: (index === 0 ? "mint" : index === 1 ? "blue" : "orange") as "mint" | "blue" | "orange"
-        }))
-      : demoMembers.map((member) => ({
-          avatar: member.avatar,
-          hrefId: member.id,
-          name: member.name,
-          status: member.status,
-          tone: member.cardTone as "mint" | "blue" | "orange"
-        }));
+  async function runBrief() {
+    setBriefLoading(true);
+    setBriefError(null);
+    const result = await provider.runDailyHealthBrief(session.currentUserId);
+    setBriefLoading(false);
+    if (result.ok && result.data) {
+      setBrief(result.data);
+    } else {
+      setBriefError(result.error?.message ?? "简报生成失败，请稍后再试。");
+    }
+  }
 
   return (
     <AppScreen>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerCopy}>
           <Text style={styles.greeting}>早上好，{currentUser.name}</Text>
-          <Text style={styles.subtitle}>根据系统内记录，整理家庭健康事项。</Text>
+          <Text style={styles.subtitle}>这是你的系统内健康记录概览，仅供日常整理，不替代医生判断。</Text>
         </View>
-        <StatusBadge label={overview.data?.family.name ?? currentUser.familyName} tone="mint" />
+        <StatusBadge label={session.dataMode === "api" ? "API 数据" : "演示数据"} tone="mint" />
       </View>
 
-      <CardBase>
-        <SectionHeader title="家庭今日概览" action={session.dataMode === "api" ? "系统数据" : "演示数据"} />
-        <ApiModeBadge mode={overview.data?.source ?? session.dataMode} />
-        {overview.loading ? <Text style={styles.hint}>正在读取家庭概览...</Text> : null}
-        {overview.error ? <ApiErrorState message={overview.error} /> : null}
-        {!overview.loading && !overview.error && cardMembers.length === 0 ? (
-          <Text style={styles.hint}>系统内暂无家庭成员记录。</Text>
-        ) : null}
-        <View style={styles.memberGrid}>
-          {cardMembers.map((member) => (
-            <MemberHealthCard
-              key={member.hrefId}
-              avatar={member.avatar}
-              href={routes.member(member.hrefId)}
-              name={member.name}
-              status={member.status}
-              tone={member.tone}
-            />
+      <CardBase style={styles.heroCard}>
+        <SectionHeader title="我的今日状态" action="基于系统内记录" />
+        <View style={styles.metricGrid}>
+          {todayMetrics.map((metric) => (
+            <View key={metric.label} style={[styles.metricCard, styles[metric.tone]]}>
+              <Ionicons name={metric.icon} size={22} color={colors.primaryDark} />
+              <Text style={styles.metricLabel}>{metric.label}</Text>
+              <Text style={styles.metricValue}>{metric.value}</Text>
+              <Text style={styles.metricNote}>{metric.note}</Text>
+            </View>
           ))}
         </View>
-        {overview.data?.mockSections.length ? <Text style={styles.hint}>当前展示为演示数据。</Text> : null}
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="今日待办" action="演示中" />
-        <MockDataBadge />
-        {todos.map((todo) => (
-          <TodoItem
-            key={todo.id}
-            action={todo.action}
-            description={todo.description}
-            href={todo.id === "todo-draft" ? routes.drafts : routes.member(todo.id === "todo-review" ? "mom" : "dad")}
-            icon={todo.icon as keyof typeof Ionicons.glyphMap}
-            title={todo.title}
-            tone={todo.tone as "mint" | "orange" | "purple"}
-          />
-        ))}
-      </CardBase>
-
-      <CardBase style={styles.briefCard}>
         <SectionHeader title="AI 今日简报" action={session.dataMode === "api" ? "已接入" : "演示中"} />
-        <Text style={styles.hint}>根据系统内记录生成简报，不替代医生意见或治疗建议。</Text>
-        <Pressable
-          style={styles.button}
-          onPress={async () => {
-            setBriefLoading(true);
-            setBriefError(null);
-            const result = await provider.runDailyHealthBrief(session.currentUserId);
-            setBriefLoading(false);
-            if (result.ok && result.data) {
-              setBrief(result.data);
-            } else {
-              setBriefError(result.error?.message ?? "生成失败");
-            }
-          }}
-        >
-          <Text style={styles.buttonText}>{briefLoading ? "生成中..." : "生成今日简报"}</Text>
+        <Text style={styles.paragraph}>整理今天和最近几天的系统内记录；不会给出诊断、处方或用药剂量建议。</Text>
+        <Pressable style={styles.primaryButton} onPress={runBrief}>
+          <Text style={styles.primaryButtonText}>{briefLoading ? "正在整理..." : "生成今日健康简报"}</Text>
         </Pressable>
         {briefError ? <ApiErrorState message={briefError} /> : null}
         {brief ? (
-          <View style={styles.briefResult}>
-            <Text style={styles.hint}>Trace ID：{shortId(brief.trace_id)}</Text>
-            <Text style={styles.briefText}>{brief.generated_content}</Text>
+          <View style={styles.resultBox}>
+            <Text style={styles.resultTitle}>Trace：{shortId(brief.trace_id)}</Text>
+            <Text style={styles.paragraph}>{brief.generated_content}</Text>
             <Link href={routes.agentRun(brief.trace_id)} style={styles.link}>
               查看执行详情
             </Link>
@@ -131,59 +94,38 @@ export default function HomeScreen() {
       </CardBase>
 
       <CardBase>
+        <SectionHeader title="我的关注提醒" action="普通健康提醒" />
+        {reminders.map((item) => (
+          <Text key={item.id} style={styles.listItem}>
+            {item.title} · {item.time}
+          </Text>
+        ))}
+        <Text style={styles.smallNote}>提醒不是急救服务。如遇紧急情况，请联系医生或当地急救服务。</Text>
+      </CardBase>
+
+      <CardBase>
         <SectionHeader title="快速记录" action="演示模式" />
-        <MockDataBadge label="演示模式，不会提交真实数据" />
+        <Text style={styles.paragraph}>演示模式下不会提交真实数据；API 模式下写入仍需要 preview / confirm。</Text>
         <QuickActionGrid />
       </CardBase>
 
       <CardBase>
-        <SectionHeader title="最近动态" action="演示中" />
-        <MockDataBadge />
-        {recentActivities.map((item, index) => (
-          <Link key={item} href={routes.activity(`activity-${index + 1}`)}>
-            <Text style={styles.activity}>{item}</Text>
-          </Link>
+        <SectionHeader title="家庭轻摘要" action="查看家庭" />
+        {familySummary.map((item) => (
+          <Text key={item} style={styles.listItem}>
+            {item}
+          </Text>
         ))}
+        <Link href={routes.family} style={styles.link}>
+          进入家庭页
+        </Link>
       </CardBase>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  activity: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    color: colors.textMuted,
-    fontSize: 13,
-    paddingVertical: 12
-  },
-  briefCard: {
-    backgroundColor: "#e9fbf7"
-  },
-  briefResult: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    marginTop: 12,
-    padding: 12
-  },
-  briefText: {
-    color: colors.text,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 8
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    marginTop: 12,
-    paddingVertical: 11
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "800",
-    textAlign: "center"
-  },
+  blue: { backgroundColor: colors.blue },
   greeting: {
     color: colors.text,
     fontSize: 23,
@@ -195,10 +137,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingTop: 8
   },
-  hint: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 10
+  headerCopy: {
+    flex: 1,
+    paddingRight: 12
+  },
+  heroCard: {
+    backgroundColor: "#e9fbf7"
   },
   link: {
     color: colors.primaryDark,
@@ -206,14 +150,83 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 10
   },
-  memberGrid: {
+  listItem: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 20,
+    paddingVertical: 11
+  },
+  metricCard: {
+    borderRadius: 16,
+    padding: 12,
+    width: "48%"
+  },
+  metricGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
-    marginTop: 14
+    marginTop: 12
+  },
+  metricLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 8
+  },
+  metricNote: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 4
+  },
+  metricValue: {
+    color: colors.text,
+    fontSize: 19,
+    fontWeight: "900",
+    marginTop: 3
+  },
+  mint: { backgroundColor: colors.mint },
+  orange: { backgroundColor: colors.orange },
+  paragraph: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 8
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    marginTop: 12,
+    paddingVertical: 12
+  },
+  primaryButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  purple: { backgroundColor: colors.purple },
+  resultBox: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: 14,
+    marginTop: 12,
+    padding: 12
+  },
+  resultTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  smallNote: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8
   },
   subtitle: {
     color: colors.textMuted,
     fontSize: 13,
+    lineHeight: 19,
     marginTop: 7
   }
 });

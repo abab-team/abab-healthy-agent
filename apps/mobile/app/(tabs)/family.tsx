@@ -6,6 +6,7 @@ import { FamilyMemberCard } from "@/components/cards/FamilyMemberCard";
 import { PermissionSummaryCard } from "@/components/cards/PermissionSummaryCard";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ApiModeBadge } from "@/components/common/ApiModeBadge";
+import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
@@ -36,7 +37,10 @@ export default function FamilyScreen() {
   return (
     <AppScreen>
       <View style={styles.header}>
-        <Text style={styles.title}>我的家庭</Text>
+        <View>
+          <Text style={styles.title}>家庭</Text>
+          <Text style={styles.subtitle}>成员、共享权限和家人记录入口。</Text>
+        </View>
         <Link href={routes.inviteMember}>
           <StatusBadge label="+ 邀请成员" tone="mint" />
         </Link>
@@ -45,42 +49,41 @@ export default function FamilyScreen() {
       <CardBase style={styles.hero}>
         <View style={styles.heroCopy}>
           <Text style={styles.familyName}>{familyName}</Text>
-          <Text style={styles.familySummary}>{displayMembers.length} 位成员 · 共同守护家人健康</Text>
+          <Text style={styles.familySummary}>{displayMembers.length} 位成员 · 按权限共享系统内记录</Text>
           <ApiModeBadge mode={overview.data?.source ?? session.dataMode} />
-          <Text style={styles.avatars}>{demoMembers.map((member) => member.avatar).join("  ")}  ＋</Text>
         </View>
-        <Ionicons name="home-outline" size={74} color="#8dddc9" />
+        <Ionicons name="home-outline" size={48} color="#8dddc9" />
       </CardBase>
 
       {overview.loading ? <Text style={styles.hint}>正在读取家庭成员...</Text> : null}
       {overview.error ? <ApiErrorState message={overview.error} /> : null}
-      {!overview.loading && !overview.error && displayMembers.length === 0 ? (
-        <Text style={styles.hint}>系统内暂无家庭成员记录。</Text>
-      ) : null}
 
-      {displayMembers.map((member, index) => (
-        <FamilyMemberCard
-          key={member.id}
-          avatar={demoMembers[index]?.avatar ?? "👤"}
-          id={member.user_id}
-          name={member.display_name}
-          recentRecord={overview.data?.source === "api" ? "系统内记录摘要 · 后端只读接口" : demoMembers[index]?.recentRecord ?? "演示记录"}
-          relation={member.relationship_label}
-          shareStatus={member.share_status}
-        />
-      ))}
+      <CardBase>
+        <SectionHeader title="成员列表" action="点击查看详情" />
+        {displayMembers.map((member, index) => (
+          <FamilyMemberCard
+            key={member.id}
+            avatar={demoMembers[index]?.avatar ?? "👤"}
+            id={member.user_id}
+            name={member.display_name}
+            recentRecord={overview.data?.source === "api" ? "系统内记录摘要 · 后端只读接口" : demoMembers[index]?.recentRecord ?? "演示记录"}
+            relation={member.relationship_label}
+            shareStatus={member.share_status}
+          />
+        ))}
+        {!overview.loading && !overview.error && displayMembers.length === 0 ? (
+          <Text style={styles.hint}>系统内暂无家庭成员记录。</Text>
+        ) : null}
+      </CardBase>
 
       <PermissionSummaryCard />
-      <Text style={styles.hint}>
-        {session.dataMode === "api" ? "成员与家庭信息来自后端；权限概览为演示摘要。" : "当前展示为演示数据。"}
-      </Text>
 
       <Link href={routes.inviteMember}>
         <CardBase style={styles.inviteCard}>
           <Ionicons name="person-add-outline" size={26} color={colors.primary} />
           <View style={styles.inviteCopy}>
             <Text style={styles.inviteTitle}>邀请成员</Text>
-            <Text style={styles.inviteText}>邀请家人加入，一起管理健康记录。</Text>
+            <Text style={styles.inviteText}>邀请家人加入后，再按成员设置共享权限。</Text>
           </View>
           <StatusBadge label="去邀请" tone="mint" />
         </CardBase>
@@ -90,19 +93,16 @@ export default function FamilyScreen() {
 }
 
 const styles = StyleSheet.create({
-  avatars: {
-    fontSize: 30,
-    marginTop: 18
-  },
   familyName: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "900"
   },
   familySummary: {
     color: colors.textMuted,
-    fontSize: 14,
-    marginTop: 8
+    fontSize: 13,
+    marginBottom: 10,
+    marginTop: 6
   },
   header: {
     alignItems: "center",
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#dff8ef",
     flexDirection: "row",
     justifyContent: "space-between",
-    minHeight: 150
+    minHeight: 112
   },
   heroCopy: {
     flex: 1
@@ -123,6 +123,7 @@ const styles = StyleSheet.create({
   hint: {
     color: colors.textMuted,
     fontSize: 12,
+    lineHeight: 18,
     marginHorizontal: 4
   },
   inviteCard: {
@@ -142,6 +143,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 17,
     fontWeight: "800"
+  },
+  subtitle: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 6
   },
   title: {
     color: colors.text,

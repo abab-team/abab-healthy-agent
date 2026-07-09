@@ -1,6 +1,7 @@
 import type { Href } from "expo-router";
 export const routes = {
   home: "/" as Href,
+  archive: "/archive" as Href,
   family: "/family" as Href,
   agent: "/agent" as Href,
   settings: "/settings" as Href,

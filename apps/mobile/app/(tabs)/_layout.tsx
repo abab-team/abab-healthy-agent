@@ -4,9 +4,10 @@ import { colors } from "@/constants/colors";
 
 const tabs = [
   { name: "index", title: "首页", icon: "home" },
+  { name: "archive", title: "档案", icon: "folder-open" },
   { name: "family", title: "家庭", icon: "people" },
-  { name: "agent", title: "AI 管家", icon: "hardware-chip" },
-  { name: "settings", title: "设置", icon: "settings" }
+  { name: "agent", title: "AI 管家", icon: "chatbubble-ellipses" },
+  { name: "settings", title: "我的", icon: "person-circle" }
 ] as const;
 
 export default function TabLayout() {
@@ -16,11 +17,11 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.tabInactive,
-        tabBarLabelStyle: { fontSize: 12, fontWeight: "700" },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 68,
+          height: 70,
           paddingBottom: 10,
           paddingTop: 8
         }
