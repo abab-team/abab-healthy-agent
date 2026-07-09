@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from app.agent import service as agent_service
 from app.agent.answer_composer import LLMAnswerComposer
 from app.agent.chat import HealthQueryIntent, HealthQueryPlan, parse_health_query
-from app.agent.enums import AgentWorkflowName
+from app.agent.critic import AnswerCriticService, CriticReviewRequest, ToolResultSummary
+from app.agent.enums import AgentSafetyLevel, AgentWorkflowName
 from app.agent.langgraph.adapter import LangGraphExecutionAdapter
 from app.agent.memory import service as memory_service
 from app.agent.planner import LLMPlannerService
@@ -37,6 +39,7 @@ class ChatHealthQueryWorkflow:
         graph_adapter: LangGraphExecutionAdapter | None = None,
         planner_service: LLMPlannerService | None = None,
         answer_composer: LLMAnswerComposer | None = None,
+        critic_service: AnswerCriticService | None = None,
     ) -> None:
         if executor is None:
             executor = AgentToolExecutor(register_health_query_tools(AgentToolRegistry()))
@@ -45,6 +48,7 @@ class ChatHealthQueryWorkflow:
         self.graph_adapter = graph_adapter or LangGraphExecutionAdapter(self.settings)
         self.planner_service = planner_service or LLMPlannerService(settings=self.settings)
         self.answer_composer = answer_composer or LLMAnswerComposer(settings=self.settings)
+        self.critic_service = critic_service or AnswerCriticService(settings=self.settings)
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         result = self.graph_adapter.run_chat_health_query(
@@ -55,6 +59,7 @@ class ChatHealthQueryWorkflow:
                 settings=self.settings,
                 planner_service=self.planner_service,
                 answer_composer=self.answer_composer,
+                critic_service=self.critic_service,
             ),
         )
         return AgentWorkflowResult(
@@ -79,6 +84,7 @@ def run_chat_health_query(
     settings=None,
     planner_service: LLMPlannerService | None = None,
     answer_composer: LLMAnswerComposer | None = None,
+    critic_service: AnswerCriticService | None = None,
 ) -> ChatHealthQueryExecution:
     memory_context = memory_service.load_session_context(
         context.db,
@@ -97,6 +103,14 @@ def run_chat_health_query(
         plan = planner_result.plan
     if plan.is_unknown or not plan.tool_name:
         answer = "\n".join([_unknown_or_clarification_message(plan), SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
+        answer = _review_answer(
+            context,
+            critic_service,
+            plan=plan,
+            answer=answer,
+            safe_tool_result_summary="[]",
+            tool_result_summaries=(),
+        )
         _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
 
@@ -114,6 +128,14 @@ def run_chat_health_query(
             safe_tool_result_summary=_safe_result_summary(results),
             user_question_excerpt=context.request.user_message,
         )
+        answer = _review_answer(
+            context,
+            critic_service,
+            plan=plan,
+            answer=answer,
+            safe_tool_result_summary=_safe_result_summary(results),
+            tool_result_summaries=_tool_result_summaries(results),
+        )
         _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=len(results))
 
@@ -125,6 +147,14 @@ def run_chat_health_query(
         fallback_answer=answer,
         safe_tool_result_summary=_safe_result_summary([result]),
         user_question_excerpt=context.request.user_message,
+    )
+    answer = _review_answer(
+        context,
+        critic_service,
+        plan=plan,
+        answer=answer,
+        safe_tool_result_summary=_safe_result_summary([result]),
+        tool_result_summaries=_tool_result_summaries([result]),
     )
     _record_session_messages(context, plan, answer)
     return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=1)
@@ -217,6 +247,48 @@ def _maybe_compose_answer(
     return result.answer
 
 
+def _review_answer(
+    context: AgentWorkflowContext,
+    critic_service: AnswerCriticService | None,
+    *,
+    plan: HealthQueryPlan,
+    answer: str,
+    safe_tool_result_summary: str,
+    tool_result_summaries: tuple[ToolResultSummary, ...],
+) -> str:
+    critic = critic_service or AnswerCriticService(settings=get_settings())
+    review = critic.review(
+        CriticReviewRequest(
+            workflow_type=AgentWorkflowName.CHAT_WORKFLOW.value,
+            user_question_excerpt=context.request.user_message[:300],
+            draft_answer=answer,
+            safe_tool_result_summary=safe_tool_result_summary,
+            tool_result_summaries=tool_result_summaries,
+            plan_intent=plan.intent.value,
+            time_range_label=plan.time_range.label,
+        )
+    )
+    trace = agent_service.get_trace(context.db, context.trace_id)
+    if trace is not None:
+        agent_service.record_safety_check(
+            context.db,
+            request_id=trace.request_id,
+            workflow_name=AgentWorkflowName.CHAT_WORKFLOW,
+            safety_level=AgentSafetyLevel.SAFE if review.passed else AgentSafetyLevel.BLOCKED,
+            passed=review.passed,
+            intent="critic_review",
+            safety_flags=(review.risk_flags + review.grounding_flags)[:20],
+            blocked_reason=None if review.passed else review.summary[:300],
+            input_risk_summary=f"critic:{review.critic_source}",
+            original_answer_summary=answer[:200],
+            revised_answer_summary=(review.safe_rewrite or "")[:200] or None,
+            was_rewritten=review.rewrite_required,
+        )
+    if review.rewrite_required and review.safe_rewrite:
+        return review.safe_rewrite
+    return answer
+
+
 def _safe_result_summary(results: list[ToolExecutionResult]) -> str:
     parts = []
     for result in results:
@@ -232,6 +304,23 @@ def _safe_result_summary(results: list[ToolExecutionResult]) -> str:
             }
         )
     return str(parts)[:1200]
+
+
+def _tool_result_summaries(results: list[ToolExecutionResult]) -> tuple[ToolResultSummary, ...]:
+    summaries: list[ToolResultSummary] = []
+    for result in results:
+        data = result.output_data or {}
+        count = data.get("count") or (data.get("summary") or {}).get("count")
+        summaries.append(
+            ToolResultSummary(
+                tool_name=result.tool_name,
+                status=result.status,
+                blocked=result.blocked,
+                count=int(count) if isinstance(count, int) or (isinstance(count, str) and count.isdigit()) else None,
+                coverage_note=data.get("coverage_note"),
+            )
+        )
+    return tuple(summaries)
 
 
 def _compose_single_tool_answer(plan: HealthQueryPlan, result: ToolExecutionResult) -> str:

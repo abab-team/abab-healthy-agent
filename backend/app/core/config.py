@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     DAILY_BRIEF_USE_LLM: bool = False
     LLM_PLANNER_ENABLED: bool = False
     LLM_ANSWER_COMPOSER_ENABLED: bool = False
+    RULE_CRITIC_ENABLED: bool = True
+    LLM_CRITIC_ENABLED: bool = False
     LLM_PLANNER_CONFIDENCE_THRESHOLD: float = 0.75
     PROMPT_REGISTRY_ENABLED: bool = True
     RAG_ENABLED: bool = False

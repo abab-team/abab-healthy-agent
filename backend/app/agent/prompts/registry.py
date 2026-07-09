@@ -114,16 +114,21 @@ def _load_default_prompts() -> dict[str, PromptTemplate]:
         PromptTemplate(
             name="critic",
             version="v1",
-            description="Check generated answers for medical-safety and grounding risks.",
-            input_schema={
-                "answer": {"type": "string", "required": True},
-                "safe_sources_summary": {"type": "string", "required": False},
-            },
-            output_schema={
-                "passed": {"type": "boolean", "required": True},
-                "reason_code": {"type": "string", "required": False},
-                "safe_rewrite": {"type": "string", "required": False},
-            },
+              description="Check generated answers for medical-safety and grounding risks.",
+              input_schema={
+                  "user_question_excerpt": {"type": "string", "required": False},
+                  "safe_tool_result_summary": {"type": "string", "required": True},
+                  "draft_answer": {"type": "string", "required": True},
+                  "policy_excerpt": {"type": "string", "required": True},
+              },
+              output_schema={
+                  "passed": {"type": "boolean", "required": True},
+                  "risk_flags": {"type": "array", "required": False},
+                  "grounding_flags": {"type": "array", "required": False},
+                  "rewrite_required": {"type": "boolean", "required": False},
+                  "safe_rewrite": {"type": "string", "required": False},
+                  "summary": {"type": "string", "required": False},
+              },
             safety_notes=(
                 "Reject diagnosis, prescription, dosage, medication-stop advice, and certainty claims.",
                 "Reject answers not grounded in safe tool results.",

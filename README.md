@@ -1,5 +1,17 @@
 # Family Health Agent
 
+## Current Status Summary (after Phase 21)
+
+The project has completed **Phase 21: Reflection / Critic**.
+
+- Phase 20 added Prompt Registry, controlled LLM Planner, plan validation, and optional answer composition.
+- Phase 21 adds a rule-first answer critic layer for `chat_workflow`.
+- The critic checks medical safety boundaries, system-record coverage, permission-block wording, debug leakage, and simple count grounding.
+- Unsafe or insufficiently grounded answers are rewritten with a safe system-record-only response before final output safety.
+- `RULE_CRITIC_ENABLED=true` by default; `LLM_CRITIC_ENABLED=false` by default.
+- The critic does not query DB, call tools, write business data, choose users, or bypass ToolExecutor / Permission / SafetyPolicy.
+- General tool execution remains closed. Frontend must not pass `tool_name` / `input_data`.
+
 ## 当前状态摘要（Phase 20 后）
 
 当前已完成到 **Phase 20：Prompt Registry + LLM-assisted Planner**。

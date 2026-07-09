@@ -1,5 +1,16 @@
 # LLM Client Design
 
+## Phase 21 Reflection / Critic Supplement
+
+Phase 21 adds an answer critic layer after draft answer composition and before final output safety.
+
+- Rule critic is enabled by default with `RULE_CRITIC_ENABLED=true`.
+- Optional LLM critic is disabled by default with `LLM_CRITIC_ENABLED=false`.
+- The critic receives only a user-question excerpt, a safe tool-result summary, and the draft answer.
+- The critic must not receive raw OCR, file paths, raw prompts, raw LLM responses, token/key/password values, traceback, SQL, or full sensitive health text.
+- The critic does not query DB, call tools, write business data, decide user/family identity, or override permissions.
+- If review fails, a safe rewrite is used and then final output safety still runs.
+
 ## Phase 20 Prompt Registry 与 Planner 补充
 
 Phase 20 在 LLM Client 底座之上新增版本化 Prompt Registry 与受控 LLM Planner。

@@ -1,5 +1,17 @@
 # Phase Progress
 
+## Current Status Summary (after Phase 21)
+
+Current source of truth: the project has completed **Phase 21: Reflection / Critic**.
+
+- Phase 18: mobile information architecture alignment completed.
+- Phase 19: Agent memory foundation completed.
+- Phase 20: Prompt Registry and controlled LLM Planner completed.
+- Phase 21: rule-first answer critic, optional LLM critic switch, safe rewrite, and critic safety-check trace summary completed.
+- Defaults remain conservative: `RULE_CRITIC_ENABLED=true`, `LLM_CRITIC_ENABLED=false`, `LLM_PLANNER_ENABLED=false`, `LLM_ANSWER_COMPOSER_ENABLED=false`.
+- The critic does not query DB, call tools, write data, choose `current_user_id` / `family_id` / `target_user_id`, or bypass ToolExecutor / Permission / SafetyPolicy.
+- Next phase: Phase 22, stateful LangGraph orchestration, only if it preserves existing safety and permission boundaries.
+
 ## 当前状态摘要（Phase 20 后）
 
 当前项目已完成到 **Phase 20：Prompt Registry + LLM-assisted Planner**。
