@@ -1,5 +1,19 @@
 # Family Health Agent
 
+## Current Status Summary (after Phase 24)
+
+The project has completed **Phase 24: Free Text Record and Doctor Visit Summary Workflows**.
+
+- Added `free_text_record_workflow` as a controlled Agent workflow for one-sentence health notes.
+- Preview mode does not write business data; confirm mode creates only a pending health-record draft through the existing ToolExecutor path.
+- Added `doctor_visit_summary_workflow` as a read-only doctor-visit preparation package based on system records.
+- The doctor summary uses read-only tools for blood pressure, symptoms, medical events, documents, and alerts, and does not write reports, drafts, or formal health facts.
+- Existing public workflow aliases remain unchanged: `symptom_draft_create`, `medical_event_draft_create`, and `alert_create` still map to their controlled Phase 08 workflows.
+- No generic tool execution was opened, and frontend callers still must not pass `tool_name` or `input_data`.
+- No new migration/model was added; no LLM, LangGraph, or Memory path directly queries DB, calls tools, or writes data.
+- All Agent-facing health text remains based on system records and must not replace doctor judgment.
+- Next phase: Phase 25, archive trends and data import foundation.
+
 ## Current Status Summary (after Phase 21)
 
 The project has completed **Phase 21: Reflection / Critic**.

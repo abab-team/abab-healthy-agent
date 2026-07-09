@@ -1,5 +1,20 @@
 # Phase Progress
 
+## Current Status Summary (after Phase 24)
+
+Current source of truth: the project has completed **Phase 24: Free Text Record and Doctor Visit Summary Workflows**.
+
+- Phase 24 adds `free_text_record_workflow` for controlled one-sentence health note drafting.
+- Preview mode records no formal business data; confirm mode creates only a pending health-record draft through the existing ToolExecutor and service boundary.
+- Phase 24 adds `doctor_visit_summary_workflow` as a read-only preparation package based on system records.
+- Doctor summary generation uses read-only tools for blood pressure, symptoms, medical events, documents, and alerts.
+- The workflow output is only a system-record summary for communication preparation and does not provide medical judgment or treatment instructions.
+- Existing controlled workflow aliases remain stable: `symptom_draft_create`, `medical_event_draft_create`, and `alert_create`.
+- No generic tool execution, `tool_name`, or `input_data` entry point was opened.
+- No LLM, LangGraph, or Memory path directly queries DB, directly calls tools, or writes business data.
+- No migration/model was added in this phase.
+- Next phase: Phase 25, archive trends and data import foundation.
+
 ## Current Status Summary (after Phase 21)
 
 Current source of truth: the project has completed **Phase 21: Reflection / Critic**.

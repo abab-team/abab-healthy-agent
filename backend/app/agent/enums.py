@@ -15,14 +15,17 @@ class AgentWorkflowName(StrEnum):
     # 2. 类方法只处理与该类型强相关的局部行为。
     # 3. 跨对象编排应放在 service、workflow 或 policy 中。
     CHAT_WORKFLOW = "chat_workflow"
+    SYMPTOM_DRAFT_CREATE_WORKFLOW = "symptom_draft_create_workflow"
     # 枚举说明：FREE_TEXT_RECORD_WORKFLOW 是该枚举允许出现的一个业务取值。
     FREE_TEXT_RECORD_WORKFLOW = "free_text_record_workflow"
     # 枚举说明：DOCUMENT_EXTRACT_WORKFLOW 是该枚举允许出现的一个业务取值。
     DOCUMENT_EXTRACT_WORKFLOW = "document_extract_workflow"
+    MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW = "medical_event_draft_create_workflow"
     # 枚举说明：DAILY_REPORT_WORKFLOW 是该枚举允许出现的一个业务取值。
     DAILY_REPORT_WORKFLOW = "daily_report_workflow"
     # 枚举说明：DOCTOR_VISIT_SUMMARY_WORKFLOW 是该枚举允许出现的一个业务取值。
     DOCTOR_VISIT_SUMMARY_WORKFLOW = "doctor_visit_summary_workflow"
+    ALERT_CREATE_WORKFLOW = "alert_create_workflow"
     # 枚举说明：HEALTH_KNOWLEDGE_QA_WORKFLOW 是该枚举允许出现的一个业务取值。
     HEALTH_KNOWLEDGE_QA_WORKFLOW = "health_knowledge_qa_workflow"
     DAILY_HEALTH_BRIEF = "daily_health_brief"

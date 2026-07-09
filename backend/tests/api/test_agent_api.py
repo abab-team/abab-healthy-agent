@@ -90,6 +90,67 @@ class AgentApiTestCase(unittest.TestCase):
         for term in UNSAFE_TERMS:
             self.assertNotIn(term, response.text.lower())
 
+    def test_free_text_record_workflow_preview_and_confirm_through_api(self) -> None:
+        preview_before = self._draft_counts()
+        preview_response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="free_text_record_workflow",
+                user_message="Record a mild headache after a long screen day.",
+                confirmation=False,
+            ),
+        )
+        self.assertEqual(preview_response.status_code, 201)
+        self.assertEqual(preview_response.json()["workflow_type"], "free_text_record_workflow")
+        self.assertIn("preview", preview_response.json()["generated_content"].lower())
+        self.assertEqual(preview_before, self._draft_counts())
+
+        confirm_response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="free_text_record_workflow",
+                user_message="Record a mild headache after a long screen day.",
+                confirmation=True,
+            ),
+        )
+
+        self.assertEqual(confirm_response.status_code, 201)
+        self.assertEqual(confirm_response.json()["workflow_type"], "free_text_record_workflow")
+        self.assertIn("formal_health_fact_created=false", confirm_response.json()["generated_content"])
+        counts = self._draft_counts()
+        self.assertEqual(counts["health_record_drafts"], 1)
+        self.assertEqual(counts["symptom_records"], 0)
+        for term in UNSAFE_TERMS + ("record a mild headache",):
+            self.assertNotIn(term, confirm_response.text.lower())
+
+    def test_doctor_visit_summary_workflow_runs_readonly_through_api(self) -> None:
+        before = self._draft_counts()
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.target["id"],
+                family_id=self.family["id"],
+                workflow_type="doctor_visit_summary_workflow",
+                user_message="Prepare records for a clinician visit based on system records.",
+                workflow_payload={"days": 30, "limit": 10},
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["workflow_type"], "doctor_visit_summary_workflow")
+        self.assertEqual(body["status"], "completed")
+        self.assertEqual(body["tool_calls_count"], 5)
+        self.assertIn("based on system records only", body["generated_content"].lower())
+        self.assertEqual(self._draft_counts(), before)
+        for term in UNSAFE_TERMS:
+            self.assertNotIn(term, response.text.lower())
+
     def test_chat_workflow_can_run_through_api(self) -> None:
         response = client.post(
             "/api/v1/agent/runs",

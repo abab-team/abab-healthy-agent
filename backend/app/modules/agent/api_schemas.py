@@ -34,12 +34,16 @@ CHAT_WORKFLOW = "chat"
 SYMPTOM_DRAFT_CREATE_WORKFLOW = "symptom_draft_create"
 MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW = "medical_event_draft_create"
 ALERT_CREATE_WORKFLOW = "alert_create"
+FREE_TEXT_RECORD_WORKFLOW = "free_text_record_workflow"
+DOCTOR_VISIT_SUMMARY_WORKFLOW = "doctor_visit_summary_workflow"
 ALLOWED_WORKFLOW_TYPES = {
     DAILY_HEALTH_BRIEF_WORKFLOW,
     CHAT_WORKFLOW,
     SYMPTOM_DRAFT_CREATE_WORKFLOW,
     MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW,
     ALERT_CREATE_WORKFLOW,
+    FREE_TEXT_RECORD_WORKFLOW,
+    DOCTOR_VISIT_SUMMARY_WORKFLOW,
 }
 SENSITIVE_KEYS = {
     "access_token",
@@ -119,6 +123,13 @@ class AlertCreateWorkflowPayload(BaseModel):
     source: ShortText = None
 
 
+class DoctorVisitSummaryWorkflowPayload(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    days: int = Field(default=30, ge=1, le=365)
+    limit: int = Field(default=10, ge=1, le=50)
+
+
 def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, Any] | None:
     raw_payload = payload.workflow_payload or {}
     if payload.workflow_type == DAILY_HEALTH_BRIEF_WORKFLOW:
@@ -131,10 +142,14 @@ def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, An
         return None
     if payload.workflow_type == SYMPTOM_DRAFT_CREATE_WORKFLOW:
         return SymptomDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
+    if payload.workflow_type == FREE_TEXT_RECORD_WORKFLOW:
+        return SymptomDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
     if payload.workflow_type == MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW:
         return MedicalEventDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
     if payload.workflow_type == ALERT_CREATE_WORKFLOW:
         return _alert_payload_for_runtime(AlertCreateWorkflowPayload.model_validate(raw_payload))
+    if payload.workflow_type == DOCTOR_VISIT_SUMMARY_WORKFLOW:
+        return DoctorVisitSummaryWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
     raise ValueError("workflow_type is not available")
 
 

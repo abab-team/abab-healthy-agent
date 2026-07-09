@@ -15,9 +15,9 @@ SAFE_FAILED_MESSAGE = "Agent runtime could not execute this workflow safely in t
 SAFE_BLOCKED_MESSAGE = "Agent runtime blocked this request before workflow execution."
 CONTROLLED_WORKFLOW_ALIASES = {
     "chat": AgentWorkflowName.CHAT_WORKFLOW,
-    "symptom_draft_create": AgentWorkflowName.FREE_TEXT_RECORD_WORKFLOW,
-    "medical_event_draft_create": AgentWorkflowName.DOCUMENT_EXTRACT_WORKFLOW,
-    "alert_create": AgentWorkflowName.DOCTOR_VISIT_SUMMARY_WORKFLOW,
+    "symptom_draft_create": AgentWorkflowName.SYMPTOM_DRAFT_CREATE_WORKFLOW,
+    "medical_event_draft_create": AgentWorkflowName.MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW,
+    "alert_create": AgentWorkflowName.ALERT_CREATE_WORKFLOW,
 }
 
 

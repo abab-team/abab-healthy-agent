@@ -18,7 +18,7 @@ COMPLETED_MESSAGE = "Pending medical event draft created from confirmed user inp
 
 
 class MedicalEventDraftCreateWorkflow:
-    workflow_name = AgentWorkflowName.DOCUMENT_EXTRACT_WORKFLOW
+    workflow_name = AgentWorkflowName.MEDICAL_EVENT_DRAFT_CREATE_WORKFLOW
 
     def __init__(self, executor: AgentToolExecutor | None = None) -> None:
         if executor is None:

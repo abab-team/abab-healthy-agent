@@ -17,7 +17,7 @@ COMPLETED_MESSAGE = "Reminder alert created from confirmed user input."
 
 
 class AlertCreateWorkflow:
-    workflow_name = AgentWorkflowName.DOCTOR_VISIT_SUMMARY_WORKFLOW
+    workflow_name = AgentWorkflowName.ALERT_CREATE_WORKFLOW
 
     def __init__(self, executor: AgentToolExecutor | None = None) -> None:
         if executor is None:

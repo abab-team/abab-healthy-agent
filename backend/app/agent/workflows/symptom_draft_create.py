@@ -17,7 +17,7 @@ COMPLETED_MESSAGE = "Pending symptom draft created from confirmed user input."
 
 
 class SymptomDraftCreateWorkflow:
-    workflow_name = AgentWorkflowName.FREE_TEXT_RECORD_WORKFLOW
+    workflow_name = AgentWorkflowName.SYMPTOM_DRAFT_CREATE_WORKFLOW
 
     def __init__(self, executor: AgentToolExecutor | None = None) -> None:
         if executor is None:
