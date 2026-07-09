@@ -12,6 +12,16 @@ The project has completed **Phase 21: Reflection / Critic**.
 - The critic does not query DB, call tools, write business data, choose users, or bypass ToolExecutor / Permission / SafetyPolicy.
 - General tool execution remains closed. Frontend must not pass `tool_name` / `input_data`.
 
+## Current Status Summary (after Phase 22)
+
+The project has completed **Phase 22: Stateful LangGraph Orchestration**.
+
+- LangGraph remains optional and disabled by default.
+- `chat_workflow` can now run through a safe graph state pipeline with nodes for memory loading, input safety, rule parse, plan validation, permission gate delegation, tool execution delegation, answer composition, critic review, output safety, memory update, and trace recording.
+- Tool execution still happens only through the existing workflow and ToolExecutor.
+- LangGraph does not directly query DB, call tools, write health data, choose users, or bypass permission and safety checks.
+- Graph summaries are safe display summaries only and must not contain raw prompt, raw response, token/key/password, file path, OCR full text, SQL, traceback, `tool_name`, or `input_data`.
+
 ## 当前状态摘要（Phase 20 后）
 
 当前已完成到 **Phase 20：Prompt Registry + LLM-assisted Planner**。

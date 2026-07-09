@@ -12,6 +12,16 @@ Current source of truth: the project has completed **Phase 21: Reflection / Crit
 - The critic does not query DB, call tools, write data, choose `current_user_id` / `family_id` / `target_user_id`, or bypass ToolExecutor / Permission / SafetyPolicy.
 - Next phase: Phase 22, stateful LangGraph orchestration, only if it preserves existing safety and permission boundaries.
 
+## Current Status Summary (after Phase 22)
+
+Current source of truth: the project has completed **Phase 22: Stateful LangGraph Orchestration**.
+
+- Phase 22 upgrades the optional LangGraph adapter from a thin summary wrapper to a safe state-node pipeline for `chat_workflow`.
+- Implemented nodes include memory loading, input safety, rule parse, confidence routing, LLM-plan delegation marker, plan validation, clarification route, permission gate delegation, ToolExecutor-backed execution, answer composition, critic review, output safety, memory update, trace recording, and fallback.
+- Defaults remain conservative: `LANGGRAPH_ENABLED=false`, `LANGGRAPH_CHAT_QUERY_ENABLED=false`, `LANGGRAPH_STRICT_MODE=false`.
+- LangGraph does not directly query DB, call tools, write business data, choose user/family/target IDs, or bypass ToolExecutor / Permission / SafetyPolicy.
+- Next phase: Phase 23, Agent Evaluation harness.
+
 ## 当前状态摘要（Phase 20 后）
 
 当前项目已完成到 **Phase 20：Prompt Registry + LLM-assisted Planner**。

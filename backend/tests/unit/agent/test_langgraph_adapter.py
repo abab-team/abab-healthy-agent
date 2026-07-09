@@ -11,6 +11,7 @@ os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{TEST_DB_PATH.as_posi
 
 from app.agent import service as agent_service  # noqa: E402
 from app.agent.enums import AgentWorkflowName  # noqa: E402
+import app.agent.langgraph.adapter as adapter_module  # noqa: E402
 from app.agent.langgraph import HealthAgentGraphState, LangGraphExecutionAdapter, validate_no_sensitive_state  # noqa: E402
 from app.agent.runtime import AgentRuntime  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
@@ -62,7 +63,7 @@ class LangGraphAdapterTestCase(unittest.TestCase):
             user_message_excerpt="sleep summary",
             safety_level="safe",
             intent="query_metrics",
-            tool_names=("health_data.metric.summary",),
+            tool_results_summary=({"status": "completed", "count": 1},),
             node_summary=("input_safety", "parse_intent"),
             metadata={"graph": "chat_health_query_graph"},
         )
@@ -95,9 +96,39 @@ class LangGraphAdapterTestCase(unittest.TestCase):
 
         self.assertEqual(result.status, "completed")
         self.assertIn("chat_health_query_graph", joined)
-        self.assertIn("graph_nodes=input_safety", joined)
+        self.assertIn("graph_nodes=load_memory", joined)
+        self.assertIn("rule_parse", joined)
+        self.assertIn("critic_review", joined)
+        self.assertIn("trace_record", joined)
         self.assertNotIn("raw_text", joined)
         self.assertNotIn("tool_name", joined)
+
+    def test_chat_graph_falls_back_when_graph_node_fails(self) -> None:
+        settings = Settings(LANGGRAPH_ENABLED=True, LANGGRAPH_CHAT_QUERY_ENABLED=True, LANGGRAPH_STRICT_MODE=False)
+        registry = AgentWorkflowRegistry()
+        registry.register(ChatHealthQueryWorkflow(settings=settings, graph_adapter=LangGraphExecutionAdapter(settings)))
+        original_node = adapter_module.nodes.load_memory_node
+
+        def failing_node(state):  # noqa: ANN001
+            raise RuntimeError("node failed")
+
+        adapter_module.nodes.load_memory_node = failing_node
+        try:
+            result = AgentRuntime(registry).run(
+                self.db,
+                AgentRunRequest(
+                    actor_user_id=self.actor_user_id,
+                    target_user_id=self.target_user_id,
+                    family_id=None,
+                    workflow_type=AgentWorkflowName.CHAT_WORKFLOW,
+                    user_message="hello",
+                    source="unit-test",
+                ),
+            )
+        finally:
+            adapter_module.nodes.load_memory_node = original_node
+
+        self.assertEqual(result.status, "completed")
 
     def test_graph_disabled_does_not_record_node_summary(self) -> None:
         settings = Settings(LANGGRAPH_ENABLED=False, LANGGRAPH_CHAT_QUERY_ENABLED=True)

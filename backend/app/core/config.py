@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     LANGGRAPH_ENABLED: bool = False
     LANGGRAPH_CHAT_QUERY_ENABLED: bool = False
     LANGGRAPH_DAILY_BRIEF_ENABLED: bool = False
+    LANGGRAPH_STRICT_MODE: bool = False
     LANGGRAPH_TRACE_NODE_SUMMARY: bool = True
     DOCUMENT_UPLOAD_ENABLED: bool = True
     DOCUMENT_MAX_UPLOAD_MB: int = 10

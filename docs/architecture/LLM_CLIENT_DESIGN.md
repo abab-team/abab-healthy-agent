@@ -11,6 +11,16 @@ Phase 21 adds an answer critic layer after draft answer composition and before f
 - The critic does not query DB, call tools, write business data, decide user/family identity, or override permissions.
 - If review fails, a safe rewrite is used and then final output safety still runs.
 
+## Phase 22 Stateful LangGraph Supplement
+
+Phase 22 keeps LangGraph optional and disabled by default while adding a stateful graph pipeline for `chat_workflow`.
+
+- `LANGGRAPH_ENABLED=false`, `LANGGRAPH_CHAT_QUERY_ENABLED=false`, and `LANGGRAPH_STRICT_MODE=false` by default.
+- Graph state stores only safe summaries: node names, intent label, plan status, permission delegation status, tool result counts, critic summary, final answer excerpt, and fallback reason.
+- Graph state must not store raw prompt, raw LLM response, token/key/password, file path, OCR full text, SQL, traceback, `tool_name`, or `input_data`.
+- Tool execution remains delegated to the existing workflow and ToolExecutor. LangGraph does not call tools directly.
+- If graph orchestration fails and strict mode is off, the workflow falls back to the deterministic runner.
+
 ## Phase 20 Prompt Registry 与 Planner 补充
 
 Phase 20 在 LLM Client 底座之上新增版本化 Prompt Registry 与受控 LLM Planner。
