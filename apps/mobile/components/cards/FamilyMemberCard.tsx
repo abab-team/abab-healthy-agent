@@ -11,7 +11,6 @@ type FamilyMemberCardProps = {
   name: string;
   relation: string;
   recentRecord: string;
-  shareStatus: string;
 };
 
 export function FamilyMemberCard({
@@ -19,8 +18,7 @@ export function FamilyMemberCard({
   avatar,
   name,
   relation,
-  recentRecord,
-  shareStatus
+  recentRecord
 }: FamilyMemberCardProps) {
   return (
     <CardBase style={styles.card}>
@@ -31,7 +29,6 @@ export function FamilyMemberCard({
           <StatusBadge label={relation} tone="mint" />
         </View>
         <Text style={styles.meta}>最近记录：{recentRecord}</Text>
-        <Text style={styles.meta}>共享：{shareStatus}</Text>
       </View>
       <Link href={`/member/${id}`}>
         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />

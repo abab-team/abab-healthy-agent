@@ -3,13 +3,11 @@ import { Link } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { FamilyMemberCard } from "@/components/cards/FamilyMemberCard";
-import { PermissionSummaryCard } from "@/components/cards/PermissionSummaryCard";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
-import { ApiModeBadge } from "@/components/common/ApiModeBadge";
-import { SectionHeader } from "@/components/common/SectionHeader";
+import { ScreenHeader } from "@/components/common/ScreenHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
-import { colors } from "@/constants/colors";
+import { theme } from "@/constants/theme";
 import { members as demoMembers } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
@@ -36,122 +34,66 @@ export default function FamilyScreen() {
 
   return (
     <AppScreen>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>家庭</Text>
-          <Text style={styles.subtitle}>成员、共享权限和家人记录入口。</Text>
-        </View>
-        <Link href={routes.inviteMember}>
-          <StatusBadge label="+ 邀请成员" tone="mint" />
-        </Link>
-      </View>
+      <ScreenHeader
+        subtitle="家人健康，一起守护。"
+        title="家庭"
+        trailing={<StatusBadge label={`${displayMembers.length} 位成员`} tone="mint" />}
+      />
 
       <CardBase style={styles.hero}>
         <View style={styles.heroCopy}>
           <Text style={styles.familyName}>{familyName}</Text>
-          <Text style={styles.familySummary}>{displayMembers.length} 位成员 · 按权限共享系统内记录</Text>
-          <ApiModeBadge mode={overview.data?.source ?? session.dataMode} />
+          <Text style={styles.familySummary}>共同管理家庭健康记录，让每一位成员的日常记录更有条理。</Text>
+          <Text style={styles.caption}>家庭成员 {displayMembers.length} 人</Text>
         </View>
-        <Ionicons name="home-outline" size={48} color="#8dddc9" />
+        <View style={styles.homeIllustration}>
+          <Ionicons color="#FFFFFF" name="home" size={37} />
+        </View>
       </CardBase>
 
-      {overview.loading ? <Text style={styles.hint}>正在读取家庭成员...</Text> : null}
+      <View style={styles.listHeader}>
+        <View>
+          <Text style={styles.sectionTitle}>家庭成员</Text>
+          <Text style={styles.sectionCaption}>点击成员卡片，查看个人资料与其共享范围。</Text>
+        </View>
+        <Ionicons color={theme.colors.primaryDark} name="people-outline" size={22} />
+      </View>
+      {overview.loading ? <Text style={styles.hint}>正在读取家庭成员…</Text> : null}
       {overview.error ? <ApiErrorState message={overview.error} /> : null}
-
-      <CardBase>
-        <SectionHeader title="成员列表" action="点击查看详情" />
+      <View style={styles.memberList}>
         {displayMembers.map((member, index) => (
           <FamilyMemberCard
             key={member.id}
             avatar={demoMembers[index]?.avatar ?? "👤"}
             id={member.user_id}
             name={member.display_name}
-            recentRecord={overview.data?.source === "api" ? "系统内记录摘要 · 后端只读接口" : demoMembers[index]?.recentRecord ?? "演示记录"}
+            recentRecord={overview.data?.source === "api" ? "系统内已有记录摘要" : demoMembers[index]?.recentRecord ?? "演示记录"}
             relation={member.relationship_label}
-            shareStatus={member.share_status}
           />
         ))}
-        {!overview.loading && !overview.error && displayMembers.length === 0 ? (
-          <Text style={styles.hint}>系统内暂无家庭成员记录。</Text>
-        ) : null}
-      </CardBase>
+      </View>
+      {!overview.loading && !overview.error && displayMembers.length === 0 ? <Text style={styles.hint}>系统内暂无家庭成员记录。</Text> : null}
 
-      <PermissionSummaryCard />
-
-      <Link href={routes.inviteMember}>
-        <CardBase style={styles.inviteCard}>
-          <Ionicons name="person-add-outline" size={26} color={colors.primary} />
-          <View style={styles.inviteCopy}>
-            <Text style={styles.inviteTitle}>邀请成员</Text>
-            <Text style={styles.inviteText}>邀请家人加入后，再按成员设置共享权限。</Text>
-          </View>
-          <StatusBadge label="去邀请" tone="mint" />
-        </CardBase>
+      <Link href={routes.inviteMember} style={styles.inviteButton}>
+        <Ionicons color={theme.colors.primaryDark} name="person-add-outline" size={21} />
+        <Text style={styles.inviteText}>邀请家庭成员</Text>
       </Link>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  familyName: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "900"
-  },
-  familySummary: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: 10,
-    marginTop: 6
-  },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: 8
-  },
-  hero: {
-    alignItems: "center",
-    backgroundColor: "#dff8ef",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 112
-  },
-  heroCopy: {
-    flex: 1
-  },
-  hint: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    marginHorizontal: 4
-  },
-  inviteCard: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12
-  },
-  inviteCopy: {
-    flex: 1
-  },
-  inviteText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 4
-  },
-  inviteTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "800"
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 6
-  },
-  title: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: "900"
-  }
+  caption: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900", marginTop: 15 },
+  familyName: { color: theme.colors.ink, fontSize: 23, fontWeight: "900" },
+  familySummary: { color: theme.colors.subtle, fontSize: 13, lineHeight: 20, marginTop: 7 },
+  hero: { alignItems: "center", backgroundColor: theme.colors.tealSoft, flexDirection: "row", justifyContent: "space-between", minHeight: 150 },
+  heroCopy: { flex: 1, paddingRight: 10 },
+  hint: { color: theme.colors.subtle, fontSize: 13, lineHeight: 20 },
+  homeIllustration: { alignItems: "center", backgroundColor: theme.colors.primary, borderRadius: 28, height: 64, justifyContent: "center", width: 64 },
+  inviteButton: { alignItems: "center", borderColor: theme.colors.primary, borderRadius: theme.radius.pill, borderWidth: 1, color: theme.colors.primaryDark, flexDirection: "row", gap: 8, justifyContent: "center", minHeight: 50, paddingHorizontal: 18 },
+  inviteText: { color: theme.colors.primaryDark, fontSize: 15, fontWeight: "900" },
+  listHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
+  memberList: { gap: 10 },
+  sectionCaption: { color: theme.colors.subtle, fontSize: 12, marginTop: 4 },
+  sectionTitle: { color: theme.colors.ink, fontSize: theme.type.section, fontWeight: "900" }
 });

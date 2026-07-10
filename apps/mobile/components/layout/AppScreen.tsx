@@ -1,13 +1,14 @@
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors } from "@/constants/colors";
+import { theme } from "@/constants/theme";
 
 type AppScreenProps = PropsWithChildren<{
   scroll?: boolean;
+  footer?: ReactNode;
 }>;
 
-export function AppScreen({ children, scroll = true }: AppScreenProps) {
+export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
   const content = <View style={styles.content}>{children}</View>;
 
   return (
@@ -19,6 +20,7 @@ export function AppScreen({ children, scroll = true }: AppScreenProps) {
       ) : (
         content
       )}
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </SafeAreaView>
   );
 }
@@ -26,13 +28,21 @@ export function AppScreen({ children, scroll = true }: AppScreenProps) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background
+    backgroundColor: theme.colors.canvas
   },
   content: {
     flex: 1,
-    paddingHorizontal: 18,
-    paddingBottom: 96,
-    gap: 14
+    gap: theme.spacing.lg,
+    paddingBottom: 118,
+    paddingHorizontal: theme.spacing.lg
+  },
+  footer: {
+    backgroundColor: theme.colors.canvas,
+    borderTopColor: theme.colors.line,
+    borderTopWidth: 1,
+    paddingBottom: 8,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: 9
   },
   scrollContent: {
     flexGrow: 1

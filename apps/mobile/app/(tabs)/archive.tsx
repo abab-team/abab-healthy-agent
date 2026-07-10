@@ -1,87 +1,46 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
-import { SectionHeader } from "@/components/common/SectionHeader";
+import { TrendCard } from "@/components/cards/TrendCard";
+import { ApiErrorState } from "@/components/common/ApiErrorState";
+import { Period, PeriodSelector } from "@/components/common/PeriodSelector";
+import { ScreenHeader } from "@/components/common/ScreenHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
-import { colors } from "@/constants/colors";
-import { dataMode } from "@/lib/apiConfig";
+import { theme } from "@/constants/theme";
+import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
-import type { ArchiveTrendSeries, ArchiveTrends, ImportPreviewResult, ImportPreviewRow } from "@/types/api";
-
-const sampleImportRows: ImportPreviewRow[] = [
-  {
-    measured_at: "2026-07-01T08:00:00Z",
-    metric_type: "weight",
-    unit: "kg",
-    value_numeric: 62.5
-  },
-  {
-    measured_at: "2026-07-02T20:00:00Z",
-    metric_type: "steps",
-    unit: "steps",
-    value_numeric: 6400
-  },
-  {
-    diastolic: 78,
-    measured_at: "2026-07-03T07:30:00Z",
-    metric_type: "blood_pressure",
-    pulse: 70,
-    systolic: 120
-  }
-];
+import type { ArchiveTrends } from "@/types/api";
 
 const timeline = [
-  "今天：系统内整理了长期档案趋势入口。",
-  "昨天：新增普通健康提醒记录，提醒不是急救。",
-  "5 月 14 日：保存症状草稿，等待用户确认。",
-  "5 月 13 日：文档处理生成 OCR preview。"
-];
-
-function valueLabel(series: ArchiveTrendSeries): string {
-  const lastPoint = series.points[series.points.length - 1];
-  if (!lastPoint) {
-    return "系统内暂无记录";
-  }
-  if (series.metric_type === "blood_pressure" && lastPoint.systolic && lastPoint.diastolic) {
-    return `${lastPoint.systolic}/${lastPoint.diastolic}`;
-  }
-  const value = typeof lastPoint.value === "number" ? lastPoint.value.toLocaleString("zh-CN") : "-";
-  return series.unit ? `${value} ${series.unit}` : value;
-}
-
-function barWidth(series: ArchiveTrendSeries, index: number): `${number}%` {
-  const numericPoints = series.points
-    .map((point) => (typeof point.value === "number" ? point.value : point.systolic))
-    .filter((value): value is number => typeof value === "number");
-  const max = Math.max(...numericPoints, 1);
-  const value = numericPoints[index] ?? 0;
-  return `${Math.max(16, Math.min(100, (value / max) * 100))}%`;
-}
+  { date: "05-14", detail: "7.2 小时", icon: "moon-outline", title: "睡眠记录" },
+  { date: "05-13", detail: "118/76 mmHg", icon: "pulse-outline", title: "血压记录" },
+  { date: "05-12", detail: "62.2 kg", icon: "scale-outline", title: "体重记录" },
+  { date: "05-11", detail: "轻微头痛，已保存为记录草稿", icon: "create-outline", title: "症状记录" },
+  { date: "05-10", detail: "复查相关事项已整理", icon: "calendar-outline", title: "健康事件" },
+  { date: "05-09", detail: "年度体检报告", icon: "document-text-outline", title: "文档上传" }
+] as const;
 
 export default function ArchiveScreen() {
-  const provider = useMemo(() => getDataProvider(), []);
+  const session = useDemoSession();
+  const provider = useMemo(() => getDataProvider(session.currentUserId), [session.currentUserId]);
+  const [period, setPeriod] = useState<Period>("30天");
   const [trends, setTrends] = useState<ArchiveTrends | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [importResult, setImportResult] = useState<ImportPreviewResult | null>(null);
-  const [importLoading, setImportLoading] = useState<"preview" | "confirm" | null>(null);
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
     provider.getArchiveTrends().then((result) => {
-      if (!active) {
-        return;
-      }
+      if (!active) return;
       if (result.ok && result.data) {
         setTrends(result.data);
         setError(null);
       } else {
-        setError(result.error?.message ?? "档案趋势加载失败。");
+        setError(result.error?.message ?? "健康档案暂时无法加载。");
       }
       setLoading(false);
     });
@@ -90,335 +49,90 @@ export default function ArchiveScreen() {
     };
   }, [provider]);
 
-  async function runImportPreview() {
-    setImportLoading("preview");
-    const result = await provider.previewHealthDataImport(sampleImportRows);
-    setImportResult(result.ok && result.data ? result.data : null);
-    setError(result.ok ? null : result.error?.message ?? "导入预览失败。");
-    setImportLoading(null);
-  }
-
-  async function runImportConfirm() {
-    setImportLoading("confirm");
-    const result = await provider.confirmHealthDataImport(sampleImportRows);
-    setImportResult(result.ok && result.data ? result.data : null);
-    setError(result.ok ? null : result.error?.message ?? "确认导入失败。");
-    setImportLoading(null);
-  }
-
-  const series = trends?.series ?? [];
+  const preferredTrendSeries = ["sleep_duration", "blood_pressure", "weight"]
+    .map((metricType) => trends?.series.find((series) => series.metric_type === metricType))
+    .filter((series): series is NonNullable<typeof series> => Boolean(series));
 
   return (
     <AppScreen>
-      <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>健康档案</Text>
-          <Text style={styles.subtitle}>长期整理系统内记录，不替代医生判断。</Text>
+      <ScreenHeader subtitle="长期记录、趋势与重要健康资料。" title="健康档案" trailing={<StatusBadge label="个人档案" tone="mint" />} />
+
+      <CardBase style={styles.trendSection}>
+        <View style={styles.trendHeading}>
+          <View>
+            <Text style={styles.sectionTitle}>长期趋势</Text>
+            <Text style={styles.sectionCaption}>基于系统内已有记录整理，不作医学判断。</Text>
+          </View>
+          {loading ? <Text style={styles.loading}>加载中</Text> : null}
         </View>
-        <StatusBadge label={dataMode === "api" ? "API 数据" : "演示数据"} tone="mint" />
+        <PeriodSelector onChange={setPeriod} value={period} />
+        {error ? <ApiErrorState message={error} /> : null}
+        <View style={styles.trendCards}>
+          {preferredTrendSeries.map((series) => <TrendCard key={series.metric_type} series={series} />)}
+        </View>
+        {!loading && !error && preferredTrendSeries.length === 0 ? <Text style={styles.empty}>系统内暂无趋势记录。</Text> : null}
+      </CardBase>
+
+      <View style={styles.timelineHeading}>
+        <View>
+          <Text style={styles.sectionTitle}>健康时间轴</Text>
+          <Text style={styles.sectionCaption}>把个人健康记录按时间串联起来。</Text>
+        </View>
+        <Text style={styles.allRecords}>查看全部记录</Text>
+      </View>
+      <View style={styles.timeline}>
+        {timeline.map((item, index) => (
+          <View key={`${item.date}-${item.title}`} style={styles.timelineItem}>
+            <View style={styles.timelineRail}>
+              <View style={[styles.timelineDot, index === 0 ? styles.timelineDotActive : null]}>
+                <Ionicons color="#FFFFFF" name={item.icon} size={10} />
+              </View>
+              {index < timeline.length - 1 ? <View style={styles.timelineLine} /> : null}
+            </View>
+            <View style={styles.timelineCopy}>
+              <Text style={styles.timelineDate}>{item.date}</Text>
+              <Text style={styles.timelineTitle}>{item.title}</Text>
+              <Text style={styles.timelineDetail}>{item.detail}</Text>
+            </View>
+          </View>
+        ))}
       </View>
 
-      <CardBase>
-        <SectionHeader title="长期趋势" action={loading ? "加载中" : `${trends?.days ?? 90} 天`} />
-        <Text style={styles.paragraph}>{trends?.disclaimer ?? "基于系统内记录整理，不替代医生判断。"}</Text>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <View style={styles.metricGrid}>
-          {series.map((item) => (
-            <View key={item.metric_type} style={styles.metricCard}>
-              <View style={styles.metricHeader}>
-                <Text style={styles.metricLabel}>{item.label}</Text>
-                <Text style={styles.metricCount}>{item.count} 条</Text>
-              </View>
-              <Text style={styles.metricValue}>{valueLabel(item)}</Text>
-              <Text style={styles.metricNote}>{item.summary}</Text>
-              <View style={styles.sparkline}>
-                {item.points.slice(-6).map((point, index) => (
-                  <View key={`${item.metric_type}-${point.measured_at}`} style={styles.sparkTrack}>
-                    <View style={[styles.sparkFill, { width: barWidth(item, index) }]} />
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
+      <Link href={routes.documents} style={styles.documentCard}>
+        <View style={styles.documentIcon}><Ionicons color={theme.colors.primaryDark} name="document-text-outline" size={24} /></View>
+        <View style={styles.documentCopy}>
+          <Text style={styles.documentTitle}>体检报告与文档</Text>
+          <Text style={styles.documentNote}>查看个人资料与安全摘要预览。</Text>
         </View>
-      </CardBase>
-
-      <CardBase>
-        <SectionHeader title="CSV / Excel 导入基础" action={dataMode === "api" ? "可预览 / 确认" : "演示模式"} />
-        <Text style={styles.paragraph}>
-          导入先做字段映射与校验预览；预览不会写入，确认后只写入通过校验的系统记录。
-        </Text>
-        <View style={styles.importRows}>
-          {sampleImportRows.map((row) => (
-            <View key={`${row.metric_type}-${row.measured_at}`} style={styles.importRow}>
-              <Text style={styles.importMetric}>{row.metric_type}</Text>
-              <Text style={styles.importValue}>
-                {row.metric_type === "blood_pressure"
-                  ? `${row.systolic}/${row.diastolic}`
-                  : `${row.value_numeric} ${row.unit ?? ""}`}
-              </Text>
-            </View>
-          ))}
-        </View>
-        <View style={styles.actionRow}>
-          <Pressable
-            accessibilityRole="button"
-            disabled={importLoading !== null}
-            onPress={runImportPreview}
-            style={[styles.actionButton, styles.secondaryButton]}
-          >
-            <Text style={styles.secondaryButtonText}>{importLoading === "preview" ? "预览中" : "导入预览"}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            disabled={importLoading !== null}
-            onPress={runImportConfirm}
-            style={styles.actionButton}
-          >
-            <Text style={styles.actionButtonText}>{importLoading === "confirm" ? "确认中" : "确认导入"}</Text>
-          </Pressable>
-        </View>
-        {importResult ? (
-          <View style={styles.importResult}>
-            <Text style={styles.resultTitle}>{importResult.will_write ? "确认完成" : "预览完成"}</Text>
-            <Text style={styles.resultText}>
-              总行数 {importResult.total_count}，通过 {importResult.valid_count}，需处理 {importResult.invalid_count}。
-            </Text>
-            <Text style={styles.resultText}>
-              {importResult.will_write
-                ? `已创建 ${importResult.created_records_count ?? 0} 条系统记录。`
-                : "本次预览没有写入任何正式健康数据。"}
-            </Text>
-            <Text style={styles.resultText}>{importResult.disclaimer}</Text>
-          </View>
-        ) : null}
-      </CardBase>
-
-      <CardBase>
-        <SectionHeader title="健康时间轴" action="系统内记录" />
-        {timeline.map((item) => (
-          <Text key={item} style={styles.timelineItem}>
-            {item}
-          </Text>
-        ))}
-      </CardBase>
-
-      <CardBase>
-        <SectionHeader title="资料与草稿入口" />
-        <View style={styles.linkGrid}>
-          <Link href={routes.documents} style={styles.linkCard}>
-            <Ionicons name="document-text-outline" size={24} color={colors.primary} />
-            <Text style={styles.linkTitle}>文档资料</Text>
-            <Text style={styles.linkNote}>查看上传资料与 OCR preview。</Text>
-          </Link>
-          <Link href={routes.drafts} style={styles.linkCard}>
-            <Ionicons name="clipboard-outline" size={24} color={colors.primary} />
-            <Text style={styles.linkTitle}>待确认草稿</Text>
-            <Text style={styles.linkNote}>正式确认入库仍走受控流程。</Text>
-          </Link>
-          <Link href={routes.createHealthEventDraft} style={styles.linkCard}>
-            <Ionicons name="calendar-number-outline" size={24} color={colors.primary} />
-            <Text style={styles.linkTitle}>健康事件</Text>
-            <Text style={styles.linkNote}>整理检查、复查与重要健康事项。</Text>
-          </Link>
-          <Link href={routes.createSymptomDraft} style={styles.linkCard}>
-            <Ionicons name="create-outline" size={24} color={colors.primary} />
-            <Text style={styles.linkTitle}>症状记录</Text>
-            <Text style={styles.linkNote}>先生成待确认草稿。</Text>
-          </Link>
-        </View>
-      </CardBase>
+        <Ionicons color={theme.colors.subtle} name="chevron-forward" size={20} />
+      </Link>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  actionButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    flex: 1,
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: 12
-  },
-  actionButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "900"
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 14
-  },
-  errorText: {
-    color: colors.warning,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 8
-  },
-  header: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: 8
-  },
-  headerText: {
-    flex: 1,
-    paddingRight: 12
-  },
-  importMetric: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "800"
-  },
-  importResult: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.border,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginTop: 14,
-    padding: 12
-  },
-  importRow: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 10
-  },
-  importRows: {
-    marginTop: 10
-  },
-  importValue: {
-    color: colors.textMuted,
-    fontSize: 13
-  },
-  linkCard: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-    width: "48%"
-  },
-  linkGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 12
-  },
-  linkNote: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4
-  },
-  linkTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "800",
-    marginTop: 8
-  },
-  metricCard: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-    width: "48%"
-  },
-  metricCount: {
-    color: colors.primaryDark,
-    fontSize: 12,
-    fontWeight: "800"
-  },
-  metricGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 12
-  },
-  metricHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  metricLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "700"
-  },
-  metricNote: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 6
-  },
-  metricValue: {
-    color: colors.text,
-    fontSize: 19,
-    fontWeight: "900",
-    marginTop: 6
-  },
-  paragraph: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 20
-  },
-  resultText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4
-  },
-  resultTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "900"
-  },
-  secondaryButton: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.primary,
-    borderWidth: 1
-  },
-  secondaryButtonText: {
-    color: colors.primaryDark,
-    fontSize: 14,
-    fontWeight: "900"
-  },
-  sparkFill: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    height: 6
-  },
-  sparkline: {
-    gap: 5,
-    marginTop: 10
-  },
-  sparkTrack: {
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 6,
-    overflow: "hidden"
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 6
-  },
-  timelineItem: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    color: colors.textMuted,
-    fontSize: 13,
-    paddingVertical: 11
-  },
-  title: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: "900"
-  }
+  allRecords: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
+  documentCard: { alignItems: "center", backgroundColor: theme.colors.blueSoft, borderColor: theme.colors.line, borderRadius: theme.radius.md, borderWidth: 1, color: theme.colors.ink, flexDirection: "row", gap: 12, padding: 15 },
+  documentCopy: { flex: 1 },
+  documentIcon: { alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 14, height: 46, justifyContent: "center", width: 46 },
+  documentNote: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  documentTitle: { color: theme.colors.ink, fontSize: 15, fontWeight: "900" },
+  empty: { color: theme.colors.subtle, fontSize: 13, paddingVertical: 10 },
+  loading: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "800" },
+  sectionCaption: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  sectionTitle: { color: theme.colors.ink, fontSize: theme.type.section, fontWeight: "900" },
+  timeline: { backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: theme.radius.md, borderWidth: 1, padding: 16 },
+  timelineCopy: { flex: 1, paddingBottom: 13 },
+  timelineDate: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
+  timelineDetail: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 3 },
+  timelineDot: { alignItems: "center", backgroundColor: "#7A9CEC", borderRadius: 9, height: 18, justifyContent: "center", width: 18 },
+  timelineDotActive: { backgroundColor: theme.colors.primary },
+  timelineHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+  timelineItem: { flexDirection: "row", gap: 12 },
+  timelineLine: { backgroundColor: theme.colors.line, flex: 1, marginVertical: 4, width: 2 },
+  timelineRail: { alignItems: "center", width: 18 },
+  timelineTitle: { color: theme.colors.ink, fontSize: 14, fontWeight: "800", marginTop: 3 },
+  trendCards: { gap: 10, marginTop: 2 },
+  trendHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  trendSection: { gap: 14 }
 });
