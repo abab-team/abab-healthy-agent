@@ -13,14 +13,38 @@ import type {
   ApiFamilyOverview,
   ApiMemberDetail,
   ApiResult,
+  BloodPressureRecord,
   ChatHealthQueryInput,
   DocumentPipelineDetail,
+  FamilyMember,
   HealthStatus,
+  HealthMetricRecord,
   ImportPreviewResult,
   ImportPreviewRow,
+  MedicalDocument,
   MedicalEventDraftInput,
+  SymptomRecord,
   SymptomDraftInput
 } from "@/types/api";
+
+export type MemberArchiveSection = "records" | "metrics" | "documents" | "ai";
+
+export type MemberArchiveSectionData = {
+  member: FamilyMember;
+  source: "mock" | "api";
+  bloodPressure: BloodPressureRecord[];
+  metrics: HealthMetricRecord[];
+  symptoms: SymptomRecord[];
+  documents: MedicalDocument[];
+  medicalEvents: Array<{ id: string; title?: string | null; event_type?: string | null; event_date?: string | null; hospital_or_org?: string | null }>;
+  profileSummary?: string;
+};
+
+export type PersonalHealthMetricsData = {
+  bloodPressure: BloodPressureRecord[];
+  metrics: HealthMetricRecord[];
+  source: "mock" | "api";
+};
 
 function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
@@ -95,6 +119,61 @@ async function getApiMemberDetail(id: string, currentUserId: string): Promise<Ap
   }
 }
 
+async function getApiMemberArchiveSection(
+  id: string,
+  section: MemberArchiveSection,
+  currentUserId: string
+): Promise<ApiResult<MemberArchiveSectionData>> {
+  const overview = await getApiFamilyOverview(currentUserId);
+  if (!overview.ok || !overview.data) {
+    return fail(overview.error?.message ?? "家庭资料加载失败");
+  }
+  const member = overview.data.members.find((item) => item.user_id === id || item.id === id);
+  if (!member) {
+    return fail(new Error("未找到该家庭成员"));
+  }
+  try {
+    const base: MemberArchiveSectionData = {
+      bloodPressure: [],
+      metrics: [],
+      documents: [],
+      medicalEvents: [],
+      member,
+      source: "api",
+      symptoms: []
+    };
+    const isSelf = member.user_id === currentUserId;
+    if (section === "metrics") {
+      const [bloodPressure, metrics] = await Promise.all(isSelf ? [
+        backendApi.getMyBloodPressureRecent(currentUserId),
+        backendApi.getMyRecentMetrics(currentUserId)
+      ] : [
+        backendApi.getFamilyMemberBloodPressureRecent(member.family_id, member.user_id, currentUserId),
+        backendApi.getFamilyMemberRecentMetrics(member.family_id, member.user_id, currentUserId)
+      ]);
+      base.bloodPressure = bloodPressure;
+      base.metrics = metrics;
+    } else if (section === "records") {
+      base.symptoms = isSelf ? await backendApi.getMyRecentSymptoms(currentUserId) : await backendApi.getFamilyMemberRecentSymptoms(member.family_id, member.user_id, currentUserId);
+    } else if (section === "documents") {
+      const [documents, medicalEvents] = await Promise.all(isSelf ? [
+        backendApi.listMyDocuments(currentUserId),
+        backendApi.listMyMedicalEvents(currentUserId)
+      ] : [
+        backendApi.listFamilyMemberDocuments(member.family_id, member.user_id, currentUserId),
+        backendApi.listFamilyMemberMedicalEvents(member.family_id, member.user_id, currentUserId)
+      ]);
+      base.documents = documents;
+      base.medicalEvents = medicalEvents;
+    } else {
+      base.profileSummary = (isSelf ? await backendApi.getMyHealthProfile(currentUserId) : await backendApi.getFamilyMemberHealthProfile(member.family_id, member.user_id, currentUserId)).summary;
+    }
+    return ok(base);
+  } catch (error) {
+    return fail<MemberArchiveSectionData>(error);
+  }
+}
+
 export function getDataProvider(currentUserId = defaultDemoUserId) {
   if (dataMode === "mock") {
     return {
@@ -136,7 +215,37 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           source: "mock"
         });
       },
+      getMemberArchiveSection: async (id: string, section: MemberArchiveSection) => {
+        const member = mockMembers.find((item) => item.id === id) ?? mockMembers[0];
+        const base: MemberArchiveSectionData = {
+          bloodPressure: section === "metrics" ? [
+            { diastolic: 78, id: "mock-bp-1", recorded_at: "2026-07-10T07:30:00", systolic: 120, user_id: member.id },
+            { diastolic: 76, id: "mock-bp-2", recorded_at: "2026-07-07T07:20:00", systolic: 118, user_id: member.id }
+          ] : [],
+          metrics: section === "metrics" ? [
+            { id: "mock-sleep-1", measured_at: "2026-07-10T22:00:00", metric_type: "sleep_duration", unit: "hours", user_id: member.id, value_numeric: 7.2 },
+            { id: "mock-weight-1", measured_at: "2026-07-10T07:00:00", metric_type: "weight", unit: "kg", user_id: member.id, value_numeric: 62.1 },
+            { id: "mock-steps-1", measured_at: "2026-07-10T20:00:00", metric_type: "steps", unit: "steps", user_id: member.id, value_numeric: 6100 }
+          ] : [],
+          documents: section === "documents" ? [{ ai_extract_status: "completed", created_at: "2026-07-08", file_name: "annual-checkup.pdf", id: "mock-document-1", title: "年度体检报告" }] : [],
+          medicalEvents: section === "documents" ? [{ event_date: "2026-06-28", event_type: "复查", id: "mock-event-1", title: "内科复查" }] : [],
+          member: { display_name: member.name, family_id: mockFamily.id, id: member.id, relationship_label: member.relation, share_status: member.shareStatus, user_id: member.id },
+          profileSummary: section === "ai" ? "系统内已有基础健康资料" : undefined,
+          source: "mock",
+          symptoms: section === "records" ? [{ id: "mock-symptom-1", recorded_at: "2026-07-09T10:30:00", summary: "已保存的症状记录摘要", title: "症状记录", user_id: member.id }] : []
+        };
+        return ok(base);
+      },
       getArchiveTrends: async () => mockApi.getArchiveTrends(),
+      getPersonalHealthMetrics: async () => ok<PersonalHealthMetricsData>({
+        bloodPressure: [{ diastolic: 78, id: "mock-self-bp-1", recorded_at: "2026-07-10T07:30:00", systolic: 120, user_id: "me" }],
+        metrics: [
+          { id: "mock-self-sleep-1", measured_at: "2026-07-10T22:00:00", metric_type: "sleep_duration", unit: "hours", user_id: "me", value_numeric: 7.2 },
+          { id: "mock-self-weight-1", measured_at: "2026-07-10T07:00:00", metric_type: "weight", unit: "kg", user_id: "me", value_numeric: 62.1 },
+          { id: "mock-self-steps-1", measured_at: "2026-07-10T20:00:00", metric_type: "steps", unit: "steps", user_id: "me", value_numeric: 6100 }
+        ],
+        source: "mock"
+      }),
       previewHealthDataImport: async (rows: ImportPreviewRow[]) => mockApi.previewHealthDataImport(rows),
       confirmHealthDataImport: async (rows: ImportPreviewRow[]) => mockApi.confirmHealthDataImport(rows),
       runDailyHealthBrief: async () => {
@@ -249,11 +358,23 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
     },
     getFamilyOverview: () => getApiFamilyOverview(currentUserId),
     getMemberDetail: (id: string) => getApiMemberDetail(id, currentUserId),
+    getMemberArchiveSection: (id: string, section: MemberArchiveSection) => getApiMemberArchiveSection(id, section, currentUserId),
     getArchiveTrends: async () => {
       try {
         return ok<ArchiveTrends>(await backendApi.getMyArchiveTrends(currentUserId));
       } catch (error) {
         return fail<ArchiveTrends>(error);
+      }
+    },
+    getPersonalHealthMetrics: async () => {
+      try {
+        const [bloodPressure, metrics] = await Promise.all([
+          backendApi.getMyBloodPressureRecent(currentUserId),
+          backendApi.getMyRecentMetrics(currentUserId)
+        ]);
+        return ok<PersonalHealthMetricsData>({ bloodPressure, metrics, source: "api" });
+      } catch (error) {
+        return fail<PersonalHealthMetricsData>(error);
       }
     },
     previewHealthDataImport: async (rows: ImportPreviewRow[]) => {

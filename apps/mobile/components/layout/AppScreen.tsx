@@ -1,3 +1,5 @@
+import { useCallback, useRef } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { PropsWithChildren, ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,12 +11,18 @@ type AppScreenProps = PropsWithChildren<{
 }>;
 
 export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
+  const scrollRef = useRef<ScrollView>(null);
+  useFocusEffect(useCallback(() => {
+    if (scroll) {
+      requestAnimationFrame(() => scrollRef.current?.scrollTo({ animated: false, y: 0 }));
+    }
+  }, [scroll]));
   const content = <View style={styles.content}>{children}</View>;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {content}
         </ScrollView>
       ) : (

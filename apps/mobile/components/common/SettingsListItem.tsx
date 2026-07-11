@@ -1,16 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/constants/theme";
 
 type SettingsListItemProps = {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
+  onPress?: () => void;
+  last?: boolean;
 };
 
-export function SettingsListItem({ title, description, icon }: SettingsListItemProps) {
+export function SettingsListItem({ title, description, icon, onPress, last = false }: SettingsListItemProps) {
   return (
-    <View style={styles.item}>
+    <Pressable disabled={!onPress} onPress={onPress} style={[styles.item, last ? styles.lastItem : null]}>
       <View style={styles.iconWrap}>
         <Ionicons name={icon} size={20} color={theme.colors.primary} />
       </View>
@@ -19,7 +21,7 @@ export function SettingsListItem({ title, description, icon }: SettingsListItemP
         <Text style={styles.description}>{description}</Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={theme.colors.subtle} />
-    </View>
+    </Pressable>
   );
 }
 
@@ -32,6 +34,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 15
   },
+  lastItem: { borderBottomWidth: 0 },
   copy: {
     flex: 1
   },

@@ -2,9 +2,18 @@ import type { Href } from "expo-router";
 export const routes = {
   home: "/" as Href,
   archive: "/archive" as Href,
+  archiveRecords: "/archive-records" as Href,
+  archiveMetrics: "/archive-metrics" as Href,
+  archiveMetric: (metric: string) => `/archive-metric/${metric}` as Href,
+  archiveAiSummary: "/archive-ai-summary" as Href,
   family: "/family" as Href,
   agent: "/agent" as Href,
   agentMemory: "/agent-memory" as Href,
+  profile: "/profile" as Href,
+  notificationSettings: "/notification-settings" as Href,
+  familySharingSettings: "/permission-settings" as Href,
+  privacySettings: "/privacy-settings" as Href,
+  about: "/about" as Href,
   settings: "/settings" as Href,
   drafts: "/drafts" as Href,
   agentBrief: "/agent-brief" as Href,
@@ -16,6 +25,8 @@ export const routes = {
   documents: "/documents" as Href,
   documentDetail: (id: string) => `/document/${id}` as Href,
   member: (id: string) => `/member/${id}` as Href,
+  memberSection: (id: string, section: string) => `/member/${id}/${section}` as Href,
+  memberMetric: (id: string, metric: string) => `/member/${id}/metric/${metric}` as Href,
   agentRun: (id: string) => `/agent-run/${id}` as Href,
   activity: (id: string) => `/activity/${id}` as Href
 };

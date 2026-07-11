@@ -1,138 +1,68 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Link } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { CardBase } from "@/components/cards/CardBase";
-import { TrendCard } from "@/components/cards/TrendCard";
+import { router } from "expo-router";
+import { useMemo } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ArchiveEntry, ArchiveEntryList } from "@/components/cards/ArchiveEntryList";
+import { ArchiveProfileCard } from "@/components/cards/ArchiveProfileCard";
+import { ArchiveRecentList } from "@/components/cards/ArchiveRecentList";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
-import { Period, PeriodSelector } from "@/components/common/PeriodSelector";
 import { ScreenHeader } from "@/components/common/ScreenHeader";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
+import { currentUser } from "@/constants/mockData";
+import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
-import type { ArchiveTrends } from "@/types/api";
-
-const timeline = [
-  { date: "05-14", detail: "7.2 小时", icon: "moon-outline", title: "睡眠记录" },
-  { date: "05-13", detail: "118/76 mmHg", icon: "pulse-outline", title: "血压记录" },
-  { date: "05-12", detail: "62.2 kg", icon: "scale-outline", title: "体重记录" },
-  { date: "05-11", detail: "轻微头痛，已保存为记录草稿", icon: "create-outline", title: "症状记录" },
-  { date: "05-10", detail: "复查相关事项已整理", icon: "calendar-outline", title: "健康事件" },
-  { date: "05-09", detail: "年度体检报告", icon: "document-text-outline", title: "文档上传" }
-] as const;
+import type { ApiResult, MedicalDocument } from "@/types/api";
 
 export default function ArchiveScreen() {
   const session = useDemoSession();
   const provider = useMemo(() => getDataProvider(session.currentUserId), [session.currentUserId]);
-  const [period, setPeriod] = useState<Period>("30天");
-  const [trends, setTrends] = useState<ArchiveTrends | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const memberDetail = useApiResource(() => provider.getMemberDetail(session.currentUserId), [session.currentUserId, session.dataMode]);
+  const documents = useApiResource<{ items: MedicalDocument[] }>(
+    () => provider.listDocuments() as Promise<ApiResult<{ items: MedicalDocument[] }>>,
+    [session.currentUserId, session.dataMode]
+  );
+  const documentCount = documents.data?.items.length ?? 3;
+  const name = memberDetail.data?.profile?.display_name ?? currentUser.name;
 
-  useEffect(() => {
-    let active = true;
-    provider.getArchiveTrends().then((result) => {
-      if (!active) return;
-      if (result.ok && result.data) {
-        setTrends(result.data);
-        setError(null);
-      } else {
-        setError(result.error?.message ?? "健康档案暂时无法加载。");
-      }
-      setLoading(false);
-    });
-    return () => {
-      active = false;
-    };
-  }, [provider]);
+  const entries: ArchiveEntry[] = [
+    { count: "1,284 条", description: "按日期查看健康记录与重要事件", icon: "calendar-outline", id: "records", onPress: () => router.push(routes.archiveRecords), title: "全部记录", tone: "mint" },
+    { count: "24 类指标", description: "血压 / 睡眠 / 体重 / 步数等", icon: "pulse-outline", id: "metrics", onPress: () => router.push(routes.archiveMetrics), title: "健康指标", tone: "purple" },
+    { count: `${documentCount} 份 · 18 次`, description: "体检报告、检查资料与就医历史", icon: "documents-outline", id: "documents", onPress: () => router.push(routes.documents), title: "医疗资料与就医历史", tone: "blue" },
+    { count: "6 条", description: "基于系统内记录的安全整理", icon: "sparkles-outline", id: "ai", onPress: () => router.push(routes.archiveAiSummary), title: "AI 整理", tone: "teal" }
+  ];
 
-  const preferredTrendSeries = ["sleep_duration", "blood_pressure", "weight"]
-    .map((metricType) => trends?.series.find((series) => series.metric_type === metricType))
-    .filter((series): series is NonNullable<typeof series> => Boolean(series));
+  const recentItems = [
+    { date: "7 月 8 日", detail: documents.data?.items[0]?.title ?? "年度体检报告.pdf", icon: "document-text-outline" as const, id: "document", title: "新增医疗资料", tone: "#75A5F5" },
+    { date: "6 月 28 日", detail: "三甲医院 · 内科", icon: "medical-outline" as const, id: "visit", title: "归档就医记录", tone: "#E89545" },
+    { date: "6 月 14 日", detail: "基于系统内资料整理", icon: "sparkles-outline" as const, id: "ai-summary", title: "更新 AI 整理", tone: theme.colors.primary }
+  ];
 
   return (
     <AppScreen>
-      <ScreenHeader subtitle="长期记录、趋势与重要健康资料。" title="健康档案" trailing={<StatusBadge label="个人档案" tone="mint" />} />
+      <ScreenHeader
+        subtitle="保存你的健康记录、资料和重要事件。"
+        title="健康档案"
+        trailing={
+          <Pressable onPress={() => undefined} style={styles.noticeButton}>
+            <Ionicons color={theme.colors.ink} name="notifications-outline" size={21} />
+            <View style={styles.noticeDot} />
+          </Pressable>
+        }
+      />
 
-      <CardBase style={styles.trendSection}>
-        <View style={styles.trendHeading}>
-          <View>
-            <Text style={styles.sectionTitle}>长期趋势</Text>
-            <Text style={styles.sectionCaption}>基于系统内已有记录整理，不作医学判断。</Text>
-          </View>
-          {loading ? <Text style={styles.loading}>加载中</Text> : null}
-        </View>
-        <PeriodSelector onChange={setPeriod} value={period} />
-        {error ? <ApiErrorState message={error} /> : null}
-        <View style={styles.trendCards}>
-          {preferredTrendSeries.map((series) => <TrendCard key={series.metric_type} series={series} />)}
-        </View>
-        {!loading && !error && preferredTrendSeries.length === 0 ? <Text style={styles.empty}>系统内暂无趋势记录。</Text> : null}
-      </CardBase>
-
-      <View style={styles.timelineHeading}>
-        <View>
-          <Text style={styles.sectionTitle}>健康时间轴</Text>
-          <Text style={styles.sectionCaption}>把个人健康记录按时间串联起来。</Text>
-        </View>
-        <Text style={styles.allRecords}>查看全部记录</Text>
-      </View>
-      <View style={styles.timeline}>
-        {timeline.map((item, index) => (
-          <View key={`${item.date}-${item.title}`} style={styles.timelineItem}>
-            <View style={styles.timelineRail}>
-              <View style={[styles.timelineDot, index === 0 ? styles.timelineDotActive : null]}>
-                <Ionicons color="#FFFFFF" name={item.icon} size={10} />
-              </View>
-              {index < timeline.length - 1 ? <View style={styles.timelineLine} /> : null}
-            </View>
-            <View style={styles.timelineCopy}>
-              <Text style={styles.timelineDate}>{item.date}</Text>
-              <Text style={styles.timelineTitle}>{item.title}</Text>
-              <Text style={styles.timelineDetail}>{item.detail}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <Link href={routes.documents} style={styles.documentCard}>
-        <View style={styles.documentIcon}><Ionicons color={theme.colors.primaryDark} name="document-text-outline" size={24} /></View>
-        <View style={styles.documentCopy}>
-          <Text style={styles.documentTitle}>体检报告与文档</Text>
-          <Text style={styles.documentNote}>查看个人资料与安全摘要预览。</Text>
-        </View>
-        <Ionicons color={theme.colors.subtle} name="chevron-forward" size={20} />
-      </Link>
+      <ArchiveProfileCard name={name} summary={memberDetail.data?.profile?.summary} />
+      {memberDetail.error ? <ApiErrorState message={memberDetail.error} /> : null}
+      <ArchiveEntryList entries={entries} />
+      {documents.error ? <ApiErrorState message={documents.error} /> : null}
+      <ArchiveRecentList items={recentItems} onViewAll={() => router.push(routes.documents)} title="最近归档" />
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  allRecords: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
-  documentCard: { alignItems: "center", backgroundColor: theme.colors.blueSoft, borderColor: theme.colors.line, borderRadius: theme.radius.md, borderWidth: 1, color: theme.colors.ink, flexDirection: "row", gap: 12, padding: 15 },
-  documentCopy: { flex: 1 },
-  documentIcon: { alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 14, height: 46, justifyContent: "center", width: 46 },
-  documentNote: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 4 },
-  documentTitle: { color: theme.colors.ink, fontSize: 15, fontWeight: "900" },
-  empty: { color: theme.colors.subtle, fontSize: 13, paddingVertical: 10 },
-  loading: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "800" },
-  sectionCaption: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 4 },
-  sectionTitle: { color: theme.colors.ink, fontSize: theme.type.section, fontWeight: "900" },
-  timeline: { backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: theme.radius.md, borderWidth: 1, padding: 16 },
-  timelineCopy: { flex: 1, paddingBottom: 13 },
-  timelineDate: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
-  timelineDetail: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 3 },
-  timelineDot: { alignItems: "center", backgroundColor: "#7A9CEC", borderRadius: 9, height: 18, justifyContent: "center", width: 18 },
-  timelineDotActive: { backgroundColor: theme.colors.primary },
-  timelineHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-  timelineItem: { flexDirection: "row", gap: 12 },
-  timelineLine: { backgroundColor: theme.colors.line, flex: 1, marginVertical: 4, width: 2 },
-  timelineRail: { alignItems: "center", width: 18 },
-  timelineTitle: { color: theme.colors.ink, fontSize: 14, fontWeight: "800", marginTop: 3 },
-  trendCards: { gap: 10, marginTop: 2 },
-  trendHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  trendSection: { gap: 14 }
+  noticeButton: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: theme.radius.pill, borderWidth: 1, height: 40, justifyContent: "center", position: "relative", width: 40 },
+  noticeDot: { backgroundColor: "#F05A5A", borderColor: "#FFFFFF", borderRadius: 5, borderWidth: 1, height: 9, position: "absolute", right: 8, top: 7, width: 9 }
 });

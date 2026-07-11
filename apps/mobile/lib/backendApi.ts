@@ -17,6 +17,7 @@ import type {
   Family,
   FamilyMember,
   HealthProfile,
+  HealthMetricRecord,
   HealthStatus,
   ImportPreviewResult,
   ImportPreviewRow,
@@ -122,6 +123,12 @@ export const backendApi = {
     return apiClient.get<BloodPressureRecord[]>(`/api/v1/health-data/me/blood-pressure/recent?days=${days}`, currentUserId);
   },
 
+  getMyRecentMetrics(currentUserId: string, days = 30) {
+    return apiClient
+      .get<{ items: HealthMetricRecord[] }>(`/api/v1/health-data/me/metrics/recent?days=${days}`, currentUserId)
+      .then((response) => response.items);
+  },
+
   getFamilyMemberBloodPressureRecent(familyId: string, targetUserId: string, currentUserId: string, days = 30) {
     return apiClient.get<BloodPressureRecord[]>(
       `/api/v1/families/${familyId}/members/${targetUserId}/health-data/blood-pressure/recent?days=${days}`,
@@ -138,6 +145,18 @@ export const backendApi = {
       `/api/v1/families/${familyId}/members/${targetUserId}/health-data/blood-pressure/summary?days=${days}`,
       currentUserId
     );
+  },
+
+  getFamilyMemberRecentMetrics(familyId: string, targetUserId: string, currentUserId: string, days = 30) {
+    return apiClient
+      .get<{ items: HealthMetricRecord[] }>(`/api/v1/families/${familyId}/members/${targetUserId}/health-data/metrics/recent?days=${days}`, currentUserId)
+      .then((response) => response.items);
+  },
+
+  getFamilyMemberRecentSymptoms(familyId: string, targetUserId: string, currentUserId: string, days = 30) {
+    return apiClient
+      .get<{ items: SymptomRecord[] }>(`/api/v1/families/${familyId}/members/${targetUserId}/health-records/symptoms/recent?days=${days}`, currentUserId)
+      .then((response) => response.items);
   },
 
   getMyArchiveTrends(currentUserId: string, days = 90) {
@@ -190,6 +209,27 @@ export const backendApi = {
 
   listMyDocuments(currentUserId: string) {
     return apiClient.get<{ items: MedicalDocument[] }>("/api/v1/documents/me", currentUserId).then((response) => response.items);
+  },
+
+  listFamilyMemberDocuments(familyId: string, targetUserId: string, currentUserId: string) {
+    return apiClient
+      .get<{ items: MedicalDocument[] }>(`/api/v1/families/${familyId}/members/${targetUserId}/documents`, currentUserId)
+      .then((response) => response.items);
+  },
+
+  listFamilyMemberMedicalEvents(familyId: string, targetUserId: string, currentUserId: string) {
+    return apiClient
+      .get<{ items: Array<{ id: string; title?: string | null; event_type?: string | null; event_date?: string | null; hospital_or_org?: string | null }> }>(
+        `/api/v1/families/${familyId}/members/${targetUserId}/medical-timeline/events`,
+        currentUserId
+      )
+      .then((response) => response.items);
+  },
+
+  listMyMedicalEvents(currentUserId: string) {
+    return apiClient
+      .get<{ items: Array<{ id: string; title?: string | null; event_type?: string | null; event_date?: string | null; hospital_or_org?: string | null }> }>("/api/v1/medical-timeline/me/events", currentUserId)
+      .then((response) => response.items);
   },
 
   getMyDocument(documentId: string, currentUserId: string) {

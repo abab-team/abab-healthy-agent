@@ -37,18 +37,26 @@ function MiniLineChart({ points, tone }: { points: ChartPoint[]; tone: string })
   const [width, setWidth] = useState(0);
   const chartHeight = 54;
   const values = points.map((point) => point.value);
-  const minimum = Math.min(...values, 0);
-  const maximum = Math.max(...values, 1);
-  const span = Math.max(maximum - minimum, 1);
+  const rawMinimum = Math.min(...values);
+  const rawMaximum = Math.max(...values);
+  const span = Math.max(rawMaximum - rawMinimum, Math.abs(rawMaximum) * 0.08, 1);
+  const padding = span * 0.18;
+  const minimum = rawMinimum - padding;
+  const maximum = rawMaximum + padding;
   const positions = points.map((point, index) => ({
     left: points.length === 1 ? width / 2 : 4 + (index / (points.length - 1)) * Math.max(width - 8, 0),
     top: chartHeight - 8 - ((point.value - minimum) / span) * (chartHeight - 18)
   }));
 
+  const yTicks = [maximum, (maximum + minimum) / 2, minimum];
+
   return (
-    <View onLayout={(event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)} style={styles.chart}>
-      <View style={[styles.gridLine, { top: 16 }]} />
-      <View style={[styles.gridLine, { top: 36 }]} />
+    <View style={styles.chartRow}>
+      <View style={styles.yAxis}>{yTicks.map((tick) => <Text key={tick} style={styles.yAxisLabel}>{Math.abs(tick) < 10 ? tick.toFixed(1) : Math.round(tick)}</Text>)}</View>
+      <View onLayout={(event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)} style={styles.chart}>
+      <View style={[styles.gridLine, { top: 5 }]} />
+      <View style={[styles.gridLine, { top: 29 }]} />
+      <View style={[styles.gridLine, { top: 53 }]} />
       {positions.slice(0, -1).map((position, index) => {
         const next = positions[index + 1];
         const deltaX = next.left - position.left;
@@ -77,6 +85,7 @@ function MiniLineChart({ points, tone }: { points: ChartPoint[]; tone: string })
         <Text style={styles.axisLabel}>{points[Math.floor(points.length / 2)]?.label}</Text>
         <Text style={styles.axisLabel}>{points[points.length - 1]?.label}</Text>
       </View>
+      </View>
     </View>
   );
 }
@@ -103,15 +112,18 @@ const styles = StyleSheet.create({
   averageLabel: { color: theme.colors.subtle, fontSize: 11, marginTop: 8 },
   axisLabel: { color: theme.colors.subtle, fontSize: 9 },
   axisLabels: { bottom: 0, flexDirection: "row", justifyContent: "space-between", left: 0, position: "absolute", right: 0 },
-  card: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: 14, borderWidth: 1, flexDirection: "row", gap: 10, minHeight: 112, padding: 12 },
+  chartRow: { flexDirection: "row", width: "100%" },
+  card: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: 14, borderWidth: 1, flexDirection: "row", gap: 8, minHeight: 112, overflow: "hidden", padding: 12 },
   change: { fontSize: 11, fontWeight: "800", marginTop: 6 },
   chart: { height: 70, position: "relative", width: "100%" },
-  copy: { flex: 1, minWidth: 122 },
+  copy: { flex: 0.92, minWidth: 96 },
   empty: { color: theme.colors.subtle, fontSize: 11, textAlign: "center" },
   gridLine: { backgroundColor: "#EDF3F0", height: 1, left: 0, position: "absolute", right: 0 },
   label: { color: theme.colors.ink, fontSize: 15, fontWeight: "900" },
   line: { height: 2, position: "absolute", transformOrigin: "left center" },
   point: { borderColor: "#FFFFFF", borderRadius: 4, borderWidth: 1.5, height: 8, position: "absolute", width: 8 },
   value: { color: theme.colors.ink, fontSize: 17, fontWeight: "900", marginTop: 2 },
-  visual: { alignItems: "center", flex: 1, justifyContent: "center", minWidth: 124 }
+  visual: { alignItems: "center", flex: 1, justifyContent: "center", minWidth: 0, overflow: "hidden" },
+  yAxis: { height: 59, justifyContent: "space-between", paddingRight: 3, paddingTop: 1, width: 25 },
+  yAxisLabel: { color: theme.colors.subtle, fontSize: 8, textAlign: "right" }
 });

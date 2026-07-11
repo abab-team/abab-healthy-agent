@@ -3,6 +3,7 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
+import { HealthTrendSection } from "@/components/cards/HealthTrendSection";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { MetricTile } from "@/components/common/MetricTile";
 import { PrimaryButton } from "@/components/common/PrimaryButton";
@@ -11,6 +12,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
 import { currentUser } from "@/constants/mockData";
+import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
@@ -44,6 +46,7 @@ export default function HomeScreen() {
   const [briefError, setBriefError] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
   const briefContent = session.dataMode === "mock" ? personalBriefFallback : brief?.generated_content ?? personalBriefFallback;
+  const trendResource = useApiResource(() => provider.getArchiveTrends(), [session.currentUserId]);
 
   async function runBrief() {
     setBriefLoading(true);
@@ -79,6 +82,8 @@ export default function HomeScreen() {
           ))}
         </View>
       </CardBase>
+
+      <HealthTrendSection error={trendResource.error} loading={trendResource.loading} trends={trendResource.data} />
 
       <CardBase style={styles.briefCard}>
         <View style={styles.briefHeading}>

@@ -1,143 +1,91 @@
-import { Link, useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useMemo } from "react";
+import { StyleSheet, Text } from "react-native";
+import { ArchiveEntry, ArchiveEntryList } from "@/components/cards/ArchiveEntryList";
+import { ArchiveProfileCard } from "@/components/cards/ArchiveProfileCard";
+import { ArchiveRecentList } from "@/components/cards/ArchiveRecentList";
 import { CardBase } from "@/components/cards/CardBase";
-import { DraftReviewCard } from "@/components/cards/DraftReviewCard";
-import { PermissionSummaryCard } from "@/components/cards/PermissionSummaryCard";
-import { ReminderCard } from "@/components/cards/ReminderCard";
+import { ArchiveSubHeader } from "@/components/common/ArchiveSubHeader";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
-import { ApiModeBadge } from "@/components/common/ApiModeBadge";
-import { MockDataBadge } from "@/components/common/MockDataBadge";
-import { SectionHeader } from "@/components/common/SectionHeader";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
-import { colors } from "@/constants/colors";
-import { members as mockMembers, pendingDrafts, reminders } from "@/constants/mockData";
+import { theme } from "@/constants/theme";
+import { members as mockMembers } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
 
-function formatSummary(value: Record<string, unknown> | undefined, fallback: string): string {
-  if (!value) {
-    return fallback;
-  }
+function summaryText(value: Record<string, unknown> | undefined) {
+  if (!value) return "按成员的共享设置展示";
   const count = value.count ?? value.records_count ?? value.total ?? value.total_count;
-  if (typeof count === "number") {
-    return `系统内共有 ${count} 条相关记录。`;
-  }
-  return "系统内已有相关只读摘要。";
+  return typeof count === "number" ? `系统内 ${count} 条已共享记录` : "系统内已有已共享资料摘要";
+}
+
+function isPermissionDenied(status: string | undefined) {
+  const value = (status ?? "").toLowerCase();
+  return ["未共享", "无权限", "not_shared", "denied", "none"].some((token) => value.includes(token));
 }
 
 export default function MemberDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const session = useDemoSession();
-  const provider = getDataProvider(session.currentUserId);
-  const detail = useApiResource(() => provider.getMemberDetail(String(id ?? "me")), [id, session.currentUserId]);
+  const provider = useMemo(() => getDataProvider(session.currentUserId), [session.currentUserId]);
+  const detail = useApiResource(() => provider.getMemberDetail(String(id ?? "me")), [id, session.currentUserId, session.dataMode]);
   const mockMember = mockMembers.find((item) => item.id === id) ?? mockMembers[0];
   const member = detail.data?.member;
+  const isSelf = String(id) === session.currentUserId || member?.user_id === session.currentUserId;
+  const hasSharedSummary = Boolean(detail.data?.profile || detail.data?.bloodPressureSummary || detail.data?.symptomSummary || detail.data?.activeAlerts?.length);
+  const denied = !isSelf && (isPermissionDenied(member?.share_status) || (detail.data?.source === "api" && !hasSharedSummary));
+  const displayName = member?.display_name ?? mockMember.name;
+  const openSection = (section: "records" | "metrics" | "documents" | "ai") => router.push(routes.memberSection(String(id), section));
+  const archiveEntries: ArchiveEntry[] = [
+    { count: "按权限", description: detail.data?.profile?.summary ?? "基础健康资料", icon: "calendar-outline", id: "records", onPress: () => openSection("records"), title: "全部记录", tone: "mint" },
+    { count: "已共享", description: summaryText(detail.data?.bloodPressureSummary), icon: "pulse-outline", id: "metrics", onPress: () => openSection("metrics"), title: "健康指标", tone: "purple" },
+    { count: "按权限", description: "医疗资料与就医历史", icon: "documents-outline", id: "documents", onPress: () => openSection("documents"), title: "医疗资料与就医历史", tone: "blue" },
+    { count: "仅整理", description: "基于已共享资料的安全整理", icon: "sparkles-outline", id: "ai", onPress: () => openSection("ai"), title: "AI 整理", tone: "teal" }
+  ];
+  const recentItems = [
+    { date: "最近更新", detail: summaryText(detail.data?.bloodPressureSummary), icon: "pulse-outline" as const, id: "metrics", title: "健康指标资料", tone: theme.colors.primary },
+    { date: "最近更新", detail: summaryText(detail.data?.symptomSummary), icon: "heart-outline" as const, id: "symptoms", title: "健康记录资料", tone: "#F38A69" },
+    { date: "资料范围", detail: "仅展示成员已开放的内容", icon: "lock-closed-outline" as const, id: "privacy", title: "共享权限", tone: "#5E9CE6" }
+  ];
 
   return (
     <AppScreen>
-      <Link href={routes.family} style={styles.backLink}>‹ 返回家庭</Link>
-      <CardBase style={styles.hero}>
-        <Text style={styles.avatar}>{mockMember.avatar}</Text>
-        <View style={styles.copy}>
-          <Text style={styles.name}>{member?.display_name ?? mockMember.name}</Text>
-          <StatusBadge label={member?.relationship_label ?? mockMember.relation} tone="mint" />
-          <ApiModeBadge mode={detail.data?.source ?? session.dataMode} />
-          <Text style={styles.meta}>最近记录：{mockMember.recentRecord}</Text>
-          <Text style={styles.meta}>共享：{member?.share_status ?? mockMember.shareStatus}</Text>
-        </View>
-      </CardBase>
-
-      {detail.loading ? <Text style={styles.line}>正在读取成员只读摘要...</Text> : null}
+      <ArchiveSubHeader title={isSelf ? "我的健康档案" : `${displayName}的健康档案`} />
+      <ArchiveProfileCard
+        avatar={mockMember.avatar}
+        details={[["关系", member?.relationship_label ?? mockMember.relation], ["共享", member?.share_status ?? "演示中"], ["资料", denied ? "未开放" : "按权限展示"]]}
+        name={displayName}
+        actionLabel="管理共享权限"
+        onAction={isSelf ? () => router.push(routes.permissionSettings) : undefined}
+        readOnly={!isSelf}
+        recentUpdate="按共享范围更新"
+        summary={denied ? undefined : detail.data?.profile?.summary}
+      />
+      {detail.loading ? <Text style={styles.loading}>正在读取成员共享资料…</Text> : null}
       {detail.error ? <ApiErrorState message={detail.error} /> : null}
-
-      <CardBase>
-        <SectionHeader title="近期记录" action={session.dataMode === "api" ? "后端只读 + 演示补位" : "演示数据"} />
-        <Text style={styles.line}>
-          {formatSummary(detail.data?.symptomSummary, "系统内暂无相关后端摘要，当前展示演示数据。")}
-        </Text>
-        <Text style={styles.line}>本页只做记录整理，不进行健康判断。</Text>
-        {detail.data?.mockSections.length ? <MockDataBadge label={`演示中：${detail.data.mockSections.join("、")}`} /> : null}
-      </CardBase>
-
-      <CardBase>
-        <SectionHeader title="今日提醒" action={detail.data?.activeAlerts?.length ? "后端数据" : "演示数据"} />
-        {!detail.data?.activeAlerts?.length ? <MockDataBadge /> : null}
-        {reminders.slice(0, 1).map((reminder) => (
-          <ReminderCard key={reminder.id} {...reminder} />
-        ))}
-      </CardBase>
-
-      <CardBase>
-        <SectionHeader title="健康趋势预览" />
-        <View style={styles.trendBox}>
-          <Text style={styles.trendText}>
-            血压记录 · {formatSummary(detail.data?.bloodPressureSummary, "7 天内 4 条")}
-          </Text>
-          <Text style={styles.trendText}>症状记录 · 仅整理系统内摘要，不给健康判断</Text>
-        </View>
-      </CardBase>
-
-      <CardBase>
-        <SectionHeader title="待确认草稿" action="演示数据" />
-        <MockDataBadge label="演示模式，不真实提交" />
-        <Link href={routes.drafts}>
-          <DraftReviewCard {...pendingDrafts[0]} />
-        </Link>
-      </CardBase>
-
-      <PermissionSummaryCard />
+      {denied ? (
+        <CardBase style={styles.deniedCard}>
+          <Text style={styles.deniedTitle}>暂无查看权限</Text>
+          <Text style={styles.deniedText}>该成员尚未向你开放相关健康资料。为保护隐私，此处不会展示任何健康记录、就医资料或文件详情。</Text>
+        </CardBase>
+      ) : (
+        <>
+          <ArchiveEntryList entries={archiveEntries} />
+          <ArchiveRecentList items={recentItems} onViewAll={() => undefined} title="最近归档" />
+          <CardBase style={styles.noticeCard}><Text style={styles.noticeText}>以上内容基于系统内已共享记录整理，不替代医生判断。</Text></CardBase>
+        </>
+      )}
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    fontSize: 56
-  },
-  backLink: {
-    color: colors.primaryDark,
-    fontSize: 14,
-    fontWeight: "800",
-    paddingTop: 8
-  },
-  copy: {
-    flex: 1,
-    gap: 7
-  },
-  hero: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 16,
-    marginTop: 8
-  },
-  line: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: 8
-  },
-  meta: {
-    color: colors.textMuted,
-    fontSize: 13
-  },
-  name: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: "900"
-  },
-  trendBox: {
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: 14,
-    gap: 8,
-    marginTop: 10,
-    padding: 14
-  },
-  trendText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "700"
-  }
+  deniedCard: { gap: 10, paddingVertical: 28 },
+  deniedText: { color: theme.colors.subtle, fontSize: 13, lineHeight: 21 },
+  deniedTitle: { color: theme.colors.ink, fontSize: 18, fontWeight: "900" },
+  loading: { color: theme.colors.subtle, fontSize: 13 },
+  noticeCard: { backgroundColor: theme.colors.tealSoft },
+  noticeText: { color: theme.colors.primaryDark, fontSize: 12, lineHeight: 19 }
 });

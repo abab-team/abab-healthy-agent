@@ -43,6 +43,16 @@ export type BloodPressureRecord = {
   diastolic: number;
 };
 
+export type HealthMetricRecord = {
+  id: string;
+  user_id: string;
+  metric_type: string;
+  value_numeric?: number | null;
+  value_text?: string | null;
+  unit?: string | null;
+  measured_at: string;
+};
+
 export type SymptomRecord = {
   id: string;
   user_id: string;
