@@ -5,7 +5,8 @@ function envValue(name: string): string | undefined {
   return value && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-export const dataMode: DataMode = envValue("EXPO_PUBLIC_DATA_MODE") === "api" ? "api" : "mock";
+const configuredDataMode = envValue("EXPO_PUBLIC_DATA_MODE");
+export const dataMode: DataMode = configuredDataMode === "api" || configuredDataMode === "api-auth" ? "api" : "mock";
 export const authMode: AuthMode = envValue("EXPO_PUBLIC_AUTH_MODE") === "auth" ? "auth" : "demo";
 
 export const apiBaseUrl = (envValue("EXPO_PUBLIC_API_BASE_URL") ?? "").replace(/\/+$/, "");

@@ -21,3 +21,4 @@ __pycache__/
 backend/storage/*.db
 backend/storage/*.sqlite
 backend/storage/*.sqlite3
+backend/.venv/

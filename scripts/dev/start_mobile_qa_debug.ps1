@@ -1,7 +1,7 @@
 param(
     [int]$BackendPort = 8000,
     [int]$ExpoPort = 8081,
-    [string]$DataMode = "api-auth",
+    [string]$DataMode = "api",
     [string]$AuthMode = "auth"
 )
 
@@ -9,6 +9,25 @@ $ErrorActionPreference = "Stop"
 
 function Get-RepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+}
+
+function Get-BackendPython {
+    param([string]$RepoRoot)
+
+    $venvRoot = Join-Path $RepoRoot "backend\.venv"
+    $venvPython = Join-Path $venvRoot "Scripts\python.exe"
+    if (Test-Path $venvPython) {
+        return $venvPython
+    }
+
+    Write-Host "Preparing the local backend Python environment (first run only)..." -ForegroundColor Yellow
+    & python -m venv $venvRoot
+    if ($LASTEXITCODE -ne 0) { throw "Could not create backend/.venv." }
+
+    & $venvPython -m pip install --disable-pip-version-check --quiet `
+        alembic fastapi httpx langgraph "psycopg[binary]" pydantic-settings SQLAlchemy "uvicorn[standard]"
+    if ($LASTEXITCODE -ne 0) { throw "Could not install backend dependencies." }
+    return $venvPython
 }
 
 function Test-PortListening {
@@ -62,8 +81,7 @@ function Start-PowerShellWindow {
 
 $repoRoot = Get-RepoRoot
 $mobileRoot = Join-Path $repoRoot "apps\mobile"
-$pythonBundled = Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-$python = if (Test-Path $pythonBundled) { $pythonBundled } else { "python" }
+$python = Get-BackendPython -RepoRoot $repoRoot
 $lanIp = Get-LanIp
 $apiBaseUrl = "http://$lanIp`:$BackendPort"
 $dbPath = Join-Path $repoRoot "backend\storage\mobile_qa_debug.db"
@@ -98,7 +116,12 @@ foreach (`$name in @(
     'LLM_ENABLED', 'LLM_PROVIDER', 'LLM_BASE_URL', 'LLM_API_KEY', 'LLM_MODEL',
     'LLM_TIMEOUT_SECONDS', 'LLM_MAX_TOKENS', 'LLM_TEMPERATURE',
     'DAILY_BRIEF_USE_LLM', 'LLM_PLANNER_ENABLED', 'LLM_ANSWER_COMPOSER_ENABLED',
-    'LLM_CRITIC_ENABLED'
+    'LLM_CRITIC_ENABLED', 'LANGGRAPH_ENABLED', 'LANGGRAPH_CHAT_QUERY_ENABLED',
+    'LANGGRAPH_DAILY_BRIEF_ENABLED', 'LANGGRAPH_FREE_TEXT_RECORD_ENABLED',
+    'LANGGRAPH_DOCTOR_VISIT_SUMMARY_ENABLED', 'LANGGRAPH_DOCUMENT_EXTRACT_ENABLED',
+    'LANGGRAPH_DAILY_REPORT_ENABLED', 'LANGGRAPH_HEALTH_KNOWLEDGE_QA_ENABLED',
+    'LANGGRAPH_ALERT_CREATE_ENABLED', 'LANGGRAPH_SYMPTOM_DRAFT_CREATE_ENABLED',
+    'LANGGRAPH_MEDICAL_EVENT_DRAFT_CREATE_ENABLED', 'LANGGRAPH_STRICT_MODE'
 )) {
     Remove-Item "Env:`$name" -ErrorAction SilentlyContinue
 }
