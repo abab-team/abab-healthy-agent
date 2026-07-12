@@ -362,6 +362,34 @@ def _medication_block(category: str, reason_code: str, matched_rules: tuple[str,
 
 
 def _is_safe_daily_health_brief_output(text: str, lowered: str) -> bool:
+    if _has_daily_brief_boundary(text):
+        blocked_terms = (
+            "\u4f60\u5f88\u5065\u5eb7",
+            "\u6ca1\u6709\u95ee\u9898",
+            "\u6b63\u5e38",
+            "\u5f02\u5e38",
+            "\u9ad8\u8840\u538b",
+            "\u4f4e\u8840\u538b",
+            "\u4e0d\u7528\u770b\u533b\u751f",
+            "\u8bca\u65ad\u7ed3\u8bba",
+            "\u8bca\u65ad\u662f",
+            "\u8bca\u65ad\u4e3a",
+            "\u5904\u65b9",
+            "\u5242\u91cf",
+            "\u505c\u836f",
+            "\u6362\u836f",
+            "\u4e00\u5b9a\u6ca1\u4e8b",
+            "no need to see a doctor",
+            "nothing is wrong",
+            "prescription",
+            "dosage",
+            "dose",
+            "stop medication",
+            "high risk",
+            "low risk",
+        )
+        return not any(term in text or term in lowered for term in blocked_terms)
+
     required_markers = ("根据系统内记录", "系统内", "不能替代医生诊断", "请联系医生")
     if not all(marker in text for marker in required_markers):
         return False
@@ -398,6 +426,15 @@ def _is_safe_daily_health_brief_output(text: str, lowered: str) -> bool:
         "一定没事",
     )
     return not any(term in lowered or term in text for term in unsafe_terms)
+
+
+def _has_daily_brief_boundary(text: str) -> bool:
+    source_markers = ("\u57fa\u4e8e\u7cfb\u7edf\u5185", "\u6839\u636e\u7cfb\u7edf\u5185", "\u7cfb\u7edf\u5185\u8bb0\u5f55")
+    doctor_markers = ("\u4e0d\u66ff\u4ee3\u533b\u751f\u5224\u65ad", "\u4e0d\u80fd\u66ff\u4ee3\u533b\u751f\u8bca\u65ad")
+    urgent_markers = ("\u8bf7\u8054\u7cfb\u533b\u751f", "\u8054\u7cfb\u533b\u751f\u6216\u5f53\u5730\u6025\u6551\u670d\u52a1")
+    return any(marker in text for marker in source_markers) and any(marker in text for marker in doctor_markers) and any(
+        marker in text for marker in urgent_markers
+    )
 
 
 def _decision(

@@ -491,7 +491,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
 
         self.assertEqual(self._business_counts(), counts_before)
 
-    def test_rag_enabled_appends_safe_internal_citations(self) -> None:
+    def test_rag_enabled_keeps_internal_citations_out_of_user_content(self) -> None:
         self._seed_health_records(self.actor.id, self.actor.id, family_id=None)
         registry = AgentWorkflowRegistry()
         registry.register(DailyHealthBriefWorkflow(settings=Settings(RAG_ENABLED=True, RAG_TOP_K=3)))
@@ -502,7 +502,9 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         joined_checks = "\n".join(str(check.safety_flags) + str(check.input_risk_summary) for check in checks)
 
         self.assertEqual(result.status, "completed")
-        self.assertIn("System record citations", result.generated_content or "")
+        self.assertNotIn("System record citations", result.generated_content or "")
+        self.assertNotIn("llm_used=", result.generated_content or "")
+        self.assertNotIn("fallback_reason=", result.generated_content or "")
         self.assertIn("rag_daily_brief", joined_checks)
         self.assertIn("rag_used=true", joined_checks)
         self.assertNotIn("raw_text", result.generated_content or "")

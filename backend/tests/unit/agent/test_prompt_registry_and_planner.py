@@ -155,6 +155,25 @@ class PromptRegistryAndPlannerTestCase(unittest.TestCase):
         self.assertTrue(result.fallback_used)
         self.assertIn("system records", result.answer)
 
+    def test_answer_composer_falls_back_when_llm_output_is_not_chinese(self) -> None:
+        client = StaticLLMClient("Here is a safe summary from system records.")
+        composer = LLMAnswerComposer(
+            settings=Settings(LLM_ANSWER_COMPOSER_ENABLED=True, LLM_ENABLED=True),
+            llm_client=client,
+        )
+
+        result = composer.compose(
+            safe_tool_result_summary="count=1",
+            coverage_note="\u4ec5\u57fa\u4e8e\u7cfb\u7edf\u8bb0\u5f55",
+            user_question_excerpt="\u67e5\u8be2\u8840\u538b",
+            fallback_answer="\u7cfb\u7edf\u5185\u6709 1 \u6761\u8840\u538b\u8bb0\u5f55\u3002",
+        )
+
+        self.assertTrue(result.llm_used)
+        self.assertTrue(result.fallback_used)
+        self.assertEqual(result.fallback_reason, "output_not_chinese")
+        self.assertIn("\u8840\u538b", result.answer)
+
 
 if __name__ == "__main__":
     unittest.main()

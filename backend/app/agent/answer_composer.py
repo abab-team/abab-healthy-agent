@@ -10,7 +10,7 @@ from app.llm.client import LLMClient, get_llm_client
 
 
 DEFAULT_SAFETY_BOUNDARY = (
-    "This answer is based on system records only and does not replace a doctor's judgment."
+    "以下内容仅基于系统内已有记录整理，不替代医生判断。"
 )
 
 
@@ -74,6 +74,8 @@ class LLMAnswerComposer:
             content = (response.content or "").strip()
             if not content:
                 return AnswerComposerResult(fallback_answer, llm_used=True, fallback_used=True, fallback_reason="empty_output")
+            if not _contains_cjk(content):
+                return AnswerComposerResult(fallback_answer, llm_used=True, fallback_used=True, fallback_reason="output_not_chinese")
             decision = self.safety_policy.evaluate_output(content, workflow_type="chat_workflow")
             if decision.blocked:
                 return AnswerComposerResult(fallback_answer, llm_used=True, fallback_used=True, fallback_reason=decision.reason_code)
@@ -85,3 +87,7 @@ class LLMAnswerComposer:
 def _safe_excerpt(value: Any, max_length: int) -> str:
     text = str(value or "").strip()
     return text[:max_length]
+
+
+def _contains_cjk(value: str) -> bool:
+    return any("\u4e00" <= character <= "\u9fff" for character in value)

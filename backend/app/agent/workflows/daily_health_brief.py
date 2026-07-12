@@ -184,20 +184,11 @@ def maybe_append_daily_brief_rag_context(
         top_k=5,
         settings=settings,
     )
+    # RAG snippets stay internal. They may inform the workflow audit trail, but
+    # should never be rendered as user-facing citations or runtime metadata.
     if not lines:
         return rule_content, DailyBriefRagSummary(False, 0, fallback_reason)
-    safe_section = "\n".join(
-        [
-            "",
-            "System record citations:",
-            *lines,
-            "These citations are safe excerpts from internal records and are not medical advice.",
-        ]
-    )
-    return (
-        rule_content + safe_section,
-        DailyBriefRagSummary(True, len(result.results) if result else len(lines), None),
-    )
+    return rule_content, DailyBriefRagSummary(True, len(result.results) if result else len(lines), None)
 
 
 def maybe_generate_daily_brief_with_llm(
@@ -248,6 +239,18 @@ def maybe_generate_daily_brief_with_llm(
             fallback_reason="empty_llm_output",
         )
 
+    if not _contains_cjk(content):
+        return DailyBriefLLMAttempt(
+            content=rule_content,
+            llm_used=True,
+            llm_attempted=True,
+            llm_provider=response.provider,
+            llm_model=response.model,
+            fallback_used=True,
+            fallback_reason="llm_output_not_chinese",
+        )
+
+    content = _ensure_daily_brief_boundary(content)
     decision = AgentSafetyPolicy().evaluate_output(content, "daily_health_brief")
     if decision.blocked or _contains_blocked_llm_brief_terms(content):
         return DailyBriefLLMAttempt(
@@ -290,7 +293,12 @@ def build_daily_brief_llm_prompt(results: _BriefToolResults, *, days: int = DEFA
 
 
 def _daily_brief_system_prompt() -> str:
-    return (
+    natural_language_rule = (
+        "请始终使用简体中文，以自然、温和、简洁的方式整理已有记录。"
+        "先给出一句概括，再提供不超过四条易读要点。"
+        "不要展示引用、文件路径、工具名称、运行状态、模型信息或任何内部字段。"
+    )
+    return natural_language_rule + (
         "你不是医生。你只能根据系统内结构化记录整理健康简报，不能替代医生。"
         "不要诊断，不要确诊，不要处方，不要给药物剂量，不要建议停药或换药，"
         "不要判断正常/异常/高风险/低风险，不要做急救判断，"
@@ -298,6 +306,23 @@ def _daily_brief_system_prompt() -> str:
         "无记录时只能说系统内暂无相关记录。"
         "如遇紧急情况，应联系医生或当地急救服务。"
     )
+
+
+def _contains_cjk(value: str) -> bool:
+    return any("\u4e00" <= character <= "\u9fff" for character in value)
+
+
+def _ensure_daily_brief_boundary(content: str) -> str:
+    has_source = "\u7cfb\u7edf" in content
+    has_doctor_boundary = "\u533b\u751f" in content and ("\u5224\u65ad" in content or "\u8bca\u65ad" in content)
+    has_urgent_boundary = "\u8054\u7cfb\u533b\u751f" in content
+    if has_source and has_doctor_boundary and has_urgent_boundary:
+        return content
+    boundary = (
+        "\u8fd9\u4e9b\u5185\u5bb9\u4ec5\u57fa\u4e8e\u7cfb\u7edf\u5185\u5df2\u6709\u8bb0\u5f55\u6574\u7406\uff0c\u4e0d\u66ff\u4ee3\u533b\u751f\u5224\u65ad\u3002"
+        "\u5982\u6709\u660e\u663e\u4e0d\u9002\u6216\u7d27\u6025\u60c5\u51b5\uff0c\u8bf7\u8054\u7cfb\u533b\u751f\u6216\u5f53\u5730\u6025\u6551\u670d\u52a1\u3002"
+    )
+    return f"{content.rstrip()}\n\n{boundary}"
 
 
 def _fallback(rule_content: str, reason: str, *, attempted: bool = False) -> DailyBriefLLMAttempt:

@@ -41,6 +41,9 @@ CASUAL_GREETING_TERMS = (
     "你能做什么",
     "你可以做什么",
     "怎么用",
+    "你是谁",
+    "你是做什么的",
+    "介绍一下你自己",
 )
 ENGLISH_CASUAL_GREETING_PATTERN = re.compile(r"\b(?:hello|hi|hey)\b", re.IGNORECASE)
 
@@ -53,7 +56,9 @@ def is_casual_chat_message(message: str) -> bool:
 
 def build_casual_chat_response(message: str) -> str:
     text = (message or "").strip().lower()
-    if any(term in text for term in ("谢谢", "感谢")):
+    if any(term in text for term in ("你是谁", "你是做什么的", "介绍一下你自己")):
+        opening = "我是你的 AI 健康管家，主要帮你把系统内已有的健康记录整理得更清楚。"
+    elif any(term in text for term in ("谢谢", "感谢")):
         opening = "不客气，我随时可以帮你整理系统内已有的健康记录。"
     elif any(term in text for term in ("再见", "拜拜")):
         opening = "好的，之后需要整理健康记录时再来找我。"
@@ -300,7 +305,7 @@ def _maybe_compose_answer(
         return fallback_answer
     result = answer_composer.compose(
         safe_tool_result_summary=safe_tool_result_summary,
-        coverage_note=f"system_records_only; range={plan.time_range.label}; days={plan.time_range.days}",
+        coverage_note=f"仅基于系统内已有记录；范围：{plan.time_range.label}；天数：{plan.time_range.days}",
         user_question_excerpt=user_question_excerpt,
         fallback_answer=fallback_answer,
     )
