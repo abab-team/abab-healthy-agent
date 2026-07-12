@@ -58,7 +58,10 @@ class LLMAnswerComposer:
             )
             client = self.llm_client or get_llm_client(self.settings)
             response = client.generate_text(
-                system_prompt="Rewrite safe system-record summaries only. Do not add medical advice.",
+                system_prompt=(
+                    "只重写安全的系统内记录摘要，不要补充医疗建议。"
+                    "所有面向用户的内容必须使用简体中文，并说明内容基于系统内记录且不替代医生判断。"
+                ),
                 user_prompt=user_prompt,
                 temperature=self.settings.LLM_TEMPERATURE,
                 max_tokens=self.settings.LLM_MAX_TOKENS,

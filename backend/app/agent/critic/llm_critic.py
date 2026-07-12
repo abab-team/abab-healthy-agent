@@ -42,7 +42,10 @@ class LLMAnswerCritic:
             )
             client = self.llm_client or get_llm_client(self.settings)
             response = client.generate_text(
-                system_prompt="Return JSON only for a safety critic. Do not call tools or infer facts.",
+                system_prompt=(
+                    "只返回安全审查 JSON，不调用工具、不推断事实。"
+                    "如果提供 safe_rewrite，它必须是简体中文。"
+                ),
                 user_prompt=rendered,
                 temperature=0,
                 max_tokens=min(self.settings.LLM_MAX_TOKENS, 500),
@@ -64,7 +67,7 @@ class LLMAnswerCritic:
             )
             if result.passed:
                 return result
-            rewrite = result.safe_rewrite or SAFE_REWRITE
+            rewrite = result.safe_rewrite if _contains_cjk(result.safe_rewrite) else SAFE_REWRITE
             rule_result = self.rule_critic.review(
                 CriticReviewRequest(
                     workflow_type=request.workflow_type,
@@ -121,3 +124,7 @@ def _safe_list(value: Any) -> list[str]:
         if text:
             result.append(text)
     return result
+
+
+def _contains_cjk(value: str | None) -> bool:
+    return bool(value and any("\u4e00" <= character <= "\u9fff" for character in value))

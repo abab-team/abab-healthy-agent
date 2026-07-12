@@ -6,11 +6,9 @@ from app.agent.critic.schemas import CriticReviewRequest, CriticReviewResult, To
 
 
 SAFE_REWRITE = (
-    "Based on system records only, I can summarize available records, but I cannot provide medical conclusions, "
-    "medication instructions, or certainty claims. Some information may be "
-    "unavailable because of permissions or because the system has no matching records. This does not replace a "
-    "doctor's judgment. If you feel unwell or the situation is urgent, please contact a clinician or local "
-    "emergency service."
+    "以下内容仅根据系统内已有记录整理，不能提供医学诊断、处方、剂量、停药建议或确定性判断。"
+    "部分信息可能因权限设置或系统内暂无相关记录而无法展示，不代表现实中没有相关情况。"
+    "内容不替代医生判断；如有明显不适或紧急情况，请联系医生或当地急救服务。"
 )
 
 FORBIDDEN_MEDICAL_TERMS = (

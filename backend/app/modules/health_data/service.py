@@ -366,7 +366,7 @@ def get_archive_trends(
     series.append(
         {
             "metric_type": "blood_pressure",
-            "label": "Blood pressure",
+            "label": "血压",
             "unit": "mmHg",
             "count": bp_summary.count,
             "points": [
@@ -564,13 +564,13 @@ def _blood_pressure_record_dict(record: BloodPressureRecord) -> dict:
 
 def _metric_label(metric_type: str) -> str:
     labels = {
-        "sleep_duration": "Sleep duration",
-        "steps": "Steps",
-        "weight": "Weight",
+        "sleep_duration": "睡眠",
+        "steps": "步数",
+        "weight": "体重",
         "bmi": "BMI",
-        "heart_rate": "Heart rate",
+        "heart_rate": "心率",
     }
-    return labels.get(metric_type, metric_type.replace("_", " ").title())
+    return labels.get(metric_type, metric_type.replace("_", " "))
 
 
 def _trend_summary_text(metric_type: str, count: int) -> str:

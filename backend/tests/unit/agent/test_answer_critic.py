@@ -55,6 +55,7 @@ class AnswerCriticTestCase(unittest.TestCase):
         self.assertTrue(result.rewrite_required)
         self.assertIsNotNone(result.safe_rewrite)
         self.assertNotIn("stop medication", (result.safe_rewrite or "").lower())
+        self.assertIn("系统内已有记录", result.safe_rewrite or "")
 
     def test_normal_abnormal_medical_judgment_fails(self) -> None:
         result = RuleAnswerCritic().review(

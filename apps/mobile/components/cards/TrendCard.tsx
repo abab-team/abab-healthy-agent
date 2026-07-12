@@ -5,6 +5,24 @@ import type { ArchiveTrendSeries } from "@/types/api";
 
 type ChartPoint = { label: string; value: number };
 
+const metricLabels: Record<string, string> = {
+  blood_pressure: "血压",
+  heart_rate: "心率",
+  sleep_duration: "睡眠",
+  steps: "步数",
+  weight: "体重"
+};
+
+function displayMetricLabel(series: ArchiveTrendSeries): string {
+  return metricLabels[series.metric_type] ?? series.label;
+}
+
+function displayUnit(unit: string | null | undefined): string {
+  if (unit === "hour" || unit === "hours") return "小时";
+  if (unit === "step" || unit === "steps") return "步";
+  return unit ?? "";
+}
+
 function chartPoints(series: ArchiveTrendSeries): ChartPoint[] {
   return series.points.slice(-7).map((point) => ({
     label: point.measured_at.slice(5, 10).replace("-", "/"),
@@ -21,7 +39,7 @@ function averageLabel(series: ArchiveTrendSeries, points: ChartPoint[]): string 
   }
   const average = points.reduce((total, point) => total + point.value, 0) / points.length;
   const rounded = Math.abs(average) < 10 ? average.toFixed(1) : Math.round(average).toLocaleString("zh-CN");
-  const unit = series.unit === "hours" ? "小时" : series.unit === "steps" ? "步" : series.unit ?? "";
+  const unit = displayUnit(series.unit);
   return `${rounded}${unit ? ` ${unit}` : ""}`;
 }
 
@@ -29,7 +47,7 @@ function changeLabel(series: ArchiveTrendSeries, points: ChartPoint[]): string {
   if (points.length < 2) return "记录不足以比较变化";
   const change = points[points.length - 1].value - points[0].value;
   const display = Math.abs(change) < 10 ? change.toFixed(1) : Math.round(change).toString();
-  const unit = series.unit === "hours" ? "小时" : series.unit === "steps" ? "步" : series.unit ?? "";
+  const unit = displayUnit(series.unit);
   return `较上周期 ${change >= 0 ? "+" : ""}${display}${unit ? ` ${unit}` : ""}`;
 }
 
@@ -96,7 +114,7 @@ export function TrendCard({ series }: { series: ArchiveTrendSeries }) {
   return (
     <View style={styles.card}>
       <View style={styles.copy}>
-        <Text style={styles.label}>{series.label}趋势</Text>
+        <Text style={styles.label}>{displayMetricLabel(series)}趋势</Text>
         <Text style={styles.averageLabel}>平均</Text>
         <Text style={styles.value}>{averageLabel(series, points)}</Text>
         <Text style={[styles.change, { color: tone }]}>{changeLabel(series, points)}</Text>

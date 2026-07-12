@@ -386,7 +386,7 @@ def seed_blood_pressure(session: Session, users: dict[str, User]) -> list[BloodP
     # 1. 接收上游传入的数据或上下文。
     # 2. 完成本函数职责范围内的处理。
     # 3. 将结果返回给调用方，继续由上层流程编排。
-    values = [
+    father_values = [
         (0, 145, 92, 78),
         (1, 142, 90, 80),
         (2, 146, 91, 79),
@@ -398,9 +398,24 @@ def seed_blood_pressure(session: Session, users: dict[str, User]) -> list[BloodP
         (23, 128, 82, 73),
         (29, 135, 86, 77),
     ]
+    gala_values = [
+        (0, 118, 76, 72),
+        (2, 116, 74, 70),
+        (5, 119, 77, 71),
+        (8, 117, 75, 69),
+        (12, 120, 78, 73),
+        (16, 118, 76, 71),
+        (21, 121, 79, 74),
+        (28, 117, 75, 70),
+    ]
+    record_specs = [
+        (users["father"].id, *value) for value in father_values
+    ] + [
+        (users["gala"].id, *value) for value in gala_values
+    ]
     records = [
         BloodPressureRecord(
-            user_id=users["father"].id,
+            user_id=user_id,
             systolic=systolic,
             diastolic=diastolic,
             pulse=pulse,
@@ -412,7 +427,7 @@ def seed_blood_pressure(session: Session, users: dict[str, User]) -> list[BloodP
             confidence_level=ConfidenceLevel.HIGH,
             note="合成 demo 血压记录，仅用于后续规则和查询演示",
         )
-        for days_ago, systolic, diastolic, pulse in values
+        for user_id, days_ago, systolic, diastolic, pulse in record_specs
     ]
     session.add_all(records)
     session.flush()
