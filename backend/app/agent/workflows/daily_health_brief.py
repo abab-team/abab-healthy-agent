@@ -409,6 +409,31 @@ def _record_rag_safety_summary(context: AgentWorkflowContext, summary: DailyBrie
 
 
 def build_daily_health_brief_content(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
+    return _build_conversational_daily_health_brief_content(results, days=days)
+
+
+def _build_conversational_daily_health_brief_content(results: _BriefToolResults, *, days: int) -> str:
+    sections = [
+        f"• 健康档案：{_profile_line(results.profile)}",
+        f"• 血压记录：{'；'.join(_blood_pressure_lines(results.blood_pressure))}",
+        f"• 症状记录：{'；'.join(_symptom_lines(results.symptoms))}",
+        f"• 复查与随访：{'；'.join(_followup_lines(results.followups))}",
+        f"• 提醒：{'；'.join(_alert_lines(results.alerts))}",
+    ]
+    boundary = (
+        "这份小结仅根据系统内已有记录整理，不替代医生判断。"
+        "如有明显不适或紧急情况，请联系医生或当地急救服务。"
+    )
+    return "\n\n".join(
+        [
+            f"根据系统内记录，我把最近 {days} 天的信息整理成一份健康简报：",
+            "\n".join(sections),
+            boundary,
+        ]
+    )
+
+
+def _build_legacy_daily_health_brief_content(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
     lines = [
         f"根据系统内记录，已为你整理最近 {days} 天的健康简报：",
         "",

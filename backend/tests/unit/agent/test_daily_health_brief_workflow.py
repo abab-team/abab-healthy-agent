@@ -237,7 +237,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
 
         self.assertEqual(result.status, "completed")
         self.assertFalse(result.blocked)
-        self.assertIn("不能替代医生诊断", content)
+        self.assertIn("不替代医生判断", content)
         self.assertIn("请联系医生或当地急救服务", content)
         for term in UNSAFE_OUTPUT_TERMS:
             self.assertNotIn(term, content)
@@ -351,7 +351,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
 
         self.assertEqual(fake_llm.calls, 1)
-        self.assertIn("根据系统内记录，已为你整理最近", result.generated_content or "")
+        self.assertIn("根据系统内记录", result.generated_content or "")
         self.assertIn("fallback_used=true", result.message)
         self.assertIn("fallback_reason=llm_provider_error", result.message)
 
@@ -417,7 +417,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
 
         self.assertEqual(fake_llm.calls, 1)
-        self.assertIn("根据系统内记录，已为你整理最近", result.generated_content or "")
+        self.assertIn("根据系统内记录", result.generated_content or "")
         self.assertNotIn("诊断结果", result.generated_content or "")
         self.assertIn("fallback_reason=llm_output_safety_blocked", result.message)
         self.assertIn("safety_filtered=true", result.message)
