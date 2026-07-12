@@ -30,7 +30,10 @@ class AnswerCriticService:
         rule_result = self.rule_critic.review(request)
         result = rule_result
         if rule_result.passed and self.settings.LLM_CRITIC_ENABLED:
-            result = self.llm_critic.review(request)
+            # The rule critic is the grounding authority for tool-backed answers.
+            # Keep the optional LLM critic advisory here so an imprecise model
+            # review cannot replace a verified record summary with a generic reply.
+            self.llm_critic.review(request)
         elif not rule_result.passed and self.settings.LLM_CRITIC_ENABLED:
             llm_result = self.llm_critic.review(request)
             if llm_result.safe_rewrite:

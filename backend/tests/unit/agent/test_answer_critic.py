@@ -55,7 +55,36 @@ class AnswerCriticTestCase(unittest.TestCase):
         self.assertTrue(result.rewrite_required)
         self.assertIsNotNone(result.safe_rewrite)
         self.assertNotIn("stop medication", (result.safe_rewrite or "").lower())
-        self.assertIn("系统内已有记录", result.safe_rewrite or "")
+        self.assertIn("\u7cfb\u7edf\u5185\u5df2\u6709\u8bb0\u5f55", result.safe_rewrite or "")
+
+    def test_llm_critic_cannot_replace_a_rule_grounded_answer(self) -> None:
+        class RejectingLlmCritic:
+            def review(self, _request: CriticReviewRequest):
+                from app.agent.critic.schemas import CriticReviewResult
+
+                return CriticReviewResult(
+                    passed=False,
+                    rewrite_required=True,
+                    safe_rewrite="Generic fallback",
+                    critic_source="llm",
+                )
+
+        settings = Settings(LLM_CRITIC_ENABLED=True)
+        result = AnswerCriticService(settings=settings, llm_critic=RejectingLlmCritic()).review(
+            CriticReviewRequest(
+                workflow_type="chat_workflow",
+                user_question_excerpt="How many blood pressure records do I have?",
+                draft_answer=(
+                    "Based on system records only, there are 2 records in the selected range. "
+                    "This does not replace a doctor's judgment."
+                ),
+                safe_tool_result_summary="count=2; system_records_only",
+                tool_result_summaries=(ToolResultSummary("health_data.blood_pressure.summary", "completed", count=2),),
+            )
+        )
+
+        self.assertTrue(result.passed)
+        self.assertFalse(result.rewrite_required)
 
     def test_normal_abnormal_medical_judgment_fails(self) -> None:
         result = RuleAnswerCritic().review(

@@ -5,28 +5,23 @@ from app.agent.schemas import AgentSafetyDecision, AgentSafetyResult, MAX_AGENT_
 
 
 GENERAL_SAFE_MESSAGE = (
-    "I can help organize system records and prepare safe notes, but I cannot provide a medical diagnosis, "
-    "prescription, medication dosage, or medication change advice."
+    "我可以帮助整理系统内记录和准备健康笔记，但不能依据这些记录给出医疗结论。"
 )
 CAUTION_MESSAGE = (
-    "I cannot replace a clinician's diagnosis. I can help record symptoms, organize system records, "
-    "or prepare questions to discuss with a doctor."
+    "我不能替代医生判断，但可以帮助记录症状、整理系统内记录或准备就医沟通问题。"
 )
 MEDICATION_BLOCKED_MESSAGE = (
-    "I cannot recommend medication names, dosages, or whether to start, stop, or change medication. "
-    "Please consult a qualified clinician, and I can help you record questions to bring to them."
+    "我不能提供用药相关的具体指导。请咨询医生；我可以帮你记录需要沟通的问题。"
 )
 EMERGENCY_MESSAGE = (
-    "This may be urgent. I cannot diagnose or provide treatment instructions. If the situation feels urgent, "
-    "please contact local emergency services or a clinician as soon as possible."
+    "这可能需要尽快处理。请联系医生或当地急救服务；我无法通过这里提供治疗指导。"
 )
 SELF_HARM_MESSAGE = (
-    "I am sorry you are feeling this way. Please seek immediate help from local emergency services, a crisis "
-    "support line, or a trusted person nearby. I cannot provide harmful details, but you deserve support now."
+    "听起来你现在可能很难受。请立即联系当地急救服务、危机支持热线或身边可信任的人寻求帮助。"
 )
 OUTPUT_BLOCKED_MESSAGE = (
-    "I replaced an unsafe response with a safer message. I can help organize system records, but I cannot "
-    "provide diagnosis, prescription, dosage, medication change, or certainty claims."
+    "为了保障安全，当前内容无法直接展示。你可以改为询问系统内已有记录、整理就医资料或创建待确认草稿；"
+    "如有不适或紧急情况，请联系医生或当地急救服务。"
 )
 
 DIAGNOSIS_TERMS = (
@@ -163,7 +158,7 @@ class AgentSafetyPolicy:
                 safety_level="blocked",
                 category="unknown",
                 reason_code="empty_input",
-                safe_message="Please enter a message before running the Agent.",
+                safe_message="请输入想咨询或整理的内容后再继续。",
                 disallowed_actions=("run_workflow",),
                 matched_rules=("empty_input",),
             )
@@ -174,7 +169,7 @@ class AgentSafetyPolicy:
                 safety_level="blocked",
                 category="unknown",
                 reason_code="input_too_long",
-                safe_message="The message is too long for this Agent phase. Please shorten it and try again.",
+                safe_message="这条消息过长，请缩短后再试。",
                 disallowed_actions=("run_workflow",),
                 matched_rules=("input_length_limit",),
             )
@@ -234,7 +229,7 @@ class AgentSafetyPolicy:
                 safety_level="safe",
                 category="health_summary",
                 reason_code="system_record_summary_allowed",
-                safe_message="I can help summarize system records without making a diagnosis.",
+                safe_message="我可以帮助整理系统内记录，不替代医生判断。",
                 allowed_actions=("summarize_system_records", "prepare_doctor_questions"),
                 matched_rules=matched,
             )
@@ -245,7 +240,7 @@ class AgentSafetyPolicy:
                 safety_level="safe",
                 category="record_keeping",
                 reason_code="record_keeping_allowed",
-                safe_message="I can help create a record draft without making a diagnosis.",
+                safe_message="我可以帮助创建待确认的记录草稿，不替代医生判断。",
                 allowed_actions=("record_symptoms", "create_draft"),
                 matched_rules=matched,
             )
