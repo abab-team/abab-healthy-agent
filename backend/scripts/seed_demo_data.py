@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -85,8 +86,11 @@ DEMO_EMAILS = {
 }
 DEMO_PASSWORD = "DemoPass123!"
 DEMO_FAMILY_NAME = "Gala 的家庭"
-DEMO_TODAY = date(2026, 7, 3)
-DEMO_NOW = datetime(2026, 7, 3, 8, 0, tzinfo=timezone.utc)
+# Keep local QA records current so relative queries such as "recent 7 days"
+# exercise the same data shown in the mobile app. A fixed date remains
+# available for reproducible checks through FHA_DEMO_TODAY=YYYY-MM-DD.
+DEMO_TODAY = date.fromisoformat(os.getenv("FHA_DEMO_TODAY", date.today().isoformat()))
+DEMO_NOW = datetime.combine(DEMO_TODAY, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=8)
 
 
 # 函数职责：业务函数，封装 开发脚本 中的一段可复用逻辑。

@@ -25,6 +25,22 @@ class AnswerCriticTestCase(unittest.TestCase):
         self.assertTrue(result.passed)
         self.assertFalse(result.rewrite_required)
 
+    def test_chinese_system_record_boundary_passes(self) -> None:
+        result = RuleAnswerCritic().review(
+            CriticReviewRequest(
+                workflow_type="chat_workflow",
+                user_question_excerpt="\u67e5\u8be2\u8840\u538b",
+                draft_answer=(
+                    "\u7cfb\u7edf\u8bb0\u5f55\u663e\u793a\uff0c\u8fc7\u53bb7\u5929\u5185\u5171\u67092\u6761\u8840\u538b\u8bb0\u5f55\u3002"
+                    "\u6b64\u6458\u8981\u4ec5\u57fa\u4e8e\u7cfb\u7edf\u5185\u5df2\u6709\u8bb0\u5f55\uff0c\u4e0d\u66ff\u4ee3\u533b\u751f\u7684\u4e13\u4e1a\u5224\u65ad\u3002"
+                ),
+                safe_tool_result_summary="count=2; system_records_only",
+                tool_result_summaries=(ToolResultSummary("health_data.blood_pressure.summary", "completed", count=2),),
+            )
+        )
+
+        self.assertTrue(result.passed)
+
     def test_no_record_misleading_claim_fails(self) -> None:
         result = RuleAnswerCritic().review(
             CriticReviewRequest(

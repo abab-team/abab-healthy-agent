@@ -60,6 +60,7 @@ FORBIDDEN_DEBUG_TERMS = (
 SYSTEM_RECORD_MARKERS = (
     "system records",
     "system record",
+    "\u7cfb\u7edf\u8bb0\u5f55",
     "系统内记录",
     "绯荤粺鍐",
 )
