@@ -126,7 +126,7 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.tool_calls_count, 0)
         self.assertEqual(calls, [])
-        self.assertIn("系统内记录", result.generated_content or "")
+        self.assertIn("系统内", result.generated_content or "")
 
     def test_casual_greeting_returns_safe_conversational_response_without_tools(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "你好"))

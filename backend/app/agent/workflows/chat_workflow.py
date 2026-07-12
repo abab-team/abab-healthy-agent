@@ -30,6 +30,8 @@ SAFETY_FOOTER = "如有明显不适或紧急情况，请联系医生或当地急
 PARTIAL_UNAVAILABLE_MESSAGE = "部分信息因权限设置暂不可用。"
 
 CASUAL_GREETING_TERMS = (
+    "joke",
+    "\u7b11\u8bdd",
     "你好",
     "您好",
     "嗨",

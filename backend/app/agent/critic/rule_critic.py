@@ -61,6 +61,7 @@ SYSTEM_RECORD_MARKERS = (
     "system records",
     "system record",
     "\u7cfb\u7edf\u8bb0\u5f55",
+    "\u7cfb\u7edf\u5185\u5df2\u6709\u8bb0\u5f55",
     "系统内记录",
     "绯荤粺鍐",
 )
