@@ -92,6 +92,16 @@ cd '$repoRoot'
 `$env:OCR_PROVIDER = 'mock'
 `$env:RAG_ENABLED = 'true'
 `$env:FHA_MOBILE_QA_BACKEND = '1'
+# Keep project-local .env as the source of LLM configuration for this launcher.
+# This avoids inherited machine-level provider settings selecting another project account.
+foreach (`$name in @(
+    'LLM_ENABLED', 'LLM_PROVIDER', 'LLM_BASE_URL', 'LLM_API_KEY', 'LLM_MODEL',
+    'LLM_TIMEOUT_SECONDS', 'LLM_MAX_TOKENS', 'LLM_TEMPERATURE',
+    'DAILY_BRIEF_USE_LLM', 'LLM_PLANNER_ENABLED', 'LLM_ANSWER_COMPOSER_ENABLED',
+    'LLM_CRITIC_ENABLED'
+)) {
+    Remove-Item "Env:`$name" -ErrorAction SilentlyContinue
+}
 Write-Host 'Preparing mobile QA database...'
 & '$python' -m alembic -c backend/alembic.ini upgrade head
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
