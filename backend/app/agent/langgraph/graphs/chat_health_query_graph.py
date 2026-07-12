@@ -108,9 +108,11 @@ class ChatHealthQueryGraph(CompiledStateGraphRunner):
         )
 
     def _llm_planner_optional(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
+        from app.agent.workflows import chat_workflow as chat
+
         context = self._require_context()
         plan = self._require_plan()
-        if plan.is_unknown and self.settings.LLM_PLANNER_ENABLED:
+        if plan.is_unknown and self.settings.LLM_PLANNER_ENABLED and not chat.is_casual_chat_message(context.request.user_message):
             memory_lines = tuple(getattr(self._memory_context, "summary_lines", ()) or ())
             self._plan = self.planner_service.plan(
                 user_message=context.request.user_message,
@@ -164,7 +166,9 @@ class ChatHealthQueryGraph(CompiledStateGraphRunner):
 
         context = self._require_context()
         plan = self._require_plan()
-        if not self._tool_results:
+        if not self._tool_results and chat.is_casual_chat_message(context.request.user_message):
+            self._draft_answer = chat.build_casual_chat_response(context.request.user_message)
+        elif not self._tool_results:
             self._draft_answer = "\n".join([chat._unknown_or_clarification_message(plan), chat.SYSTEM_RECORD_NOTE, chat.SAFETY_FOOTER])
         elif plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
             self._draft_answer = chat._compose_daily_status_answer(plan, self._tool_results)
@@ -185,15 +189,19 @@ class ChatHealthQueryGraph(CompiledStateGraphRunner):
 
         context = self._require_context()
         plan = self._require_plan()
-        self._final_answer = chat._review_answer(
-            context,
-            self.critic_service,
-            plan=plan,
-            answer=self._draft_answer,
-            safe_tool_result_summary=chat._safe_result_summary(self._tool_results),
-            tool_result_summaries=chat._tool_result_summaries(self._tool_results),
-        )
-        flags = ["reviewed"] if self._final_answer == self._draft_answer else ["rewritten"]
+        if not self._tool_results and chat.is_casual_chat_message(context.request.user_message):
+            self._final_answer = self._draft_answer
+            flags = ["deterministic_casual_response"]
+        else:
+            self._final_answer = chat._review_answer(
+                context,
+                self.critic_service,
+                plan=plan,
+                answer=self._draft_answer,
+                safe_tool_result_summary=chat._safe_result_summary(self._tool_results),
+                tool_result_summaries=chat._tool_result_summaries(self._tool_results),
+            )
+            flags = ["reviewed"] if self._final_answer == self._draft_answer else ["rewritten"]
         return append_graph_node(state, "critic_review", critic_flags=flags, final_answer=self._final_answer[:240])
 
     def _memory_writer(self, state: BaseAgentGraphState) -> BaseAgentGraphState:

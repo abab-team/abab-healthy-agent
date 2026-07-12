@@ -120,13 +120,23 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         )
 
     def test_chat_unknown_intent_does_not_call_tools(self) -> None:
-        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "hello"))
+        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "tell me a joke"))
 
         calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.tool_calls_count, 0)
         self.assertEqual(calls, [])
         self.assertIn("系统内记录", result.generated_content or "")
+
+    def test_casual_greeting_returns_safe_conversational_response_without_tools(self) -> None:
+        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "你好"))
+
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 0)
+        self.assertEqual(calls, [])
+        self.assertIn("健康记录整理助手", result.generated_content or "")
+        self.assertIn("不替代医生判断", result.generated_content or "")
 
     def test_rule_matched_query_does_not_call_llm_planner(self) -> None:
         class RaisingPlanner:
