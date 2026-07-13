@@ -282,6 +282,28 @@ def run_chat_health_query(
         _record_session_messages(execution_context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=len(results))
 
+    if plan.intent == HealthQueryIntent.QUERY_MEDICAL_HISTORY:
+        results = _execute_medical_history_tools(execution_context, executor, days=plan.time_range.days)
+        answer = _compose_insight_answer(
+            plan,
+            results,
+            conversation_responder=conversation_responder,
+            settings=settings,
+            user_message=execution_context.request.user_message,
+            session_summary=_safe_session_context_summary(memory_context),
+            assistant_context=assistant_context,
+        )
+        answer = _review_answer(
+            execution_context,
+            critic_service,
+            plan=plan,
+            answer=answer,
+            safe_tool_result_summary=_safe_result_summary(results),
+            tool_result_summaries=_tool_result_summaries(results),
+        )
+        _record_session_messages(execution_context, plan, answer)
+        return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=len(results))
+
     result = _execute_tool(execution_context, executor, plan.tool_name, dict(plan.tool_input or {}))
     answer = _compose_insight_answer(
         plan,
@@ -427,6 +449,21 @@ def _execute_health_overview_tools(
         ("documents.query", {"days": days, "limit": 10}),
         ("medical_timeline.events.query", {"days": days, "limit": 10}),
         ("alerts.query", {"days": days, "limit": 10}),
+    )
+    return [_execute_tool(context, executor, tool_name, input_data) for tool_name, input_data in calls]
+
+
+def _execute_medical_history_tools(
+    context: AgentWorkflowContext,
+    executor: AgentToolExecutor,
+    *,
+    days: int,
+) -> list[ToolExecutionResult]:
+    """Read only confirmed profile, timeline, and document summaries through ToolExecutor."""
+    calls = (
+        ("health_profile.get", {}),
+        ("medical_timeline.events.query", {"days": days, "limit": 10}),
+        ("documents.query", {"limit": 10}),
     )
     return [_execute_tool(context, executor, tool_name, input_data) for tool_name, input_data in calls]
 

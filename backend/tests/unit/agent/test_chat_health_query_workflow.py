@@ -175,6 +175,37 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertIn("步数", result.generated_content or "")
         self.assertIn("体重", result.generated_content or "")
 
+    def test_medical_history_query_uses_permission_gated_safe_summaries(self) -> None:
+        from app.modules.health_profile import service as health_profile_service
+        from app.modules.medical_timeline import service as medical_timeline_service
+
+        health_profile_service.update_profile_summaries(
+            self.db,
+            user_id=self.target.id,
+            allergy_summary="已由用户确认的过敏资料",
+            medication_summary="已保存的用药资料",
+        )
+        medical_timeline_service.create_medical_event(
+            self.db,
+            user_id=self.target.id,
+            family_id=self.family.id,
+            created_by_user_id=self.target.id,
+            event_type="follow_up",
+            title="复查记录",
+        )
+
+        result = AgentRuntime().run(
+            self.db,
+            self._request(self.actor.id, self.actor.id, "爸爸有什么过敏记录？", family_id=self.family.id),
+        )
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 3)
+        self.assertEqual([call.tool_name for call in calls], ["health_profile.get", "medical_timeline.events.query", "documents.query"])
+        self.assertIn("过敏资料摘要", result.generated_content or "")
+        self.assertNotIn("已由用户确认的过敏资料", result.generated_content or "")
+
     def test_casual_chat_does_not_call_tools(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "tell me a joke"))
 

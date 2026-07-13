@@ -12,6 +12,7 @@ class HealthQueryIntent(StrEnum):
     QUERY_MEDICAL_EVENTS = "query_medical_events"
     QUERY_DOCUMENTS = "query_documents"
     QUERY_ALERTS = "query_alerts"
+    QUERY_MEDICAL_HISTORY = "query_medical_history"
     QUERY_DAILY_STATUS = "query_daily_status"
     UNKNOWN = "unknown"
 

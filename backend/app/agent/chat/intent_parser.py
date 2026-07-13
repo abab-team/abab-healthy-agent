@@ -81,6 +81,16 @@ def parse_health_query(message: str, *, reference_date: date | None = None) -> H
             tool_name="health_record.symptoms.query",
             tool_input={"days": time_range.days},
         )
+    if any(keyword in text for keyword in ("病史", "过敏", "用药记录", "手术", "住院", "复查是什么时候", "就医资料")):
+        return HealthQueryPlan(
+            intent=HealthQueryIntent.QUERY_MEDICAL_HISTORY,
+            time_range=time_range,
+            member_label=member_label,
+            member_scope=member_scope,
+            source_type="medical_history",
+            tool_name="health_profile.get",
+            tool_input={"days": time_range.days},
+        )
     if any(keyword in text for keyword in ("复查", "随访", "就诊", "检查记录", "健康事件", "medical event", "follow-up")):
         intent = HealthQueryIntent.QUERY_ALERTS if any(k in text for k in ("提醒", "reminder")) else HealthQueryIntent.QUERY_MEDICAL_EVENTS
         return HealthQueryPlan(

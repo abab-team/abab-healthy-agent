@@ -74,6 +74,8 @@ def explain_blood_pressure_reference(user_message: str) -> str | None:
 
 
 def build_health_insight(plan: HealthQueryPlan, results: list[ToolExecutionResult]) -> HealthInsight:
+    if plan.intent == HealthQueryIntent.QUERY_MEDICAL_HISTORY:
+        return _build_medical_history_insight(plan, results)
     if plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
         return _build_overview_insight(plan, results)
 
@@ -102,6 +104,47 @@ def build_health_insight(plan: HealthQueryPlan, results: list[ToolExecutionResul
         facts=tuple(facts[:5]),
         observations=tuple(observations[:2]),
         next_step="如果你愿意，我也可以继续帮你整理最近一个月的记录，或准备就医沟通资料。",
+    )
+
+
+def _build_medical_history_insight(plan: HealthQueryPlan, results: list[ToolExecutionResult]) -> HealthInsight:
+    member = plan.member_label or "你"
+    facts: list[str] = []
+    unavailable = False
+    for result in results:
+        if result.blocked or result.status != "completed":
+            unavailable = True
+            continue
+        data = result.output_data or {}
+        if result.tool_name == "health_profile.get":
+            profile = data.get("profile") if isinstance(data.get("profile"), dict) else {}
+            for field, label in (
+                ("chronic_conditions", "长期健康资料摘要"),
+                ("allergies", "过敏资料摘要"),
+                ("medication_summary", "用药资料摘要"),
+            ):
+                value = profile.get(field)
+                if value:
+                    facts.append(f"{label}：系统内已保存相关资料。")
+        elif result.tool_name == "medical_timeline.events.query":
+            count = _count(data, {})
+            if count:
+                latest = data.get("latest_event") if isinstance(data.get("latest_event"), dict) else {}
+                title = latest.get("title")
+                facts.append(f"就医与健康事件：已保存 {count} 条。" + (f" 最近一条为“{title}”。" if title else ""))
+        elif result.tool_name == "documents.query":
+            count = _count(data, {})
+            if count:
+                facts.append(f"医疗资料：已归档 {count} 份。")
+    if unavailable:
+        facts.append("部分信息因权限设置暂不可用。")
+    if not facts:
+        facts.append("系统内暂无可用于整理的已确认医疗资料；这不代表现实中没有相关情况。")
+    return HealthInsight(
+        opening=f"我整理了一下{member}已保存的就医和健康资料。",
+        facts=tuple(facts[:6]),
+        observations=("我只复述系统内已保存的资料，不据此推断新的医学结论。",),
+        next_step="如果需要，我也可以按时间范围继续整理相关就医事件或已归档资料。",
     )
 
 
