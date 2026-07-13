@@ -123,6 +123,11 @@ class RecentMetricsTool(AgentTool):
             metric_types=metric_types,
             days=payload["days"],
         )[: payload["limit"]]
+        metric_summaries = health_data_service.get_recent_metric_overview(
+            db,
+            user_id=payload["_target_user_id"],
+            days=payload["days"],
+        )
         return {
             "status": "ok",
             "source": "system_records",
@@ -130,6 +135,7 @@ class RecentMetricsTool(AgentTool):
             "count": len(records),
             "coverage_note": f"Based only on system records in the last {payload['days']} days.",
             "items": [_metric_record_summary(record) for record in records],
+            "metric_summaries": metric_summaries,
         }
 
 

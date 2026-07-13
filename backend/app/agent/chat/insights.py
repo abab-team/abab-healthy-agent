@@ -14,6 +14,7 @@ METRIC_LABELS = {
     "weight": "体重",
     "heart_rate": "心率",
     "exercise_duration": "运动时长",
+    "body_fat": "体脂",
 }
 
 
@@ -143,9 +144,23 @@ def _build_health_overview(results: list[ToolExecutionResult]) -> HealthOverview
         summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
         count = _count(data, summary)
         if result.tool_name == "health_data.metrics.recent":
-            facts.append(
-                f"健康指标：已记录 {count} 条数据。" if count else "健康指标：系统内暂无相关记录。"
-            )
+            metric_summaries = data.get("metric_summaries") if isinstance(data.get("metric_summaries"), list) else []
+            if metric_summaries:
+                for metric_summary in metric_summaries:
+                    if not isinstance(metric_summary, dict):
+                        continue
+                    metric = METRIC_LABELS.get(str(metric_summary.get("metric_type") or ""), "健康指标")
+                    value = metric_summary.get("latest_value")
+                    unit = _unit_label(metric_summary.get("unit") or "")
+                    metric_count = _count(metric_summary, {})
+                    if value is not None:
+                        facts.append(f"健康指标 - {metric}：已记录 {metric_count} 条，最近一次为 {value} {unit}".strip())
+                    else:
+                        facts.append(f"健康指标 - {metric}：已记录 {metric_count} 条。")
+            elif count:
+                facts.append(f"健康指标：已记录 {count} 条数据。")
+            else:
+                facts.append("健康指标：系统内暂无相关记录。")
         elif result.tool_name == "health_data.blood_pressure.summary":
             systolic, diastolic = summary.get("latest_systolic"), summary.get("latest_diastolic")
             if count and systolic is not None and diastolic is not None:

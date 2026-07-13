@@ -159,6 +159,22 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertIn("血压记录", result.generated_content or "")
         self.assertIn("文档资料", result.generated_content or "")
 
+    def test_family_overview_lists_available_metric_categories_without_agent_db_access(self) -> None:
+        health_data_service.add_metric(self.db, user_id=self.target.id, metric_type="sleep_duration", value_numeric=6.8, unit="hours")
+        health_data_service.add_metric(self.db, user_id=self.target.id, metric_type="steps", value_numeric=5600, unit="steps")
+        health_data_service.add_metric(self.db, user_id=self.target.id, metric_type="weight", value_numeric=68.2, unit="kg")
+
+        result = AgentRuntime().run(
+            self.db,
+            self._request(self.actor.id, self.actor.id, "爸爸最近健康情况怎么样？", family_id=self.family.id),
+        )
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 6)
+        self.assertIn("睡眠", result.generated_content or "")
+        self.assertIn("步数", result.generated_content or "")
+        self.assertIn("体重", result.generated_content or "")
+
     def test_casual_chat_does_not_call_tools(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "tell me a joke"))
 

@@ -31,6 +31,16 @@ from app.modules.health_data.models import BloodPressureRecord, HealthMetric
 from app.modules.health_data.schemas import BloodPressureSummary, MetricSummary
 
 
+OVERVIEW_METRIC_TYPES = (
+    MetricType.SLEEP_DURATION,
+    MetricType.STEPS,
+    MetricType.WEIGHT,
+    MetricType.HEART_RATE,
+    MetricType.EXERCISE_DURATION,
+    MetricType.BODY_FAT,
+)
+
+
 # 函数职责：创建流程，完成输入校验、业务规则检查和新对象写入。
 # 业务边界：创建动作通常会影响数据库状态，调用前必须保证必要权限和唯一性约束。
 def add_metric(
@@ -111,6 +121,50 @@ def get_latest_metrics_snapshot(
         latest = repository.get_latest_metric(db, user_id, metric_type)
         snapshot[metric_type.value] = _metric_record_dict(latest) if latest else None
     return snapshot
+
+
+def get_recent_metric_overview(
+    db: Session,
+    *,
+    user_id: UUID,
+    days: int = 7,
+) -> list[dict]:
+    """Return compact, non-diagnostic summaries for overview presentation.
+
+    This remains in the health-data service so Agent code receives only
+    structured facts and never reads metric records directly.
+    """
+    records = get_recent_metrics(
+        db,
+        user_id=user_id,
+        metric_types=list(OVERVIEW_METRIC_TYPES),
+        days=days,
+    )
+    grouped: dict[str, list[HealthMetric]] = {}
+    for record in records:
+        metric_type = getattr(record.metric_type, "value", record.metric_type)
+        grouped.setdefault(str(metric_type), []).append(record)
+
+    summaries: list[dict] = []
+    for metric_type in OVERVIEW_METRIC_TYPES:
+        group = grouped.get(metric_type.value, [])
+        if not group:
+            continue
+        numeric_values = [stats.to_float(record.value_numeric) for record in group if record.value_numeric is not None]
+        numeric_values = [value for value in numeric_values if value is not None]
+        latest = group[0]
+        latest_value = stats.to_float(latest.value_numeric) if latest.value_numeric is not None else latest.value_text
+        summaries.append(
+            {
+                "metric_type": metric_type.value,
+                "count": len(group),
+                "latest_value": latest_value,
+                "latest_measured_at": latest.measured_at,
+                "avg_value": stats.average(numeric_values),
+                "unit": latest.unit,
+            },
+        )
+    return summaries
 
 
 # 函数职责：查询流程，根据业务标识读取对象或聚合信息。
