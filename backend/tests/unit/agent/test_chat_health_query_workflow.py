@@ -206,6 +206,32 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertIn("过敏资料摘要", result.generated_content or "")
         self.assertNotIn("已由用户确认的过敏资料", result.generated_content or "")
 
+    def test_bmi_is_derived_from_permission_gated_profile_and_weight_without_write(self) -> None:
+        from app.modules.health_profile import service as health_profile_service
+
+        health_profile_service.create_or_update_profile(self.db, self.actor.id, {"height_cm": 170})
+        health_data_service.add_metric(self.db, user_id=self.actor.id, metric_type="weight", value_numeric=68, unit="kg")
+
+        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "帮我算一下 BMI"))
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual([call.tool_name for call in calls], ["health_profile.get", "health_data.metric.summary"])
+        self.assertIn("BMI", result.generated_content or "")
+        self.assertIn("23.5", result.generated_content or "")
+        self.assertNotIn("诊断", result.generated_content or "")
+
+    def test_metric_query_accepts_bare_time_range_and_returns_trend_facts(self) -> None:
+        health_data_service.add_metric(self.db, user_id=self.actor.id, metric_type="sleep_duration", value_numeric=6.5, unit="hours")
+        health_data_service.add_metric(self.db, user_id=self.actor.id, metric_type="sleep_duration", value_numeric=7.2, unit="hours")
+
+        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "查询睡眠30天"))
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 1)
+        self.assertIn("睡眠", result.generated_content or "")
+        self.assertIn("较早的记录", result.generated_content or "")
+
     def test_casual_chat_does_not_call_tools(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "tell me a joke"))
 

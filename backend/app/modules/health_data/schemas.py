@@ -37,6 +37,8 @@ class MetricSummary:
     unit: str | None
     # 字段说明：data_quality 是接口/服务层数据结构中的一个显式字段。
     data_quality: str
+    trend_direction: str | None
+    trend_delta: float | None
     # 字段说明：records 是接口/服务层数据结构中的一个显式字段。
     records: list[dict]
 

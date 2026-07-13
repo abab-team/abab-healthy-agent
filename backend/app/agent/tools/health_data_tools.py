@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.agent.schemas import AgentToolMetadata
 from app.agent.tools.base import AgentTool
 from app.modules.health_data import service as health_data_service
+from app.modules.health_data.metric_types import get_metric_definition
 
 
 class BloodPressureSummaryTool(AgentTool):
@@ -81,12 +82,17 @@ class MetricSummaryTool(AgentTool):
         )
         data = asdict(summary)
         data["records"] = data["records"][:10]
+        definition = get_metric_definition(summary.metric_type)
         return {
             "status": "ok",
             "source": "system_records",
             "empty": summary.count == 0,
             "aggregation": payload["aggregation"],
             "coverage_note": f"Based only on {summary.count} system records in the selected period.",
+            "metric_definition": {
+                "label": definition.label,
+                "default_unit": definition.default_unit,
+            } if definition else None,
             "summary": data,
         }
 

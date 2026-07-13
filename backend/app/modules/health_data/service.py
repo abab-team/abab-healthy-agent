@@ -195,6 +195,13 @@ def get_metric_summary(
     # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
     if latest is not None:
         latest_value = stats.to_float(latest.value_numeric) if latest.value_numeric is not None else latest.value_text
+    oldest_value = numeric_values[-1] if numeric_values else None
+    latest_numeric_value = numeric_values[0] if numeric_values else None
+    trend_delta = None
+    trend_direction = None
+    if latest_numeric_value is not None and oldest_value is not None and len(numeric_values) >= 2:
+        trend_delta = latest_numeric_value - oldest_value
+        trend_direction = "up" if trend_delta > 0 else "down" if trend_delta < 0 else "stable"
     return MetricSummary(
         metric_type=metric_type.value,
         days=days,
@@ -206,6 +213,8 @@ def get_metric_summary(
         avg_value=stats.average(numeric_values),
         unit=latest.unit if latest else None,
         data_quality=stats.data_quality_for_count(len(records)),
+        trend_direction=trend_direction,
+        trend_delta=trend_delta,
         records=[_metric_record_dict(record) for record in records],
     )
 

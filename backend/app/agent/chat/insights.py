@@ -6,6 +6,7 @@ from typing import Any
 
 from app.agent.chat.schemas import HealthQueryIntent, HealthQueryPlan
 from app.agent.schemas import ToolExecutionResult
+from app.modules.health_data.metric_types import get_metric_definition
 
 
 METRIC_LABELS = {
@@ -76,6 +77,8 @@ def explain_blood_pressure_reference(user_message: str) -> str | None:
 def build_health_insight(plan: HealthQueryPlan, results: list[ToolExecutionResult]) -> HealthInsight:
     if plan.intent == HealthQueryIntent.QUERY_MEDICAL_HISTORY:
         return _build_medical_history_insight(plan, results)
+    if plan.metric_type == "bmi":
+        return _build_bmi_insight(plan, results)
     if plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
         return _build_overview_insight(plan, results)
 
@@ -104,6 +107,38 @@ def build_health_insight(plan: HealthQueryPlan, results: list[ToolExecutionResul
         facts=tuple(facts[:5]),
         observations=tuple(observations[:2]),
         next_step="如果你愿意，我也可以继续帮你整理最近一个月的记录，或准备就医沟通资料。",
+    )
+
+
+def _build_bmi_insight(plan: HealthQueryPlan, results: list[ToolExecutionResult]) -> HealthInsight:
+    profile_data: dict[str, Any] = {}
+    weight_summary: dict[str, Any] = {}
+    unavailable = False
+    for result in results:
+        if result.blocked or result.status != "completed":
+            unavailable = True
+            continue
+        data = result.output_data or {}
+        if result.tool_name == "health_profile.get":
+            profile_data = data.get("profile") if isinstance(data.get("profile"), dict) else {}
+        elif result.tool_name == "health_data.metric.summary":
+            weight_summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
+    height_cm = profile_data.get("height_cm")
+    weight_kg = weight_summary.get("latest_value")
+    facts: list[str] = []
+    if unavailable:
+        facts.append("部分信息因权限设置暂不可用。")
+    elif isinstance(height_cm, (int, float)) and isinstance(weight_kg, (int, float)) and height_cm > 0:
+        bmi = round(float(weight_kg) / ((float(height_cm) / 100) ** 2), 1)
+        facts.append(f"按系统内最近一次体重 {weight_kg} kg 和身高 {height_cm} cm 计算，BMI 约为 {bmi}。")
+        facts.append("BMI 是基于已保存数据的计算值，不是医学结论。")
+    else:
+        facts.append("系统内缺少可用于计算 BMI 的身高或体重记录。")
+    return HealthInsight(
+        opening=f"我帮你整理了{plan.member_label or '你'}的 BMI 计算信息。",
+        facts=tuple(facts),
+        observations=(),
+        next_step="如果需要，我也可以继续整理体重记录的时间变化。",
     )
 
 
@@ -264,13 +299,17 @@ def _append_result_insight(
         observations.append("我只整理已记录的数值，不对数值作医学判断。")
         return
     if plan.intent == HealthQueryIntent.QUERY_METRICS:
-        metric = METRIC_LABELS.get(str(summary.get("metric_type") or plan.metric_type or ""), "这项指标")
+        definition = get_metric_definition(str(summary.get("metric_type") or plan.metric_type or ""))
+        metric = definition.label if definition else METRIC_LABELS.get(str(summary.get("metric_type") or plan.metric_type or ""), "这项指标")
         facts.append(f"这段时间共记录 {count} 条{metric}数据。")
         value = summary.get("avg_value") if plan.aggregation == "avg" else summary.get("latest_value")
         unit = summary.get("unit") or ""
         if value is not None:
             label = "平均已记录值" if plan.aggregation == "avg" else "最近一次已记录值"
             facts.append(f"{label}是 {value} {_unit_label(unit)}".strip())
+        if summary.get("trend_direction") in {"up", "down", "stable"}:
+            direction = {"up": "较早期记录增加", "down": "较早期记录减少", "stable": "与较早期记录接近"}[summary["trend_direction"]]
+            facts.append(f"与这段时间较早的记录相比，{direction}。")
         observations.append("记录较连续时，更容易回看长期变化。")
         return
     if plan.intent == HealthQueryIntent.QUERY_SYMPTOMS:

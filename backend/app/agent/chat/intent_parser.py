@@ -58,6 +58,17 @@ def parse_health_query(message: str, *, reference_date: date | None = None) -> H
             tool_name="health_data.blood_pressure.summary",
             tool_input={"days": time_range.days},
         )
+    if any(keyword in text for keyword in METRIC_KEYWORDS["bmi"]):
+        return HealthQueryPlan(
+            intent=HealthQueryIntent.QUERY_METRICS,
+            time_range=time_range,
+            member_label=member_label,
+            member_scope=member_scope,
+            metric_type="bmi",
+            aggregation=aggregation,
+            tool_name="health_data.bmi.derived",
+            tool_input={"days": time_range.days},
+        )
     for metric_type, keywords in METRIC_KEYWORDS.items():
         if any(keyword in text for keyword in keywords):
             return HealthQueryPlan(

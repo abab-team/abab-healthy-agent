@@ -24,9 +24,9 @@ def parse_time_range(message: str, *, reference_date: date | None = None) -> Hea
         return HealthQueryTimeRange(start, today, "this_month", (today - start).days + 1)
     if "过去三个月" in text or "最近三个月" in text or "last 3 months" in text:
         return _last_days(today, 90, "last_90_days")
-    if "最近一周" in text or "一周" in text or "近一周" in text or "last week" in text:
+    if "最近一周" in text or "一周" in text or "近一周" in text or "上周" in text or "last week" in text:
         return _last_days(today, 7, "last_7_days")
-    match = re.search(r"(?:最近|过去|last)\s*(\d+)\s*(?:天|days?)", text)
+    match = re.search(r"(?:(?:最近|过去|last)\s*)?(\d+)\s*(?:天|days?)", text)
     if match:
         days = max(1, min(int(match.group(1)), 365))
         return _last_days(today, days, f"last_{days}_days")
