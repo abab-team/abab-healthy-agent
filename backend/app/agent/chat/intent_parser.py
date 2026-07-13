@@ -17,11 +17,35 @@ METRIC_KEYWORDS = {
 }
 
 
+# Narrow overview phrases: these explicitly ask for the current user's
+# recorded information and should execute the existing controlled overview.
+SELF_OVERVIEW_PHRASES = (
+    "\u67e5\u8be2\u6211\u6700\u8fd1\u7684\u6570\u636e",
+    "\u67e5\u770b\u6211\u6700\u8fd1\u7684\u6570\u636e",
+    "\u6211\u6700\u8fd1\u7684\u6570\u636e",
+    "\u6211\u7684\u6700\u8fd1\u6570\u636e",
+    "\u67e5\u8be2\u6211\u7684\u5065\u5eb7\u8bb0\u5f55",
+    "\u67e5\u770b\u6211\u7684\u5065\u5eb7\u8bb0\u5f55",
+    "\u6211\u6700\u8fd1\u600e\u4e48\u6837",
+)
+
+
 def parse_health_query(message: str, *, reference_date: date | None = None) -> HealthQueryPlan:
     text = (message or "").lower()
     time_range = parse_time_range(message, reference_date=reference_date)
     member_label, member_scope = resolve_member_label(message)
     aggregation = _aggregation_for(text)
+
+    if any(phrase in text for phrase in SELF_OVERVIEW_PHRASES):
+        return HealthQueryPlan(
+            intent=HealthQueryIntent.QUERY_DAILY_STATUS,
+            time_range=time_range,
+            member_label=member_label,
+            member_scope=member_scope,
+            source_type="daily_status",
+            tool_name="health_data.metrics.recent",
+            tool_input={"days": time_range.days, "limit": 10},
+        )
 
     if any(keyword in text for keyword in ("血压", "blood pressure")):
         return HealthQueryPlan(

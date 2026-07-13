@@ -51,5 +51,12 @@ class ChatIntentParserTestCase(unittest.TestCase):
         self.assertEqual(plan.safe_unknown_reason, "unsupported_health_query_intent")
 
 
+    def test_parse_current_user_overview_query(self) -> None:
+        plan = parse_health_query("\u67e5\u8be2\u6211\u6700\u8fd1\u7684\u6570\u636e", reference_date=date(2026, 7, 8))
+
+        self.assertEqual(plan.intent, HealthQueryIntent.QUERY_DAILY_STATUS)
+        self.assertEqual(plan.tool_name, "health_data.metrics.recent")
+
+
 if __name__ == "__main__":
     unittest.main()

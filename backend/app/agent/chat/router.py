@@ -55,6 +55,14 @@ _HEALTH_RECORD_HINTS = (
     "血压", "睡眠", "步数", "体重", "心率", "症状", "提醒", "文档", "报告", "复查",
     "pressure", "sleep", "steps", "weight", "symptom", "alert", "document", "report",
 )
+_HEALTH_INTERPRETATION_TERMS = (
+    "\u8fd9\u4e2a\u6570\u503c\u5065\u5eb7\u5417",
+    "\u8fd9\u4e2a\u6570\u636e\u5065\u5eb7\u5417",
+    "\u6b63\u5e38\u5417",
+    "\u5f02\u5e38\u5417",
+    "\u6709\u95ee\u9898\u5417",
+    "\u4e25\u91cd\u5417",
+)
 _EXTERNAL_REALTIME_TERMS = ("天气", "weather", "新闻", "news", "股价", "股票", "汇率")
 _CASUAL_CHAT_TERMS = ("你好", "您好", "早上好", "晚上好", "今天怎么样", "今天过得怎么样", "谢谢", "感谢", "再见")
 
@@ -86,6 +94,8 @@ def route_conversation(
         return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.SYMPTOM_DRAFT)
     if any(marker in text for marker in _WRITE_REQUEST_MARKERS) and any(term in text for term in _WRITE_EVENT_RECORD_TERMS):
         return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.HEALTH_EVENT_DRAFT)
+    if any(term in text for term in _HEALTH_INTERPRETATION_TERMS):
+        return ConversationRoute(ConversationIntent.HEALTH_KNOWLEDGE)
     if any(term in text for term in _HEALTH_KNOWLEDGE_TERMS):
         return ConversationRoute(ConversationIntent.HEALTH_KNOWLEDGE)
     if any(term in text for term in _EXTERNAL_REALTIME_TERMS):

@@ -507,5 +507,19 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         )
 
 
+    def test_current_user_recent_data_runs_controlled_overview_tools(self) -> None:
+        health_data_service.add_metric(self.db, user_id=self.actor.id, metric_type="steps", value_numeric=5000, unit="steps")
+
+        result = AgentRuntime().run(
+            self.db,
+            self._request(self.actor.id, self.actor.id, "\u67e5\u8be2\u6211\u6700\u8fd1\u7684\u6570\u636e"),
+        )
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 6)
+        self.assertEqual(calls[0].tool_name, "health_data.metrics.recent")
+
+
 if __name__ == "__main__":
     unittest.main()

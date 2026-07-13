@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ChatBubble } from "@/components/common/ChatBubble";
-import { InlineSafetyNotice } from "@/components/common/InlineSafetyNotice";
 import { ScreenHeader } from "@/components/common/ScreenHeader";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
@@ -149,7 +148,6 @@ export default function AgentScreen() {
       </View>)}
       {queryLoading ? <View style={styles.typing}><View style={styles.typingDot} /><View style={styles.typingDot} /><View style={styles.typingDot} /></View> : null}
       {queryError ? <ApiErrorState message={queryError} /> : null}
-      <InlineSafetyNotice />
     </ScrollView>
   </AppScreen>;
 }

@@ -61,5 +61,31 @@ class ConversationResponderTestCase(unittest.TestCase):
         self.assertIn("资料归档", reply)
 
 
+    def test_identity_uses_controlled_context_without_calling_the_model(self) -> None:
+        client = _FakeClient("\u4e0d\u5e94\u8be5\u8c03\u7528")
+        responder = ConversationResponder(settings=Settings(LLM_ENABLED=True, LLM_CHAT_ENABLED=True), llm_client=client)
+
+        reply = responder.respond(
+            intent=ConversationIntent.CASUAL_CHAT,
+            user_message="\u6211\u662f\u8c01",
+            assistant_context=("\u5f53\u524d\u7528\u6237\u79f0\u547c: Gala",),
+        )
+
+        self.assertIn("Gala", reply)
+        self.assertEqual(client.calls, 0)
+
+    def test_continuity_and_numeric_interpretation_have_safe_local_replies(self) -> None:
+        client = _FakeClient("\u4e0d\u5e94\u8be5\u8c03\u7528")
+        responder = ConversationResponder(settings=Settings(LLM_ENABLED=True, LLM_CHAT_ENABLED=True), llm_client=client)
+
+        continuity = responder.respond(intent=ConversationIntent.CASUAL_CHAT, user_message="\u4f60\u4e0d\u662f\u8bfb\u8fc7\u4e86\u5417")
+        interpretation = responder.respond(intent=ConversationIntent.HEALTH_KNOWLEDGE, user_message="\u8fd9\u4e2a\u6570\u503c\u5065\u5eb7\u5417")
+
+        self.assertIn("\u8bb0\u5f97", continuity)
+        self.assertIn("\u4e0d\u80fd", interpretation)
+        self.assertIn("\u533b\u751f", interpretation)
+        self.assertEqual(client.calls, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

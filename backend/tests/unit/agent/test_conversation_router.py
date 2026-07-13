@@ -32,5 +32,11 @@ class ConversationRouterTestCase(unittest.TestCase):
         self.assertEqual(route.suggested_action, SuggestedAction.SYMPTOM_DRAFT)
 
 
+    def test_routes_numeric_health_interpretation_to_safe_knowledge_reply(self) -> None:
+        route = route_conversation("\u8fd9\u4e2a\u6570\u503c\u5065\u5eb7\u5417", parse_health_query("\u8fd9\u4e2a\u6570\u503c\u5065\u5eb7\u5417"))
+
+        self.assertEqual(route.intent, ConversationIntent.HEALTH_KNOWLEDGE)
+
+
 if __name__ == "__main__":
     unittest.main()
