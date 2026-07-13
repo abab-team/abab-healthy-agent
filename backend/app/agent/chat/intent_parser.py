@@ -89,6 +89,16 @@ def parse_health_query(message: str, *, reference_date: date | None = None) -> H
             tool_name="alerts.query",
             tool_input={"days": time_range.days, "limit": 10},
         )
+    if member_scope == "family" and any(keyword in text for keyword in ("怎么样", "近况", "身体情况", "健康情况")):
+        return HealthQueryPlan(
+            intent=HealthQueryIntent.QUERY_DAILY_STATUS,
+            time_range=time_range,
+            member_label=member_label,
+            member_scope=member_scope,
+            source_type="daily_status",
+            tool_name="health_data.metrics.recent",
+            tool_input={"days": time_range.days, "limit": 10},
+        )
     if any(keyword in text for keyword in ("健康情况", "健康状态", "总结", "概览", "今天怎么样", "status", "summary")):
         return HealthQueryPlan(
             intent=HealthQueryIntent.QUERY_DAILY_STATUS,

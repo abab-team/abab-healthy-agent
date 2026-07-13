@@ -9,6 +9,7 @@ from app.agent.chat.schemas import HealthQueryPlan
 class ConversationIntent(StrEnum):
     CASUAL_CHAT = "casual_chat"
     HEALTH_RECORD_QUERY = "health_record_query"
+    FAMILY_HEALTH_QUERY = "family_health_query"
     HEALTH_KNOWLEDGE = "health_knowledge"
     WRITE_REQUEST = "write_request"
     OTHER = "other"
@@ -48,6 +49,7 @@ _HEALTH_RECORD_HINTS = (
     "血压", "睡眠", "步数", "体重", "心率", "症状", "提醒", "文档", "报告", "复查",
     "pressure", "sleep", "steps", "weight", "symptom", "alert", "document", "report",
 )
+_EXTERNAL_REALTIME_TERMS = ("天气", "weather", "新闻", "news", "股价", "股票", "汇率")
 
 
 def route_conversation(message: str, plan: HealthQueryPlan) -> ConversationRoute:
@@ -61,8 +63,12 @@ def route_conversation(message: str, plan: HealthQueryPlan) -> ConversationRoute
         return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.SYMPTOM_DRAFT)
     if any(term in text for term in _HEALTH_KNOWLEDGE_TERMS):
         return ConversationRoute(ConversationIntent.HEALTH_KNOWLEDGE)
+    if any(term in text for term in _EXTERNAL_REALTIME_TERMS):
+        return ConversationRoute(ConversationIntent.OTHER)
     if not plan.is_unknown and plan.tool_name:
-        return ConversationRoute(ConversationIntent.HEALTH_RECORD_QUERY)
+        return ConversationRoute(
+            ConversationIntent.FAMILY_HEALTH_QUERY if plan.member_scope == "family" else ConversationIntent.HEALTH_RECORD_QUERY
+        )
     if any(term in text for term in _HEALTH_RECORD_HINTS):
         return ConversationRoute(ConversationIntent.HEALTH_RECORD_QUERY)
     return ConversationRoute(ConversationIntent.CASUAL_CHAT if text else ConversationIntent.OTHER)

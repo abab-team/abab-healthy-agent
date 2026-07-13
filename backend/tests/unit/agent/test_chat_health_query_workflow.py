@@ -11,6 +11,7 @@ TEST_DB_PATH = Path(tempfile.gettempdir()) / "family_health_agent_phase16_chat_w
 os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{TEST_DB_PATH.as_posix()}")
 
 from app.agent import service as agent_service  # noqa: E402
+from app.agent.memory import service as memory_service  # noqa: E402
 from app.agent.enums import AgentTraceStatus, AgentWorkflowName  # noqa: E402
 from app.agent.runtime import AgentRuntime  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
@@ -72,8 +73,8 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
             self.db,
             family_id=self.family.id,
             user_id=self.target.id,
-            relationship_label="member",
-            display_name="Target",
+            relationship_label="爸爸",
+            display_name="爸爸",
         )
         permissions_service.create_default_permissions_for_member(
             self.db,
@@ -104,7 +105,7 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.tool_calls_count, 1)
         self.assertEqual(calls[0].tool_name, "health_data.metric.summary")
         self.assertIn("根据系统内记录", result.generated_content or "")
-        self.assertIn("sleep_duration", result.generated_content or "")
+        self.assertIn("睡眠", result.generated_content or "")
 
     def test_chat_daily_status_runs_controlled_readonly_tools(self) -> None:
         health_data_service.add_metric(self.db, user_id=self.actor.id, metric_type="steps", value_numeric=5000, unit="steps")
@@ -193,24 +194,26 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.tool_calls_count, 1)
         self.assertEqual(calls[0].tool_name, "health_data.blood_pressure.summary")
 
-    def test_answer_composer_receives_only_safe_tool_summary_when_enabled(self) -> None:
-        class CapturingComposer:
+    def test_health_insight_responder_receives_only_safe_facts(self) -> None:
+        class CapturingResponder:
             def __init__(self) -> None:
-                self.safe_tool_result_summary = ""
+                self.safe_facts = ""
                 self.calls = 0
 
-            def compose(self, **kwargs):  # noqa: ANN001
+            def respond(self, **kwargs):  # noqa: ANN001
                 self.calls += 1
-                self.safe_tool_result_summary = kwargs["safe_tool_result_summary"]
+                self.safe_facts = kwargs["safe_facts"]
+                return kwargs["fallback_answer"]
 
-                class Result:
-                    answer = "根据系统内记录，已整理安全摘要。本回答不替代医生判断。"
-
-                return Result()
-
-        composer = CapturingComposer()
+        responder = CapturingResponder()
+        health_data_service.add_blood_pressure_record(
+            self.db,
+            user_id=self.actor.id,
+            systolic=118,
+            diastolic=76,
+        )
         registry = AgentWorkflowRegistry()
-        registry.register(ChatHealthQueryWorkflow(settings=Settings(LLM_ANSWER_COMPOSER_ENABLED=True), answer_composer=composer))
+        registry.register(ChatHealthQueryWorkflow(settings=Settings(LLM_ENABLED=False), conversation_responder=responder))
 
         result = AgentRuntime(registry).run(
             self.db,
@@ -218,10 +221,10 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         )
 
         self.assertEqual(result.status, "completed")
-        self.assertEqual(composer.calls, 1)
-        self.assertIn("system", composer.safe_tool_result_summary)
+        self.assertEqual(responder.calls, 1)
+        self.assertIn("血压", responder.safe_facts)
         for term in ("raw_text", "file_path", "raw_extracted_text", "token", "password"):
-            self.assertNotIn(term, composer.safe_tool_result_summary.lower())
+            self.assertNotIn(term, responder.safe_facts.lower())
 
     def test_chat_documents_query_does_not_leak_file_path(self) -> None:
         document_service.create_document_metadata(
@@ -269,6 +272,51 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(calls[0].status.value, "blocked_by_permission")
         self.assertIn("部分信息因权限设置暂不可用", result.generated_content or "")
         self.assertNotIn("private symptom text", result.generated_content or "")
+
+    def test_family_query_resolves_member_before_permission_checked_tool_execution(self) -> None:
+        health_data_service.add_blood_pressure_record(
+            self.db,
+            user_id=self.target.id,
+            systolic=120,
+            diastolic=78,
+        )
+
+        result = AgentRuntime().run(
+            self.db,
+            self._request(self.actor.id, self.actor.id, "爸爸最近血压怎么样？", family_id=self.family.id),
+        )
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 1)
+        self.assertEqual(calls[0].target_user_id, self.target.id)
+        self.assertIn("爸爸", result.generated_content or "")
+        self.assertIn("120/78", result.generated_content or "")
+
+    def test_follow_up_reuses_member_metric_and_changes_time_range(self) -> None:
+        health_data_service.add_blood_pressure_record(
+            self.db,
+            user_id=self.target.id,
+            systolic=120,
+            diastolic=78,
+        )
+        session = memory_service.get_or_create_session(
+            self.db,
+            user_id=self.actor.id,
+            family_id=self.family.id,
+            title="爸爸血压",
+        )
+        first = self._request(self.actor.id, self.actor.id, "爸爸最近血压怎么样？", family_id=self.family.id)
+        first = AgentRunRequest(**{**first.__dict__, "session_id": str(session.id)})
+        AgentRuntime().run(self.db, first)
+        follow_up = self._request(self.actor.id, self.actor.id, "那上个月呢？", family_id=self.family.id)
+        follow_up = AgentRunRequest(**{**follow_up.__dict__, "session_id": str(session.id)})
+        result = AgentRuntime().run(self.db, follow_up)
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(calls[0].target_user_id, self.target.id)
+        self.assertIn("爸爸", result.generated_content or "")
 
     def test_trace_does_not_remain_running(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "最近一周血压记录"))

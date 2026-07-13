@@ -1,5 +1,6 @@
 from app.agent.chat.intent_parser import parse_health_query
 from app.agent.chat.router import ConversationIntent, ConversationRoute, SuggestedAction, route_conversation
+from app.agent.chat.insights import HealthInsight, build_health_insight
 from app.agent.chat.schemas import HealthQueryIntent, HealthQueryPlan, HealthQueryTimeRange
 
 __all__ = [
@@ -10,5 +11,7 @@ __all__ = [
     "ConversationIntent",
     "ConversationRoute",
     "SuggestedAction",
+    "HealthInsight",
+    "build_health_insight",
     "route_conversation",
 ]

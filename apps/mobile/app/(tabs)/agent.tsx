@@ -13,7 +13,7 @@ import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
 import type { AgentRunResponse } from "@/types/api";
 
-const suggestions = ["我最近一周的睡眠记录怎么样？", "爸爸最近有哪些提醒？", "我上传过哪些检查资料？"];
+const suggestions = ["我最近一周睡眠怎么样？", "爸爸最近身体情况怎么样？", "帮我整理体检资料", "帮我记录今天头痛"];
 type SuggestedAction = NonNullable<AgentRunResponse["suggested_action"]>;
 type ConversationMessage = {
   id: string;
@@ -37,11 +37,16 @@ export default function AgentScreen() {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [queryLoading, setQueryLoading] = useState(false);
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [familyId, setFamilyId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
 
   useEffect(() => {
     let active = true;
     void (async () => {
+      const family = await provider.getFamilyOverview();
+      if (active && family.ok && family.data?.family.id && family.data.family.id !== "empty") {
+        setFamilyId(family.data.family.id);
+      }
       const sessions = await provider.listAgentSessions();
       const latest = sessions.ok ? sessions.data?.[0] : undefined;
       if (!latest || !active) return;
@@ -76,7 +81,12 @@ export default function AgentScreen() {
     setQuery("");
     setQueryLoading(true);
     setQueryError(null);
-    const result = await provider.runChatHealthQuery({ question: normalized, sessionId: chatSessionId, targetUserId: session.currentUserId });
+    const result = await provider.runChatHealthQuery({
+      familyId,
+      question: normalized,
+      sessionId: chatSessionId,
+      targetUserId: session.currentUserId
+    });
     setQueryLoading(false);
     if (result.ok && result.data) {
       const run = result.data;
@@ -106,14 +116,14 @@ export default function AgentScreen() {
         <Ionicons color="#FFFFFF" name="arrow-up" size={20} />
       </Pressable>
     </View>
-    <Text style={styles.composerHint}>{queryLoading ? "正在准备回复…" : "涉及健康记录时，我会在权限允许范围内整理系统信息。"}</Text>
+    <Text style={styles.composerHint}>{queryLoading ? "正在准备回复…" : "涉及家人记录时，我会先核对家庭共享权限。"}</Text>
   </View>;
 
   return <AppScreen footer={composer} scroll={false}>
-    <ScreenHeader subtitle="你的私人健康记录整理助手。" title="AI 健康管家" />
+    <ScreenHeader subtitle="我可以帮你整理自己和家人的健康记录。" title="AI 健康管家" />
     <ScrollView ref={scrollRef} contentContainerStyle={styles.chatContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.chatScroll}>
       {messages.length === 0 ? <>
-        <ChatBubble content="你好，Gala 👋\n\n我可以陪你聊聊，也能帮你整理健康记录、查看趋势和准备就医资料。" role="assistant" />
+        <ChatBubble content="你好，Gala 👋\n\n今天想聊点什么？我可以陪你说说话，也能在权限允许的范围内帮你整理自己和家人的健康记录。" role="assistant" />
         <View style={styles.questionHeader}><Text style={styles.sectionTitle}>你可以这样问</Text><Text style={styles.sectionCaption}>连续追问会沿用当前对话上下文</Text></View>
         <View style={styles.suggestions}>{suggestions.map((suggestion) => <Pressable key={suggestion} onPress={() => void runChatQuery(suggestion)} style={styles.suggestion}><Text style={styles.suggestionText}>{suggestion}</Text><Ionicons color={theme.colors.primaryDark} name="arrow-up-outline" size={15} /></Pressable>)}</View>
       </> : messages.map((message) => <View key={message.id} style={styles.messageGroup}>

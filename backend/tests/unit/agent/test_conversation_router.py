@@ -14,6 +14,14 @@ class ConversationRouterTestCase(unittest.TestCase):
         route = route_conversation("我最近睡眠怎么样？", parse_health_query("我最近睡眠怎么样？"))
         self.assertEqual(route.intent, ConversationIntent.HEALTH_RECORD_QUERY)
 
+    def test_routes_family_query_to_controlled_family_path(self) -> None:
+        route = route_conversation("爸爸最近血压怎么样？", parse_health_query("爸爸最近血压怎么样？"))
+        self.assertEqual(route.intent, ConversationIntent.FAMILY_HEALTH_QUERY)
+
+    def test_routes_realtime_external_question_without_a_health_tool(self) -> None:
+        route = route_conversation("上海天气怎么样？", parse_health_query("上海天气怎么样？"))
+        self.assertEqual(route.intent, ConversationIntent.OTHER)
+
     def test_routes_general_health_knowledge_without_personal_query(self) -> None:
         route = route_conversation("为什么会睡不好？", parse_health_query("为什么会睡不好？"))
         self.assertEqual(route.intent, ConversationIntent.HEALTH_KNOWLEDGE)

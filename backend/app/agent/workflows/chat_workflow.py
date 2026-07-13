@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
 from typing import Any
 
 from app.agent import service as agent_service
 from app.agent.answer_composer import LLMAnswerComposer
-from app.agent.chat import HealthQueryIntent, HealthQueryPlan, SuggestedAction, parse_health_query, route_conversation
+from app.agent.chat import HealthQueryIntent, HealthQueryPlan, SuggestedAction, build_health_insight, parse_health_query, route_conversation
+from app.agent.chat.family_context import resolve_family_target
 from app.agent.chat.responder import ConversationResponder
 from app.agent.chat.router import ConversationIntent
 from app.agent.critic import AnswerCriticService, CriticReviewRequest, ToolResultSummary
@@ -188,6 +189,7 @@ def run_chat_health_query(
             safe_memory_summary=(),
         )
         plan = planner_result.plan
+        route = route_conversation(context.request.user_message, plan)
     if plan.is_unknown or not plan.tool_name:
         answer = "\n".join([_unknown_or_clarification_message(plan), SYSTEM_RECORD_NOTE, SAFETY_FOOTER])
         answer = _review_answer(
@@ -201,50 +203,78 @@ def run_chat_health_query(
         _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
 
+    resolved_target = resolve_family_target(context, plan)
+    if resolved_target.request is None:
+        answer = resolved_target.safe_message or "当前无法确认要查询的家庭成员。"
+        _record_session_messages(context, plan, answer)
+        return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
+    plan = resolved_target.plan
+    execution_context = replace(context, request=resolved_target.request)
+
     if plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
         results = [
-            _execute_tool(context, executor, "health_data.metrics.recent", {"days": plan.time_range.days, "limit": 10}),
-            _execute_tool(context, executor, "health_record.symptoms.query", {"days": plan.time_range.days}),
-            _execute_tool(context, executor, "alerts.query", {"days": plan.time_range.days, "limit": 10}),
+            _execute_tool(execution_context, executor, "health_data.metrics.recent", {"days": plan.time_range.days, "limit": 10}),
+            _execute_tool(execution_context, executor, "health_record.symptoms.query", {"days": plan.time_range.days}),
+            _execute_tool(execution_context, executor, "alerts.query", {"days": plan.time_range.days, "limit": 10}),
         ]
-        answer = _compose_daily_status_answer(plan, results)
-        answer = _maybe_compose_answer(
-            answer_composer,
-            plan=plan,
-            fallback_answer=answer,
-            safe_tool_result_summary=_safe_result_summary(results),
-            user_question_excerpt=context.request.user_message,
+        answer = _compose_insight_answer(
+            plan,
+            results,
+            conversation_responder=conversation_responder,
+            settings=settings,
+            user_message=execution_context.request.user_message,
+            session_summary=_safe_session_context_summary(memory_context),
         )
         answer = _review_answer(
-            context,
+            execution_context,
             critic_service,
             plan=plan,
             answer=answer,
             safe_tool_result_summary=_safe_result_summary(results),
             tool_result_summaries=_tool_result_summaries(results),
         )
-        _record_session_messages(context, plan, answer)
+        _record_session_messages(execution_context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=len(results))
 
-    result = _execute_tool(context, executor, plan.tool_name, dict(plan.tool_input or {}))
-    answer = _compose_single_tool_answer(plan, result)
-    answer = _maybe_compose_answer(
-        answer_composer,
-        plan=plan,
-        fallback_answer=answer,
-        safe_tool_result_summary=_safe_result_summary([result]),
-        user_question_excerpt=context.request.user_message,
+    result = _execute_tool(execution_context, executor, plan.tool_name, dict(plan.tool_input or {}))
+    answer = _compose_insight_answer(
+        plan,
+        [result],
+        conversation_responder=conversation_responder,
+        settings=settings,
+        user_message=execution_context.request.user_message,
+        session_summary=_safe_session_context_summary(memory_context),
     )
     answer = _review_answer(
-        context,
+        execution_context,
         critic_service,
         plan=plan,
         answer=answer,
         safe_tool_result_summary=_safe_result_summary([result]),
         tool_result_summaries=_tool_result_summaries([result]),
     )
-    _record_session_messages(context, plan, answer)
+    _record_session_messages(execution_context, plan, answer)
     return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=1)
+
+
+def _compose_insight_answer(
+    plan: HealthQueryPlan,
+    results: list[ToolExecutionResult],
+    *,
+    conversation_responder: ConversationResponder | None,
+    settings,
+    user_message: str,
+    session_summary: tuple[str, ...],
+) -> str:
+    insight = build_health_insight(plan, results)
+    responder = conversation_responder or ConversationResponder(settings=settings or get_settings())
+    return responder.respond(
+        intent=ConversationIntent.FAMILY_HEALTH_QUERY if plan.member_scope == "family" else ConversationIntent.HEALTH_RECORD_QUERY,
+        user_message=user_message,
+        session_summary=session_summary,
+        safe_facts=insight.safe_facts(),
+        fallback_answer=insight.render(),
+    )
 
 
 def _record_session_messages(context: AgentWorkflowContext, plan: HealthQueryPlan, answer: str) -> None:

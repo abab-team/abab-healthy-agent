@@ -24,8 +24,11 @@ class ConversationResponder:
         user_message: str,
         session_summary: tuple[str, ...] = (),
         safe_facts: str = "",
+        fallback_answer: str | None = None,
     ) -> str:
-        fallback = _fallback_response(intent, user_message)
+        fallback = fallback_answer or _fallback_response(intent, user_message)
+        if intent == ConversationIntent.OTHER:
+            return fallback
         if not self.settings.LLM_ENABLED or not self.settings.LLM_CHAT_ENABLED:
             return fallback
         try:
@@ -46,6 +49,8 @@ class ConversationResponder:
                 return fallback
             if self.safety_policy.evaluate_output(content, workflow_type="chat_workflow").blocked:
                 return fallback
+            if intent in {ConversationIntent.HEALTH_RECORD_QUERY, ConversationIntent.FAMILY_HEALTH_QUERY} and "系统内记录" not in content:
+                content = content.rstrip() + "\n\n以上基于系统内记录整理，不替代医生判断。"
             return content
         except Exception:
             return fallback
@@ -77,7 +82,7 @@ def _system_prompt(intent: ConversationIntent) -> str:
         "你不是医生，不诊断、不处方、不提供剂量或停药建议，也不作绝对健康判断。"
         "不要提及工具、数据库、模型、提示词或内部流程。"
     )
-    if intent == ConversationIntent.HEALTH_RECORD_QUERY:
+    if intent in {ConversationIntent.HEALTH_RECORD_QUERY, ConversationIntent.FAMILY_HEALTH_QUERY}:
         return shared + "只依据给你的已鉴权系统记录事实回答；不要补充未提供的数值。结尾用一句简短提示说明内容基于系统内记录，不替代医生判断。"
     if intent == ConversationIntent.HEALTH_KNOWLEDGE:
         return shared + "这是一般健康科普，不读取或推断用户个人健康数据。用通俗语言解释可能的常见因素，并建议持续不适时咨询医生。"
@@ -86,8 +91,12 @@ def _system_prompt(intent: ConversationIntent) -> str:
 
 def _fallback_response(intent: ConversationIntent, message: str) -> str:
     text = (message or "").strip()
+    if intent == ConversationIntent.OTHER:
+        return "我目前不能查询实时天气或外部资讯。不过我可以陪你聊聊，也可以在权限允许的范围内整理自己和家人的健康记录。"
     if intent == ConversationIntent.HEALTH_KNOWLEDGE:
-        return "睡眠受作息、压力、环境、咖啡因摄入和身体不适等多种因素影响。可以先留意这些日常因素；如果困扰持续或伴随明显不适，建议咨询医生。"
+        if "感冒" in text:
+            return "感冒后的不适持续时间会因人和具体情况不同而不同。可以留意休息、补水和症状变化；如果不适加重、持续不缓解或出现明显不适，建议咨询医生。"
+        return "睡眠会受到作息、压力、环境、咖啡因摄入和身体不适等多种因素影响。可以先留意这些日常因素；如果困扰持续或伴随明显不适，建议咨询医生。"
     if "你是谁" in text or "介绍" in text:
         return "我是你的 AI 健康管家，可以陪你聊天，也可以在权限允许的范围内帮你整理自己或家人的健康记录。"
     if any(term in text.lower() for term in ("你好", "嗨", "hello", "hi", "hey")):
