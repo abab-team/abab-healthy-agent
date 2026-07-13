@@ -56,6 +56,23 @@ function fail<T>(error: unknown): ApiResult<T> {
   return { ok: false, error: { code, message } };
 }
 
+function buildMockChatReply(question: string): string {
+  const text = question.trim();
+  if (/你好|您好|hello|^hi\b/i.test(text)) {
+    return "你好，Gala 👋 今天过得怎么样？想聊聊近况，或看看已经记录的健康信息，都可以直接告诉我。";
+  }
+  if (/血压/.test(text)) {
+    return "演示数据里有几条血压记录。我可以像正式模式一样帮你按时间范围整理；真实数据需要连接后端后才会显示。";
+  }
+  if (/睡眠/.test(text)) {
+    return "演示数据里最近有睡眠记录。连接后端后，我可以帮你按最近一周、一个月等范围整理系统内已有信息。";
+  }
+  if (/记录|提醒/.test(text)) {
+    return "我可以先帮你整理成待确认草稿或普通健康提醒。预览不会写入，确认后才会继续。";
+  }
+  return "我在。你可以和我聊聊近况，也可以问我已经记录的睡眠、血压、提醒、资料或家庭健康信息。";
+}
+
 async function getApiFamilyOverview(currentUserId: string): Promise<ApiResult<ApiFamilyOverview>> {
   try {
     const families = await backendApi.listFamilies(currentUserId);
@@ -262,7 +279,7 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
       },
       runChatHealthQuery: async (input: ChatHealthQueryInput) =>
         ok<AgentRunResponse>({
-          generated_content: `根据演示数据，已收到你的问题：“${input.question}”。当前演示回答只整理系统内记录示例，不用于医疗判断。如有明显不适或紧急情况，请联系医生或当地急救服务。`,
+          generated_content: buildMockChatReply(input.question),
           session_id: input.sessionId ?? "mock-session-1",
           status: "completed",
           trace_id: `mock-chat-${Date.now()}`,

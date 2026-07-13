@@ -1,0 +1,28 @@
+from __future__ import annotations
+
+import unittest
+
+from app.agent.chat import ConversationIntent, SuggestedAction, parse_health_query, route_conversation
+
+
+class ConversationRouterTestCase(unittest.TestCase):
+    def test_routes_small_talk_without_a_tool(self) -> None:
+        route = route_conversation("今天心情不错", parse_health_query("今天心情不错"))
+        self.assertEqual(route.intent, ConversationIntent.CASUAL_CHAT)
+
+    def test_routes_record_query_to_controlled_path(self) -> None:
+        route = route_conversation("我最近睡眠怎么样？", parse_health_query("我最近睡眠怎么样？"))
+        self.assertEqual(route.intent, ConversationIntent.HEALTH_RECORD_QUERY)
+
+    def test_routes_general_health_knowledge_without_personal_query(self) -> None:
+        route = route_conversation("为什么会睡不好？", parse_health_query("为什么会睡不好？"))
+        self.assertEqual(route.intent, ConversationIntent.HEALTH_KNOWLEDGE)
+
+    def test_routes_write_request_to_a_confirmed_draft_entry(self) -> None:
+        route = route_conversation("帮我记录今天头痛", parse_health_query("帮我记录今天头痛"))
+        self.assertEqual(route.intent, ConversationIntent.WRITE_REQUEST)
+        self.assertEqual(route.suggested_action, SuggestedAction.SYMPTOM_DRAFT)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -193,6 +193,7 @@ class AgentRunResponse(BaseModel):
     tool_calls_count: int
     generated_content: str | None = None
     session_id: str | None = None
+    suggested_action: str | None = None
 
 
 class AgentSessionResponse(BaseModel):
@@ -286,6 +287,7 @@ def agent_run_response(result: AgentRunResult) -> AgentRunResponse:
         tool_calls_count=result.tool_calls_count,
         generated_content=_safe_text(result.generated_content, max_length=6000),
         session_id=result.session_id,
+        suggested_action=_safe_text(result.suggested_action, max_length=64),
     )
 
 

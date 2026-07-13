@@ -6,11 +6,12 @@ from typing import Any
 
 from app.agent import service as agent_service
 from app.agent.answer_composer import LLMAnswerComposer
-from app.agent.chat import HealthQueryIntent, HealthQueryPlan, parse_health_query
+from app.agent.chat import HealthQueryIntent, HealthQueryPlan, SuggestedAction, parse_health_query, route_conversation
+from app.agent.chat.responder import ConversationResponder
+from app.agent.chat.router import ConversationIntent
 from app.agent.critic import AnswerCriticService, CriticReviewRequest, ToolResultSummary
 from app.agent.enums import AgentSafetyLevel, AgentWorkflowName
 from app.agent.langgraph.adapter import LangGraphExecutionAdapter
-from app.agent.langgraph.dispatcher import AgentGraphDispatcher
 from app.agent.memory import service as memory_service
 from app.agent.planner import LLMPlannerService
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
@@ -89,47 +90,49 @@ class ChatHealthQueryWorkflow:
         planner_service: LLMPlannerService | None = None,
         answer_composer: LLMAnswerComposer | None = None,
         critic_service: AnswerCriticService | None = None,
+        conversation_responder: ConversationResponder | None = None,
     ) -> None:
         if executor is None:
             executor = AgentToolExecutor(register_health_query_tools(AgentToolRegistry()))
         self.executor = executor
         self.settings = settings or get_settings()
         self.graph_adapter = graph_adapter or LangGraphExecutionAdapter(self.settings)
-        self.graph_dispatcher = AgentGraphDispatcher(self.settings)
         self.planner_service = planner_service or LLMPlannerService(settings=self.settings)
         self.answer_composer = answer_composer or LLMAnswerComposer(settings=self.settings)
         self.critic_service = critic_service or AnswerCriticService(settings=self.settings)
+        self.conversation_responder = conversation_responder or ConversationResponder(settings=self.settings)
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
-        from app.agent.langgraph.graphs.chat_health_query_graph import ChatHealthQueryGraph
-
-        def fallback() -> AgentWorkflowResult:
-            result = run_chat_health_query(
+        def execute() -> ChatHealthQueryExecution:
+            return run_chat_health_query(
                 context,
                 executor=self.executor,
                 settings=self.settings,
                 planner_service=self.planner_service,
                 answer_composer=self.answer_composer,
                 critic_service=self.critic_service,
+                conversation_responder=self.conversation_responder,
             )
+        def fallback() -> AgentWorkflowResult:
+            result = execute()
             return AgentWorkflowResult(
                 message=result.answer,
                 generated_content=result.answer,
                 tool_calls_count=result.tool_calls_count,
+                suggested_action=result.suggested_action,
             )
 
-        return self.graph_dispatcher.run_or_fallback(
-            context,
-            self.workflow_name,
-            ChatHealthQueryGraph(
-                executor=self.executor,
-                settings=self.settings,
-                planner_service=self.planner_service,
-                answer_composer=self.answer_composer,
-                critic_service=self.critic_service,
-            ),
-            fallback,
-        )
+        # The optional graph only orchestrates this controlled runner. It has
+        # no routing, tool, identity, or database authority of its own.
+        if self.graph_adapter.chat_query_enabled():
+            result = self.graph_adapter.run_chat_health_query(context, execute)
+            return AgentWorkflowResult(
+                message=result.answer,
+                generated_content=result.answer,
+                tool_calls_count=result.tool_calls_count,
+                suggested_action=result.suggested_action,
+            )
+        return fallback()
 
 
 @dataclass(frozen=True)
@@ -138,6 +141,7 @@ class ChatHealthQueryExecution:
     answer: str
     tool_calls_count: int
     graph_node_summary: list[str] | None = None
+    suggested_action: str | None = None
 
 
 def run_chat_health_query(
@@ -148,6 +152,7 @@ def run_chat_health_query(
     planner_service: LLMPlannerService | None = None,
     answer_composer: LLMAnswerComposer | None = None,
     critic_service: AnswerCriticService | None = None,
+    conversation_responder: ConversationResponder | None = None,
 ) -> ChatHealthQueryExecution:
     memory_context = memory_service.load_session_context(
         context.db,
@@ -156,10 +161,25 @@ def run_chat_health_query(
     )
     plan = parse_health_query(context.request.user_message)
     plan = memory_service.apply_session_context(context.request.user_message, plan, memory_context)
-    if plan.is_unknown and is_casual_chat_message(context.request.user_message):
-        answer = build_casual_chat_response(context.request.user_message)
+    route = route_conversation(context.request.user_message, plan)
+    if route.intent in {ConversationIntent.CASUAL_CHAT, ConversationIntent.OTHER, ConversationIntent.HEALTH_KNOWLEDGE}:
+        responder = conversation_responder or ConversationResponder(settings=settings or get_settings())
+        answer = responder.respond(
+            intent=route.intent,
+            user_message=context.request.user_message,
+            session_summary=_safe_session_context_summary(memory_context),
+        )
         _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
+    if route.intent == ConversationIntent.WRITE_REQUEST:
+        answer = _write_request_message(route.suggested_action)
+        _record_session_messages(context, plan, answer)
+        return ChatHealthQueryExecution(
+            plan=plan,
+            answer=answer,
+            tool_calls_count=0,
+            suggested_action=route.suggested_action.value if route.suggested_action else None,
+        )
     if plan.is_unknown and (settings or get_settings()).LLM_PLANNER_ENABLED:
         planner = planner_service or LLMPlannerService(settings=settings or get_settings())
         planner_result = planner.plan(
@@ -272,6 +292,18 @@ def _unknown_or_clarification_message(plan: HealthQueryPlan) -> str:
     return SAFE_UNKNOWN_QUERY_MESSAGE
 
 
+def _safe_session_context_summary(memory_context) -> tuple[str, ...]:
+    """Pass only routing metadata to a language model, never message content."""
+    lines: list[str] = []
+    if memory_context.last_member_label:
+        lines.append(f"recent member: {memory_context.last_member_label}")
+    if memory_context.last_metric_type:
+        lines.append(f"recent metric: {memory_context.last_metric_type}")
+    if memory_context.last_time_range_label:
+        lines.append(f"recent range: {memory_context.last_time_range_label}")
+    return tuple(lines)
+
+
 def _execute_tool(
     context: AgentWorkflowContext,
     executor: AgentToolExecutor,
@@ -293,6 +325,14 @@ def _execute_tool(
             reason="chat_health_query",
         ),
     )
+
+
+def _write_request_message(action: SuggestedAction | None) -> str:
+    if action == SuggestedAction.HEALTH_ALERT:
+        return "我可以先帮你整理一条普通健康提醒。下一步会进入预览，预览不会写入；确认后才会创建提醒。"
+    if action == SuggestedAction.HEALTH_EVENT_DRAFT:
+        return "我可以先帮你整理一份健康事件草稿。预览不会写入，确认后只会创建待确认草稿，不会直接写成正式健康事实。"
+    return "我可以先帮你整理一份症状草稿。预览不会写入，确认后只会创建待确认草稿，不会直接写成正式健康事实。"
 
 
 def _maybe_compose_answer(
@@ -360,16 +400,27 @@ def _safe_result_summary(results: list[ToolExecutionResult]) -> str:
     parts = []
     for result in results:
         data = result.output_data or {}
-        parts.append(
-            {
+        part = {
                 "tool": result.tool_name,
                 "status": result.status,
                 "blocked": result.blocked,
                 "record_scope": "system_records_only",
                 "count": data.get("count") or (data.get("summary") or {}).get("count"),
                 "coverage_note": data.get("coverage_note"),
+        }
+        summary = data.get("summary")
+        if isinstance(summary, dict):
+            part["facts"] = {
+                key: summary.get(key)
+                for key in (
+                    "metric_type", "days", "count", "latest_value", "latest_measured_at",
+                    "avg_value", "min_value", "max_value", "unit", "latest_systolic",
+                    "latest_diastolic", "latest_pulse", "avg_systolic", "avg_diastolic",
+                    "min_systolic", "max_systolic", "min_diastolic", "max_diastolic",
+                )
+                if summary.get(key) is not None
             }
-        )
+        parts.append(part)
     return str(parts)[:1200]
 
 

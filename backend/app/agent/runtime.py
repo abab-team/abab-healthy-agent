@@ -119,6 +119,7 @@ class AgentRuntime:
                 tool_calls_count=workflow_result.tool_calls_count,
                 generated_content=generated_content,
                 session_id=request.session_id,
+                suggested_action=workflow_result.suggested_action,
             )
         except AgentWorkflowNotRegisteredError as exc:
             service.fail_trace(

@@ -37,6 +37,24 @@ class MockLLMProvider(LLMProvider):
                 usage=LLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
                 finish_reason="mock",
             )
+        if request.metadata.get("conversation_intent") == "casual_chat":
+            return LLMResponse(
+                content="你好，很高兴和你聊天。想聊聊今天的近况，或看看已经记录的健康信息，都可以直接告诉我。",
+                provider=self.name,
+                model=self.model,
+                is_mock=True,
+                usage=LLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+                finish_reason="mock",
+            )
+        if request.metadata.get("conversation_intent") == "health_knowledge":
+            return LLMResponse(
+                content="睡不好常和作息变化、压力、睡前刺激、环境或身体不适有关。可以先观察这些日常因素；如果困扰持续或伴随明显不适，建议咨询医生。",
+                provider=self.name,
+                model=self.model,
+                is_mock=True,
+                usage=LLMUsage(prompt_tokens=0, completion_tokens=0, total_tokens=0),
+                finish_reason="mock",
+            )
         if request.metadata.get("workflow_type") == "daily_health_brief":
             return LLMResponse(
                 content=(

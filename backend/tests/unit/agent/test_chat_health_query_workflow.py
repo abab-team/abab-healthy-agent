@@ -119,14 +119,14 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
             ["health_data.metrics.recent", "health_record.symptoms.query", "alerts.query"],
         )
 
-    def test_chat_unknown_intent_does_not_call_tools(self) -> None:
+    def test_casual_chat_does_not_call_tools(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "tell me a joke"))
 
         calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.tool_calls_count, 0)
         self.assertEqual(calls, [])
-        self.assertIn("系统内", result.generated_content or "")
+        self.assertNotIn("系统内已有记录", result.generated_content or "")
 
     def test_casual_greeting_returns_safe_conversational_response_without_tools(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "你好"))
@@ -135,8 +135,27 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.tool_calls_count, 0)
         self.assertEqual(calls, [])
-        self.assertIn("健康记录整理助手", result.generated_content or "")
-        self.assertIn("不替代医生判断", result.generated_content or "")
+        self.assertIn("你好", result.generated_content or "")
+        self.assertNotIn("不替代医生判断", result.generated_content or "")
+
+    def test_health_knowledge_uses_no_personal_data_tools(self) -> None:
+        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "为什么会睡不好？"))
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 0)
+        self.assertEqual(calls, [])
+        self.assertIn("睡眠", result.generated_content or "")
+
+    def test_write_request_only_returns_a_draft_entry_suggestion(self) -> None:
+        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "帮我记录今天头痛"))
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 0)
+        self.assertEqual(result.suggested_action, "symptom_draft")
+        self.assertEqual(calls, [])
+        self.assertIn("预览不会写入", result.generated_content or "")
 
     def test_rule_matched_query_does_not_call_llm_planner(self) -> None:
         class RaisingPlanner:

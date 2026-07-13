@@ -6,7 +6,7 @@ export function ChatBubble({ role, content }: { role: "user" | "assistant"; cont
   const isUser = role === "user";
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.spring(progress, { damping: 16, stiffness: 180, toValue: 1, useNativeDriver: true }).start();
+    Animated.timing(progress, { duration: 220, toValue: 1, useNativeDriver: true }).start();
   }, [progress]);
   return (
     <Animated.View style={[styles.row, isUser ? styles.userRow : styles.assistantRow, { opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }, { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) }] }]}>

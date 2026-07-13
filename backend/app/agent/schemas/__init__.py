@@ -64,6 +64,7 @@ class AgentRunResult:
     tool_calls_count: int = 0
     generated_content: str | None = None
     session_id: str | None = None
+    suggested_action: str | None = None
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,7 @@ class AgentWorkflowResult:
     generated_content: str | None = None
     status: AgentTraceStatus = AgentTraceStatus.SUCCESS
     tool_calls_count: int = 0
+    suggested_action: str | None = None
 
 
 @dataclass(frozen=True)

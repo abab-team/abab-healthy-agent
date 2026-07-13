@@ -270,6 +270,7 @@ export type AgentRunResponse = {
   blocked?: boolean;
   safety_level?: string;
   tool_calls_count?: number;
+  suggested_action?: "symptom_draft" | "health_event_draft" | "health_alert" | null;
   generated_content: string;
 };
 
