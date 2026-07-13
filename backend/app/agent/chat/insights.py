@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 
 from app.agent.chat.schemas import HealthQueryIntent, HealthQueryPlan
@@ -43,6 +44,32 @@ class HealthOverview:
     available_sections: tuple[str, ...]
     unavailable_sections: tuple[str, ...]
     facts: tuple[str, ...]
+
+
+def explain_blood_pressure_reference(user_message: str) -> str | None:
+    """Explain an explicitly supplied blood-pressure value without diagnosing.
+
+    This helper deliberately works only from the number the user typed. It
+    neither reads health data nor infers a diagnosis, and gives the responder a
+    concise, consistent explanation when a person asks about a single reading.
+    """
+    match = re.search(r"(?<!\d)(\d{2,3})\s*/\s*(\d{2,3})(?:\s*mmhg)?", user_message.lower())
+    if not match:
+        return None
+
+    systolic, diastolic = (int(match.group(1)), int(match.group(2)))
+    reference = "\u5e38\u89c1\u6210\u4eba\u9759\u606f\u8840\u538b\u53c2\u8003\u533a\u95f4\uff08\u6536\u7f29\u538b\u4f4e\u4e8e 120\u3001\u8212\u5f20\u538b\u4f4e\u4e8e 80 mmHg\uff09"
+    if systolic < 120 and diastolic < 80:
+        range_note = "\u843d\u5728" + reference + "\u5185"
+    elif systolic >= 130 or diastolic >= 80:
+        range_note = "\u5176\u4e2d\u4e00\u9879\u9ad8\u4e8e" + reference
+    else:
+        range_note = "\u4e0e" + reference + "\u7684\u8fb9\u754c\u63a5\u8fd1"
+
+    return (
+        f"\u4f60\u63d0\u5230\u7684 {systolic}/{diastolic} mmHg\uff0c\u4ece\u8fd9\u4e00\u6b21\u8bb0\u5f55\u770b\uff0c{range_note}\u3002"
+        "\u5355\u6b21\u6d4b\u91cf\u4e0d\u80fd\u4ee3\u8868\u6574\u4f53\u5065\u5eb7\u60c5\u51b5\uff0c\u6211\u53ef\u4ee5\u7ee7\u7eed\u5e2e\u4f60\u67e5\u770b\u6700\u8fd1 7 \u5929\u6216 30 \u5929\u7684\u8d8b\u52bf\u3001\u8bb0\u5f55\u6b21\u6570\u548c\u53d8\u5316\u3002"
+    )
 
 
 def build_health_insight(plan: HealthQueryPlan, results: list[ToolExecutionResult]) -> HealthInsight:

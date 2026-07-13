@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.agent.chat.insights import explain_blood_pressure_reference
 from app.agent.chat.router import ConversationIntent
 from app.agent.safety import AgentSafetyPolicy
 from app.core.config import Settings, get_settings
@@ -144,10 +145,13 @@ def _contextual_conversation_reply(message: str, assistant_context: tuple[str, .
             "\u8bb0\u5f97\u3002\u8fd9\u6b21\u5bf9\u8bdd\u4f1a\u627f\u63a5\u521a\u624d\u5df2\u786e\u8ba4\u7684\u67e5\u8be2\u4e0a\u4e0b\u6587\u3002"
             "\u4f60\u53ef\u4ee5\u76f4\u63a5\u7ee7\u7eed\u95ee\u201c\u90a3\u4e0a\u4e2a\u6708\u5462\u201d\u6216\u201c\u90a3\u8840\u538b\u5462\u201d\u3002"
         )
+    if reference_reply := explain_blood_pressure_reference(text):
+        return reference_reply
     if _is_health_interpretation_question(text):
         return (
-            "\u6211\u4e0d\u80fd\u4ec5\u6839\u636e\u4e00\u7ec4\u6570\u503c\u5224\u65ad\u4f60\u662f\u5426\u5065\u5eb7\uff0c\u4e5f\u4e0d\u80fd\u66ff\u4ee3\u533b\u751f\u4f5c\u533b\u5b66\u5224\u65ad\u3002"
-            "\u6211\u53ef\u4ee5\u5e2e\u4f60\u7ee7\u7eed\u6309\u65f6\u95f4\u6574\u7406\u5df2\u8bb0\u5f55\u7684\u6570\u636e\uff0c\u4fbf\u4e8e\u56de\u770b\u6216\u4e0e\u533b\u751f\u6c9f\u901a\u3002"
+            "\u53ef\u4ee5\u3002\u8bf7\u628a\u5177\u4f53\u6570\u503c\u548c\u6307\u6807\u53d1\u7ed9\u6211\uff08\u4f8b\u5982 118/76 mmHg\uff09\uff0c"
+            "\u6211\u53ef\u4ee5\u8bf4\u660e\u5e38\u89c1\u6210\u4eba\u53c2\u8003\u533a\u95f4\uff0c\u5e76\u5e2e\u4f60\u56de\u770b\u5df2\u8bb0\u5f55\u7684\u8d8b\u52bf\u3002"
+            "\u5355\u6b21\u8bb0\u5f55\u4e0d\u4ee3\u8868\u6574\u4f53\u5065\u5eb7\u60c5\u51b5\u3002"
         )
     return None
 
@@ -196,10 +200,12 @@ def _fallback_response(intent: ConversationIntent, message: str) -> str:
     if intent == ConversationIntent.OTHER:
         return "我目前不能查询实时天气或外部资讯。不过我可以陪你聊聊，也可以在权限允许的范围内整理自己和家人的健康记录。"
     if intent == ConversationIntent.HEALTH_KNOWLEDGE:
+        if reference_reply := explain_blood_pressure_reference(text):
+            return reference_reply
         if any(term in text for term in ("\u8fd9\u4e2a\u6570\u503c", "\u8fd9\u4e2a\u6570\u636e", "\u6b63\u5e38\u5417", "\u5f02\u5e38\u5417", "\u4e25\u91cd\u5417")):
             return (
-                "\u6211\u4e0d\u80fd\u4ec5\u6839\u636e\u4e00\u7ec4\u6570\u503c\u5224\u65ad\u4f60\u662f\u5426\u5065\u5eb7\uff0c\u4e5f\u4e0d\u80fd\u66ff\u4ee3\u533b\u751f\u4f5c\u533b\u5b66\u5224\u65ad\u3002"
-                "\u6211\u53ef\u4ee5\u5e2e\u4f60\u7ee7\u7eed\u6309\u65f6\u95f4\u6574\u7406\u5df2\u8bb0\u5f55\u7684\u6570\u636e\uff0c\u4fbf\u4e8e\u56de\u770b\u6216\u4e0e\u533b\u751f\u6c9f\u901a\u3002"
+                "\u8bf7\u628a\u5177\u4f53\u6307\u6807\u548c\u6570\u503c\u53d1\u7ed9\u6211\uff0c\u6211\u53ef\u4ee5\u8bf4\u660e\u5e38\u89c1\u6210\u4eba\u53c2\u8003\u533a\u95f4\uff0c"
+                "\u5e76\u5e2e\u4f60\u56de\u770b\u6700\u8fd1\u8bb0\u5f55\u7684\u53d8\u5316\u3002\u5355\u6b21\u8bb0\u5f55\u4e0d\u4ee3\u8868\u6574\u4f53\u5065\u5eb7\u60c5\u51b5\u3002"
             )
         if "感冒" in text:
             return "感冒后的不适持续时间会因人和具体情况不同而不同。可以留意休息、补水和症状变化；如果不适加重、持续不缓解或出现明显不适，建议咨询医生。"
