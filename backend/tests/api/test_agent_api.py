@@ -172,6 +172,25 @@ class AgentApiTestCase(unittest.TestCase):
         for term in UNSAFE_TERMS:
             self.assertNotIn(term, response.text.lower())
 
+    def test_chat_record_task_returns_safe_state_summary_without_formal_write(self) -> None:
+        response = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=self._payload(
+                target_user_id=self.actor["id"],
+                workflow_type="chat",
+                user_message="记录一下我头晕",
+            ),
+        )
+
+        body = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(body["tool_calls_count"], 0)
+        self.assertEqual(body["conversation_task"]["task_type"], "symptom_draft")
+        self.assertEqual(body["conversation_task"]["missing_fields"], ["start_time", "duration"])
+        self.assertNotIn("task_payload", body["conversation_task"])
+        self.assertEqual(self._draft_counts()["symptom_records"], 0)
+
     def test_chat_session_messages_can_be_listed_by_owner(self) -> None:
         run_response = client.post(
             "/api/v1/agent/runs",

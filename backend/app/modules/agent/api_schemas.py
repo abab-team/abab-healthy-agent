@@ -194,6 +194,7 @@ class AgentRunResponse(BaseModel):
     generated_content: str | None = None
     session_id: str | None = None
     suggested_action: str | None = None
+    conversation_task: dict[str, Any] | None = None
 
 
 class AgentSessionResponse(BaseModel):
@@ -288,6 +289,7 @@ def agent_run_response(result: AgentRunResult) -> AgentRunResponse:
         generated_content=_safe_text(result.generated_content, max_length=6000),
         session_id=result.session_id,
         suggested_action=_safe_text(result.suggested_action, max_length=64),
+        conversation_task=_safe_mapping(result.conversation_task),
     )
 
 

@@ -34,13 +34,13 @@ def relationship_labels_for_reference(member_reference: str) -> list[str]:
     normalized = normalize_member_reference(member_reference)
     # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
     if normalized in REFERENCE_ALIASES["father"]:
-        return ["爸爸", "父亲"]
+        return ["father", "爸爸", "父亲"]
     # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
     if normalized in REFERENCE_ALIASES["mother"]:
-        return ["妈妈", "母亲"]
+        return ["mother", "妈妈", "母亲"]
     # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
     if normalized in REFERENCE_ALIASES["spouse"]:
-        return ["配偶", "老婆", "老公"]
+        return ["spouse", "配偶", "老婆", "老公"]
     return [normalized]
 
 

@@ -120,6 +120,7 @@ class AgentRuntime:
                 generated_content=generated_content,
                 session_id=request.session_id,
                 suggested_action=workflow_result.suggested_action,
+                conversation_task=workflow_result.conversation_task,
             )
         except AgentWorkflowNotRegisteredError as exc:
             service.fail_trace(

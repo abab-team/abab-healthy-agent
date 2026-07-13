@@ -20,6 +20,18 @@ type ConversationMessage = {
   role: "user" | "assistant";
   content: string;
   suggestedAction?: SuggestedAction | null;
+  conversationTask?: AgentRunResponse["conversation_task"];
+};
+
+const taskStatusLabels: Record<string, string> = {
+  awaiting_confirmation: "已整理完成，等待你确认下一步",
+  collecting: "正在补充这条记录",
+  ready_for_preview: "记录信息已齐，可以先预览",
+};
+
+const taskFieldLabels: Record<string, string> = {
+  duration: "持续时间",
+  start_time: "开始时间",
 };
 
 const actionLabels: Record<SuggestedAction, string> = {
@@ -95,7 +107,8 @@ export default function AgentScreen() {
         content: run.generated_content ?? run.message ?? "暂时没有可展示的回复。",
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        suggestedAction: run.suggested_action
+        suggestedAction: run.suggested_action,
+        conversationTask: run.conversation_task
       }]);
       return;
     }
@@ -128,6 +141,10 @@ export default function AgentScreen() {
         <View style={styles.suggestions}>{suggestions.map((suggestion) => <Pressable key={suggestion} onPress={() => void runChatQuery(suggestion)} style={styles.suggestion}><Text style={styles.suggestionText}>{suggestion}</Text><Ionicons color={theme.colors.primaryDark} name="arrow-up-outline" size={15} /></Pressable>)}</View>
       </> : messages.map((message) => <View key={message.id} style={styles.messageGroup}>
         <ChatBubble content={message.content} role={message.role} />
+        {message.role === "assistant" && message.conversationTask ? <View style={styles.taskStateCard}>
+          <Text style={styles.taskStateTitle}>{taskStatusLabels[message.conversationTask.status] ?? "正在处理这条记录"}</Text>
+          {message.conversationTask.missing_fields?.length ? <Text style={styles.taskStateHint}>还需要：{message.conversationTask.missing_fields.map((field) => taskFieldLabels[field] ?? field).join("、")}</Text> : <Text style={styles.taskStateHint}>预览不会写入正式健康记录。</Text>}
+        </View> : null}
         {message.role === "assistant" && message.suggestedAction ? <Pressable onPress={() => openSuggestedAction(message.suggestedAction!)} style={styles.actionButton}><Text style={styles.actionButtonText}>{actionLabels[message.suggestedAction]}</Text><Ionicons color={theme.colors.primaryDark} name="arrow-forward" size={15} /></Pressable> : null}
       </View>)}
       {queryLoading ? <View style={styles.typing}><View style={styles.typingDot} /><View style={styles.typingDot} /><View style={styles.typingDot} /></View> : null}
@@ -154,6 +171,9 @@ const styles = StyleSheet.create({
   suggestion: { alignItems: "center", alignSelf: "flex-start", backgroundColor: theme.colors.tealSoft, borderRadius: theme.radius.pill, flexDirection: "row", gap: 7, paddingHorizontal: 12, paddingVertical: 9 },
   suggestionText: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "800" },
   suggestions: { alignItems: "flex-start", gap: 8 },
+  taskStateCard: { alignSelf: "flex-start", backgroundColor: theme.colors.tealSoft, borderRadius: theme.radius.sm, gap: 3, paddingHorizontal: 11, paddingVertical: 9 },
+  taskStateHint: { color: theme.colors.subtle, fontSize: 11, lineHeight: 16 },
+  taskStateTitle: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "800" },
   typing: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: theme.radius.pill, borderWidth: 1, flexDirection: "row", gap: 5, paddingHorizontal: 13, paddingVertical: 10, width: 66 },
   typingDot: { backgroundColor: theme.colors.primary, borderRadius: 3, height: 6, width: 6 }
 });

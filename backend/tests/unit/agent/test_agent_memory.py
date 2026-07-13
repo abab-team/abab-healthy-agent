@@ -73,7 +73,7 @@ class AgentMemoryTestCase(unittest.TestCase):
         first = runtime.run(
             self.db,
             self._request(
-                user_message="爸爸最近一周血压怎么样？",
+                user_message="妈妈最近一周血压怎么样？",
                 target_user_id=self.target.id,
                 family_id=self.family.id,
                 session_id=str(session.id),

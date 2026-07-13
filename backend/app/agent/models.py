@@ -482,3 +482,32 @@ class AgentMessage(UUIDPrimaryKeyMixin, Base):
         Index("ix_agent_messages_metric_type", "metric_type"),
         Index("ix_agent_messages_created_at", "created_at"),
     )
+
+
+class AgentConversationTask(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Short-lived, structured state for an in-progress chat task.
+
+    This table is deliberately separate from health records and long-term
+    memory. It only holds the minimum safe draft context needed to continue a
+    user-initiated task before it reaches an existing confirmed workflow.
+    """
+
+    __tablename__ = "agent_conversation_tasks"
+
+    session_id: Mapped[UUID] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    task_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    task_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    missing_fields: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    target_member: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_agent_conversation_tasks_session_id", "session_id"),
+        Index("ix_agent_conversation_tasks_status", "status"),
+        Index("ix_agent_conversation_tasks_expires_at", "expires_at"),
+        Index("ix_agent_conversation_tasks_session_status", "session_id", "status"),
+    )

@@ -271,6 +271,13 @@ export type AgentRunResponse = {
   safety_level?: string;
   tool_calls_count?: number;
   suggested_action?: "symptom_draft" | "health_event_draft" | "health_alert" | null;
+  conversation_task?: {
+    task_type: string;
+    status: string;
+    missing_fields?: string[];
+    target_member?: string | null;
+    expires_at?: string | null;
+  } | null;
   generated_content: string;
 };
 

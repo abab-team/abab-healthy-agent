@@ -8,8 +8,10 @@ from app.agent import service as agent_service
 from app.agent.answer_composer import LLMAnswerComposer
 from app.agent.chat import HealthQueryIntent, HealthQueryPlan, SuggestedAction, build_health_insight, parse_health_query, route_conversation
 from app.agent.chat.family_context import resolve_family_target
+from app.agent.chat.assistant_context import build_assistant_context
 from app.agent.chat.responder import ConversationResponder
 from app.agent.chat.router import ConversationIntent
+from app.agent.conversation import ConversationManager
 from app.agent.critic import AnswerCriticService, CriticReviewRequest, ToolResultSummary
 from app.agent.enums import AgentSafetyLevel, AgentWorkflowName
 from app.agent.langgraph.adapter import LangGraphExecutionAdapter
@@ -92,6 +94,7 @@ class ChatHealthQueryWorkflow:
         answer_composer: LLMAnswerComposer | None = None,
         critic_service: AnswerCriticService | None = None,
         conversation_responder: ConversationResponder | None = None,
+        conversation_manager: ConversationManager | None = None,
     ) -> None:
         if executor is None:
             executor = AgentToolExecutor(register_health_query_tools(AgentToolRegistry()))
@@ -102,6 +105,7 @@ class ChatHealthQueryWorkflow:
         self.answer_composer = answer_composer or LLMAnswerComposer(settings=self.settings)
         self.critic_service = critic_service or AnswerCriticService(settings=self.settings)
         self.conversation_responder = conversation_responder or ConversationResponder(settings=self.settings)
+        self.conversation_manager = conversation_manager or ConversationManager()
 
     def run(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
         def execute() -> ChatHealthQueryExecution:
@@ -113,6 +117,7 @@ class ChatHealthQueryWorkflow:
                 answer_composer=self.answer_composer,
                 critic_service=self.critic_service,
                 conversation_responder=self.conversation_responder,
+                conversation_manager=self.conversation_manager,
             )
         def fallback() -> AgentWorkflowResult:
             result = execute()
@@ -121,6 +126,7 @@ class ChatHealthQueryWorkflow:
                 generated_content=result.answer,
                 tool_calls_count=result.tool_calls_count,
                 suggested_action=result.suggested_action,
+                conversation_task=result.conversation_task,
             )
 
         # The optional graph only orchestrates this controlled runner. It has
@@ -132,6 +138,7 @@ class ChatHealthQueryWorkflow:
                 generated_content=result.answer,
                 tool_calls_count=result.tool_calls_count,
                 suggested_action=result.suggested_action,
+                conversation_task=result.conversation_task,
             )
         return fallback()
 
@@ -143,6 +150,7 @@ class ChatHealthQueryExecution:
     tool_calls_count: int
     graph_node_summary: list[str] | None = None
     suggested_action: str | None = None
+    conversation_task: dict[str, Any] | None = None
 
 
 def run_chat_health_query(
@@ -154,12 +162,28 @@ def run_chat_health_query(
     answer_composer: LLMAnswerComposer | None = None,
     critic_service: AnswerCriticService | None = None,
     conversation_responder: ConversationResponder | None = None,
+    conversation_manager: ConversationManager | None = None,
 ) -> ChatHealthQueryExecution:
+    manager = conversation_manager or ConversationManager()
+    active_task = manager.handle_active_task(context)
+    if active_task.handled:
+        plan = parse_health_query(context.request.user_message)
+        answer = active_task.answer or "当前任务状态暂不可用。"
+        _record_session_messages(context, plan, answer)
+        return ChatHealthQueryExecution(
+            plan=plan,
+            answer=answer,
+            tool_calls_count=0,
+            suggested_action=active_task.suggested_action,
+            conversation_task=active_task.task_state,
+        )
+
     memory_context = memory_service.load_session_context(
         context.db,
         user_id=context.request.actor_user_id,
         session_id=context.request.session_id,
     )
+    assistant_context = build_assistant_context(context)
     plan = parse_health_query(context.request.user_message)
     plan = memory_service.apply_session_context(context.request.user_message, plan, memory_context)
     route = route_conversation(
@@ -167,16 +191,18 @@ def run_chat_health_query(
         plan,
         pending_action=memory_context.last_write_action,
     )
-    if route.intent in {ConversationIntent.CASUAL_CHAT, ConversationIntent.OTHER, ConversationIntent.HEALTH_KNOWLEDGE}:
-        responder = conversation_responder or ConversationResponder(settings=settings or get_settings())
-        answer = responder.respond(
-            intent=route.intent,
-            user_message=context.request.user_message,
-            session_summary=_safe_session_context_summary(memory_context),
-        )
-        _record_session_messages(context, plan, answer)
-        return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
-    if route.intent == ConversationIntent.WRITE_REQUEST:
+    if route.intent == ConversationIntent.RECORD_TASK:
+        task_decision = manager.start_record_task(context, route)
+        if task_decision.handled:
+            answer = task_decision.answer or _write_request_message(route.suggested_action)
+            _record_session_messages(context, plan, answer)
+            return ChatHealthQueryExecution(
+                plan=plan,
+                answer=answer,
+                tool_calls_count=0,
+                suggested_action=task_decision.suggested_action,
+                conversation_task=task_decision.task_state,
+            )
         answer = _write_request_message(route.suggested_action)
         _record_session_messages(context, plan, answer)
         return ChatHealthQueryExecution(
@@ -185,6 +211,23 @@ def run_chat_health_query(
             tool_calls_count=0,
             suggested_action=route.suggested_action.value if route.suggested_action else None,
         )
+    if route.intent == ConversationIntent.DOCUMENT_TASK:
+        answer = (
+            "我可以帮你整理已归档的健康资料。请先在资料页选择需要整理的文件或记录，"
+            "我会在现有受控流程中生成摘要，不会展示原始长文本或文件路径。"
+        )
+        _record_session_messages(context, plan, answer)
+        return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
+    if route.intent in {ConversationIntent.CASUAL_CHAT, ConversationIntent.OTHER, ConversationIntent.HEALTH_KNOWLEDGE}:
+        responder = conversation_responder or ConversationResponder(settings=settings or get_settings())
+        answer = responder.respond(
+            intent=route.intent,
+            user_message=context.request.user_message,
+            session_summary=_safe_session_context_summary(memory_context),
+            assistant_context=assistant_context,
+        )
+        _record_session_messages(context, plan, answer)
+        return ChatHealthQueryExecution(plan=plan, answer=answer, tool_calls_count=0)
     if plan.is_unknown and (settings or get_settings()).LLM_PLANNER_ENABLED:
         planner = planner_service or LLMPlannerService(settings=settings or get_settings())
         planner_result = planner.plan(
@@ -224,6 +267,7 @@ def run_chat_health_query(
             settings=settings,
             user_message=execution_context.request.user_message,
             session_summary=_safe_session_context_summary(memory_context),
+            assistant_context=assistant_context,
         )
         answer = _review_answer(
             execution_context,
@@ -244,6 +288,7 @@ def run_chat_health_query(
         settings=settings,
         user_message=execution_context.request.user_message,
         session_summary=_safe_session_context_summary(memory_context),
+        assistant_context=assistant_context,
     )
     answer = _review_answer(
         execution_context,
@@ -265,6 +310,7 @@ def _compose_insight_answer(
     settings,
     user_message: str,
     session_summary: tuple[str, ...],
+    assistant_context: tuple[str, ...],
 ) -> str:
     insight = build_health_insight(plan, results)
     responder = conversation_responder or ConversationResponder(settings=settings or get_settings())
@@ -275,6 +321,7 @@ def _compose_insight_answer(
         intent=ConversationIntent.FAMILY_HEALTH_QUERY if plan.member_scope == "family" else ConversationIntent.HEALTH_RECORD_QUERY,
         user_message=user_message,
         session_summary=session_summary,
+        assistant_context=assistant_context,
         safe_facts=safe_facts,
         fallback_answer=insight.render(),
     )

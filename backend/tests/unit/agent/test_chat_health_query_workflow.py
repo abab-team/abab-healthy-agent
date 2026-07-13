@@ -7,11 +7,14 @@ from datetime import date
 from pathlib import Path
 from uuid import uuid4
 
+from sqlalchemy import select
+
 TEST_DB_PATH = Path(tempfile.gettempdir()) / "family_health_agent_phase16_chat_workflow.sqlite3"
 os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{TEST_DB_PATH.as_posix()}")
 
 from app.agent import service as agent_service  # noqa: E402
 from app.agent.memory import service as memory_service  # noqa: E402
+from app.agent.models import AgentConversationTask  # noqa: E402
 from app.agent.enums import AgentTraceStatus, AgentWorkflowName  # noqa: E402
 from app.agent.runtime import AgentRuntime  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
@@ -217,6 +220,68 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertIn("预览不会写入", result.generated_content or "")
 
+    def test_symptom_task_state_continues_before_router_and_never_writes_health_record(self) -> None:
+        session = memory_service.get_or_create_session(
+            self.db,
+            user_id=self.actor.id,
+            family_id=self.family.id,
+            title="symptom task",
+        )
+
+        initial = AgentRuntime().run(
+            self.db,
+            self._request_with_session("\u8bb0\u5f55\u4e00\u4e0b\u6211\u5934\u6655", session_id=session.id),
+        )
+        started = self.db.scalar(
+            select(AgentConversationTask).where(AgentConversationTask.session_id == session.id)
+        )
+        self.assertEqual(initial.tool_calls_count, 0)
+        self.assertEqual(initial.conversation_task["status"], "collecting")
+        self.assertEqual(initial.conversation_task["missing_fields"], ["start_time", "duration"])
+        self.assertIsNotNone(started)
+
+        began = AgentRuntime().run(self.db, self._request_with_session("\u521a\u624d\u5f00\u59cb\u7684", session_id=session.id))
+        self.assertEqual(began.conversation_task["missing_fields"], ["duration"])
+
+        duration = AgentRuntime().run(self.db, self._request_with_session("\u6301\u7eed10\u5206\u949f", session_id=session.id))
+        self.assertEqual(duration.conversation_task["missing_fields"], [])
+
+        organized = AgentRuntime().run(self.db, self._request_with_session("\u6574\u7406\u4e00\u4e0b", session_id=session.id))
+        self.assertEqual(organized.conversation_task["status"], "ready_for_preview")
+        self.assertEqual(organized.suggested_action, "symptom_draft")
+
+        confirmed = AgentRuntime().run(self.db, self._request_with_session("\u786e\u8ba4", session_id=session.id))
+        self.assertEqual(confirmed.conversation_task["status"], "awaiting_confirmation")
+        self.assertEqual(confirmed.suggested_action, "symptom_draft")
+        self.assertEqual(confirmed.tool_calls_count, 0)
+        self.assertEqual(agent_service.list_tool_calls(self.db, trace_id=confirmed.trace_id), [])
+
+    def test_temperature_task_can_be_organized_as_controlled_health_event_draft(self) -> None:
+        session = memory_service.get_or_create_session(self.db, user_id=self.actor.id, family_id=self.family.id)
+        initial = AgentRuntime().run(
+            self.db,
+            self._request_with_session("\u8bb0\u5f55\u4f53\u6e2936\u5ea6", session_id=session.id),
+        )
+        organized = AgentRuntime().run(self.db, self._request_with_session("\u6574\u7406", session_id=session.id))
+
+        self.assertEqual(initial.conversation_task["task_type"], "health_event_draft")
+        self.assertEqual(organized.conversation_task["status"], "ready_for_preview")
+        self.assertEqual(organized.suggested_action, "health_event_draft")
+        self.assertEqual(organized.tool_calls_count, 0)
+
+    def test_casual_chat_never_creates_conversation_task_or_calls_tools(self) -> None:
+        session = memory_service.get_or_create_session(self.db, user_id=self.actor.id, family_id=self.family.id)
+        for message in ("\u4f60\u597d", "\u4f60\u662f\u8c01", "\u8c22\u8c22", "\u4eca\u5929\u600e\u4e48\u6837"):
+            result = AgentRuntime().run(self.db, self._request_with_session(message, session_id=session.id))
+            self.assertEqual(result.status, "completed")
+            self.assertEqual(result.tool_calls_count, 0)
+            self.assertIsNone(result.conversation_task)
+
+        self.assertEqual(
+            self.db.scalars(select(AgentConversationTask).where(AgentConversationTask.session_id == session.id)).all(),
+            [],
+        )
+
     def test_rule_matched_query_does_not_call_llm_planner(self) -> None:
         class RaisingPlanner:
             def plan(self, **kwargs):  # noqa: ANN001
@@ -377,6 +442,42 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(calls[0].target_user_id, self.target.id)
         self.assertIn("爸爸", result.generated_content or "")
 
+    def test_family_overview_then_metric_then_last_month_preserves_member_context(self) -> None:
+        health_data_service.add_blood_pressure_record(
+            self.db,
+            user_id=self.target.id,
+            systolic=120,
+            diastolic=78,
+        )
+        session = memory_service.get_or_create_session(
+            self.db,
+            user_id=self.actor.id,
+            family_id=self.family.id,
+            title="爸爸健康概览",
+        )
+
+        overview = AgentRuntime().run(
+            self.db,
+            self._request_with_session("爸爸最近怎么样？", session_id=session.id),
+        )
+        metric = AgentRuntime().run(
+            self.db,
+            self._request_with_session("那血压呢？", session_id=session.id),
+        )
+        last_month = AgentRuntime().run(
+            self.db,
+            self._request_with_session("上个月呢？", session_id=session.id),
+        )
+
+        metric_calls = agent_service.list_tool_calls(self.db, trace_id=metric.trace_id)
+        last_month_calls = agent_service.list_tool_calls(self.db, trace_id=last_month.trace_id)
+        self.assertEqual(overview.tool_calls_count, 6)
+        self.assertEqual(metric.tool_calls_count, 1)
+        self.assertEqual(metric_calls[0].tool_name, "health_data.blood_pressure.summary")
+        self.assertEqual(metric_calls[0].target_user_id, self.target.id)
+        self.assertEqual(last_month_calls[0].tool_name, "health_data.blood_pressure.summary")
+        self.assertEqual(last_month_calls[0].target_user_id, self.target.id)
+
     def test_trace_does_not_remain_running(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "最近一周血压记录"))
         trace = agent_service.get_trace(self.db, result.trace_id)
@@ -392,6 +493,17 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
             workflow_type=AgentWorkflowName.CHAT_WORKFLOW,
             user_message=user_message,
             source="unit-test",
+        )
+
+    def _request_with_session(self, user_message: str, *, session_id) -> AgentRunRequest:
+        return AgentRunRequest(
+            actor_user_id=self.actor.id,
+            target_user_id=self.actor.id,
+            family_id=self.family.id,
+            workflow_type=AgentWorkflowName.CHAT_WORKFLOW,
+            user_message=user_message,
+            source="unit-test",
+            session_id=str(session_id),
         )
 
 

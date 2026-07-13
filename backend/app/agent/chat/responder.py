@@ -23,6 +23,7 @@ class ConversationResponder:
         intent: ConversationIntent,
         user_message: str,
         session_summary: tuple[str, ...] = (),
+        assistant_context: tuple[str, ...] = (),
         safe_facts: str = "",
         fallback_answer: str | None = None,
     ) -> str:
@@ -38,6 +39,7 @@ class ConversationResponder:
                     intent=intent,
                     user_message=user_message,
                     session_summary=session_summary,
+                    assistant_context=assistant_context,
                     safe_facts=safe_facts,
                 ),
                 temperature=min(max(self.settings.LLM_TEMPERATURE, 0.2), 0.7),
@@ -65,12 +67,15 @@ class ConversationResponder:
         intent: ConversationIntent,
         user_message: str,
         session_summary: tuple[str, ...],
+        assistant_context: tuple[str, ...],
         safe_facts: str,
     ) -> list[LLMMessage]:
         system_prompt = _system_prompt(intent)
         context_parts: list[str] = []
         if session_summary:
             context_parts.append("近期对话摘要（仅用于承接语境，不能当作健康事实）：\n" + "\n".join(session_summary[-6:]))
+        if assistant_context:
+            context_parts.append("受控会话上下文（不包含标识符或健康事实）：\n" + "\n".join(assistant_context[:6]))
         if safe_facts:
             context_parts.append("已鉴权的系统记录事实：\n" + safe_facts[:1800])
         context_parts.append("用户这次说：\n" + user_message[:500])

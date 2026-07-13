@@ -11,7 +11,10 @@ class ConversationIntent(StrEnum):
     HEALTH_RECORD_QUERY = "health_record_query"
     FAMILY_HEALTH_QUERY = "family_health_query"
     HEALTH_KNOWLEDGE = "health_knowledge"
-    WRITE_REQUEST = "write_request"
+    DOCUMENT_TASK = "document_task"
+    RECORD_TASK = "record_task"
+    # Backward-compatible alias for callers from the previous chat workflow.
+    WRITE_REQUEST = "record_task"
     OTHER = "other"
 
 
@@ -27,12 +30,13 @@ class ConversationRoute:
     suggested_action: SuggestedAction | None = None
 
 
-_WRITE_SYMPTOM_TERMS = ("头痛", "不舒服", "症状", "睡不好", "咳嗽", "发烧")
+_WRITE_SYMPTOM_TERMS = ("头晕", "头痛", "不舒服", "症状", "睡不好", "咳嗽", "发烧")
 _WRITE_REQUEST_MARKERS = ("帮我记录", "记录一下", "记一下", "记录今天", "帮我记")
 _WRITE_EVENT_TERMS = ("就医记录", "检查记录", "复查记录", "健康事件", "门诊记录")
 _WRITE_ALERT_TERMS = ("提醒我", "创建提醒", "设个提醒", "健康提醒")
 _WRITE_EVENT_RECORD_TERMS = ("体温", "温度", "血压", "睡眠", "体重", "步数")
 _WRITE_CONTINUATION_MARKERS = ("整理", "继续", "刚才那个", "刚才的")
+_DOCUMENT_TASK_MARKERS = ("整理体检资料", "整理检查资料", "整理医疗资料", "就医资料摘要", "就医摘要")
 _HEALTH_KNOWLEDGE_TERMS = (
     "为什么会",
     "什么原因",
@@ -52,6 +56,7 @@ _HEALTH_RECORD_HINTS = (
     "pressure", "sleep", "steps", "weight", "symptom", "alert", "document", "report",
 )
 _EXTERNAL_REALTIME_TERMS = ("天气", "weather", "新闻", "news", "股价", "股票", "汇率")
+_CASUAL_CHAT_TERMS = ("你好", "您好", "早上好", "晚上好", "今天怎么样", "今天过得怎么样", "谢谢", "感谢", "再见")
 
 
 def route_conversation(
@@ -62,19 +67,25 @@ def route_conversation(
 ) -> ConversationRoute:
     """Route by deterministic rules; models never select a tool or target user."""
     text = (message or "").strip().lower()
+    if text in _CASUAL_CHAT_TERMS:
+        return ConversationRoute(ConversationIntent.CASUAL_CHAT)
     if pending_action and any(marker in text for marker in _WRITE_CONTINUATION_MARKERS):
         try:
-            return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction(pending_action))
+            return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction(pending_action))
         except ValueError:
             pass
+    if any(term in text for term in _DOCUMENT_TASK_MARKERS):
+        return ConversationRoute(ConversationIntent.DOCUMENT_TASK)
     if any(term in text for term in _WRITE_ALERT_TERMS):
-        return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.HEALTH_ALERT)
+        return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.HEALTH_ALERT)
     if any(term in text for term in _WRITE_EVENT_TERMS):
-        return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.HEALTH_EVENT_DRAFT)
+        return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.HEALTH_EVENT_DRAFT)
+    if text.startswith("记录") and any(term in text for term in _WRITE_EVENT_RECORD_TERMS):
+        return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.HEALTH_EVENT_DRAFT)
     if any(marker in text for marker in _WRITE_REQUEST_MARKERS) and any(term in text for term in _WRITE_SYMPTOM_TERMS):
-        return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.SYMPTOM_DRAFT)
+        return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.SYMPTOM_DRAFT)
     if any(marker in text for marker in _WRITE_REQUEST_MARKERS) and any(term in text for term in _WRITE_EVENT_RECORD_TERMS):
-        return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.HEALTH_EVENT_DRAFT)
+        return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.HEALTH_EVENT_DRAFT)
     if any(term in text for term in _HEALTH_KNOWLEDGE_TERMS):
         return ConversationRoute(ConversationIntent.HEALTH_KNOWLEDGE)
     if any(term in text for term in _EXTERNAL_REALTIME_TERMS):

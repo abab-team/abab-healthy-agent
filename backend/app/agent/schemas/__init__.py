@@ -65,6 +65,7 @@ class AgentRunResult:
     generated_content: str | None = None
     session_id: str | None = None
     suggested_action: str | None = None
+    conversation_task: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,7 @@ class AgentWorkflowResult:
     status: AgentTraceStatus = AgentTraceStatus.SUCCESS
     tool_calls_count: int = 0
     suggested_action: str | None = None
+    conversation_task: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
