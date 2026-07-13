@@ -45,6 +45,21 @@ class ConversationResponderTestCase(unittest.TestCase):
         self.assertIn("你好", reply)
         self.assertNotIn("Everything", reply)
 
+    def test_health_reply_keeps_approved_overview_facts_when_model_is_too_brief(self) -> None:
+        client = _FakeClient("我帮你看了一下爸爸最近的记录。")
+        responder = ConversationResponder(settings=Settings(LLM_ENABLED=True, LLM_CHAT_ENABLED=True), llm_client=client)
+
+        reply = responder.respond(
+            intent=ConversationIntent.FAMILY_HEALTH_QUERY,
+            user_message="爸爸最近怎么样？",
+            safe_facts="健康指标：已记录 2 条数据。\n血压记录：共 1 次，最近一次为 120/78 mmHg。\n资料归档：系统内暂无相关记录。",
+            fallback_answer="fallback",
+        )
+
+        self.assertIn("健康指标", reply)
+        self.assertIn("血压记录", reply)
+        self.assertIn("资料归档", reply)
+
 
 if __name__ == "__main__":
     unittest.main()

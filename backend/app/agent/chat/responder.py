@@ -49,8 +49,12 @@ class ConversationResponder:
                 return fallback
             if self.safety_policy.evaluate_output(content, workflow_type="chat_workflow").blocked:
                 return fallback
-            if intent in {ConversationIntent.HEALTH_RECORD_QUERY, ConversationIntent.FAMILY_HEALTH_QUERY} and "系统内记录" not in content:
-                content = content.rstrip() + "\n\n以上基于系统内记录整理，不替代医生判断。"
+            if intent in {ConversationIntent.HEALTH_RECORD_QUERY, ConversationIntent.FAMILY_HEALTH_QUERY}:
+                content = _preserve_record_facts(content, safe_facts)
+            if intent in {ConversationIntent.HEALTH_RECORD_QUERY, ConversationIntent.FAMILY_HEALTH_QUERY} and "根据系统内记录" not in content:
+                content = content.rstrip() + "\n\n以上根据系统内记录整理，不替代医生判断。"
+            if intent == ConversationIntent.HEALTH_KNOWLEDGE:
+                content = _ensure_knowledge_topic(content, user_message)
             return content
         except Exception:
             return fallback
@@ -74,6 +78,27 @@ class ConversationResponder:
             LLMMessage(role="system", content=system_prompt),
             LLMMessage(role="user", content="\n\n".join(context_parts)),
         ]
+
+
+def _preserve_record_facts(content: str, safe_facts: str) -> str:
+    """Keep approved tool facts when a prose model makes an answer too terse.
+
+    The model may rephrase the opening, but it must not silently discard a
+    permitted record category from an overview. `safe_facts` is already a
+    bounded, de-identified ToolExecutor summary.
+    """
+    fact_lines = [line.strip() for line in safe_facts.splitlines() if line.strip()]
+    missing = [line for line in fact_lines if line not in content]
+    if not missing:
+        return content
+    return content.rstrip() + "\n\n已整理的记录：\n" + "\n".join(f"- {line}" for line in missing)
+
+
+def _ensure_knowledge_topic(content: str, user_message: str) -> str:
+    """Keep a health-knowledge reply anchored to the user's stated topic."""
+    if "睡" in user_message and "睡眠" not in content:
+        return content.rstrip() + "\n\n睡眠也会受到这些日常因素影响。"
+    return content
 
 
 def _system_prompt(intent: ConversationIntent) -> str:

@@ -31,6 +31,8 @@ _WRITE_SYMPTOM_TERMS = ("头痛", "不舒服", "症状", "睡不好", "咳嗽", 
 _WRITE_REQUEST_MARKERS = ("帮我记录", "记录一下", "记一下", "记录今天", "帮我记")
 _WRITE_EVENT_TERMS = ("就医记录", "检查记录", "复查记录", "健康事件", "门诊记录")
 _WRITE_ALERT_TERMS = ("提醒我", "创建提醒", "设个提醒", "健康提醒")
+_WRITE_EVENT_RECORD_TERMS = ("体温", "温度", "血压", "睡眠", "体重", "步数")
+_WRITE_CONTINUATION_MARKERS = ("整理", "继续", "刚才那个", "刚才的")
 _HEALTH_KNOWLEDGE_TERMS = (
     "为什么会",
     "什么原因",
@@ -52,15 +54,27 @@ _HEALTH_RECORD_HINTS = (
 _EXTERNAL_REALTIME_TERMS = ("天气", "weather", "新闻", "news", "股价", "股票", "汇率")
 
 
-def route_conversation(message: str, plan: HealthQueryPlan) -> ConversationRoute:
+def route_conversation(
+    message: str,
+    plan: HealthQueryPlan,
+    *,
+    pending_action: SuggestedAction | str | None = None,
+) -> ConversationRoute:
     """Route by deterministic rules; models never select a tool or target user."""
     text = (message or "").strip().lower()
+    if pending_action and any(marker in text for marker in _WRITE_CONTINUATION_MARKERS):
+        try:
+            return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction(pending_action))
+        except ValueError:
+            pass
     if any(term in text for term in _WRITE_ALERT_TERMS):
         return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.HEALTH_ALERT)
     if any(term in text for term in _WRITE_EVENT_TERMS):
         return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.HEALTH_EVENT_DRAFT)
     if any(marker in text for marker in _WRITE_REQUEST_MARKERS) and any(term in text for term in _WRITE_SYMPTOM_TERMS):
         return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.SYMPTOM_DRAFT)
+    if any(marker in text for marker in _WRITE_REQUEST_MARKERS) and any(term in text for term in _WRITE_EVENT_RECORD_TERMS):
+        return ConversationRoute(ConversationIntent.WRITE_REQUEST, SuggestedAction.HEALTH_EVENT_DRAFT)
     if any(term in text for term in _HEALTH_KNOWLEDGE_TERMS):
         return ConversationRoute(ConversationIntent.HEALTH_KNOWLEDGE)
     if any(term in text for term in _EXTERNAL_REALTIME_TERMS):

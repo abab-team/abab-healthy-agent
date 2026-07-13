@@ -114,11 +114,47 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
 
         self.assertEqual(result.status, "completed")
-        self.assertEqual(result.tool_calls_count, 3)
+        self.assertEqual(result.tool_calls_count, 6)
         self.assertEqual(
             [call.tool_name for call in calls],
-            ["health_data.metrics.recent", "health_record.symptoms.query", "alerts.query"],
+            [
+                "health_data.metrics.recent",
+                "health_data.blood_pressure.summary",
+                "health_record.symptoms.query",
+                "documents.query",
+                "medical_timeline.events.query",
+                "alerts.query",
+            ],
         )
+
+    def test_family_overview_uses_controlled_tools_for_multiple_record_categories(self) -> None:
+        health_data_service.add_blood_pressure_record(
+            self.db,
+            user_id=self.target.id,
+            systolic=120,
+            diastolic=78,
+        )
+        health_data_service.add_metric(
+            self.db,
+            user_id=self.target.id,
+            metric_type="steps",
+            value_numeric=5600,
+            unit="steps",
+        )
+
+        result = AgentRuntime().run(
+            self.db,
+            self._request(self.actor.id, self.actor.id, "爸爸最近健康情况怎么样？", family_id=self.family.id),
+        )
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 6)
+        self.assertTrue(all(call.target_user_id == self.target.id for call in calls))
+        self.assertIn("爸爸", result.generated_content or "")
+        self.assertIn("健康指标", result.generated_content or "")
+        self.assertIn("血压记录", result.generated_content or "")
+        self.assertIn("文档资料", result.generated_content or "")
 
     def test_casual_chat_does_not_call_tools(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "tell me a joke"))
@@ -155,6 +191,29 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.tool_calls_count, 0)
         self.assertEqual(result.suggested_action, "symptom_draft")
+        self.assertEqual(calls, [])
+        self.assertIn("预览不会写入", result.generated_content or "")
+
+    def test_record_follow_up_resumes_only_a_controlled_draft_navigation(self) -> None:
+        session = memory_service.get_or_create_session(
+            self.db,
+            user_id=self.actor.id,
+            family_id=self.family.id,
+            title="健康记录草稿",
+        )
+        first = self._request(self.actor.id, self.actor.id, "帮我记录体温36度", family_id=self.family.id)
+        first = AgentRunRequest(**{**first.__dict__, "session_id": str(session.id)})
+        initial = AgentRuntime().run(self.db, first)
+
+        follow_up = self._request(self.actor.id, self.actor.id, "整理", family_id=self.family.id)
+        follow_up = AgentRunRequest(**{**follow_up.__dict__, "session_id": str(session.id)})
+        result = AgentRuntime().run(self.db, follow_up)
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(initial.suggested_action, "health_event_draft")
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.suggested_action, "health_event_draft")
+        self.assertEqual(result.tool_calls_count, 0)
         self.assertEqual(calls, [])
         self.assertIn("预览不会写入", result.generated_content or "")
 

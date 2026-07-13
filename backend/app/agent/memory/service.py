@@ -58,6 +58,7 @@ class SessionMemoryContext:
     last_time_range_label: str | None = None
     last_time_range_days: int | None = None
     last_tool_name: str | None = None
+    last_write_action: str | None = None
     summary_lines: tuple[str, ...] = ()
 
 
@@ -189,8 +190,28 @@ def load_session_context(db: Session, *, user_id: UUID, session_id: UUID | str |
         last_time_range_label=reference.time_range_label if reference else None,
         last_time_range_days=reference.time_range_days if reference else None,
         last_tool_name=reference.tool_name if reference else None,
+        last_write_action=_last_write_action(messages),
         summary_lines=tuple(message.content_summary for message in reversed(messages) if message.content_summary),
     )
+
+
+def _last_write_action(messages: list[AgentMessage]) -> str | None:
+    """Recover only a safe draft-navigation hint from recent assistant summaries.
+
+    The persisted memory schema intentionally has no unconfirmed medical facts.
+    This hint only resumes a controlled preview/confirmation route.
+    """
+    for message in messages:
+        if message.role != "assistant":
+            continue
+        text = message.content_summary or ""
+        if "症状草稿" in text:
+            return "symptom_draft"
+        if "健康事件草稿" in text:
+            return "health_event_draft"
+        if "普通健康提醒" in text:
+            return "health_alert"
+    return None
 
 
 def apply_session_context(

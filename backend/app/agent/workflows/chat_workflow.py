@@ -162,7 +162,11 @@ def run_chat_health_query(
     )
     plan = parse_health_query(context.request.user_message)
     plan = memory_service.apply_session_context(context.request.user_message, plan, memory_context)
-    route = route_conversation(context.request.user_message, plan)
+    route = route_conversation(
+        context.request.user_message,
+        plan,
+        pending_action=memory_context.last_write_action,
+    )
     if route.intent in {ConversationIntent.CASUAL_CHAT, ConversationIntent.OTHER, ConversationIntent.HEALTH_KNOWLEDGE}:
         responder = conversation_responder or ConversationResponder(settings=settings or get_settings())
         answer = responder.respond(
@@ -212,11 +216,7 @@ def run_chat_health_query(
     execution_context = replace(context, request=resolved_target.request)
 
     if plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
-        results = [
-            _execute_tool(execution_context, executor, "health_data.metrics.recent", {"days": plan.time_range.days, "limit": 10}),
-            _execute_tool(execution_context, executor, "health_record.symptoms.query", {"days": plan.time_range.days}),
-            _execute_tool(execution_context, executor, "alerts.query", {"days": plan.time_range.days, "limit": 10}),
-        ]
+        results = _execute_health_overview_tools(execution_context, executor, days=plan.time_range.days)
         answer = _compose_insight_answer(
             plan,
             results,
@@ -268,11 +268,14 @@ def _compose_insight_answer(
 ) -> str:
     insight = build_health_insight(plan, results)
     responder = conversation_responder or ConversationResponder(settings=settings or get_settings())
+    safe_facts = insight.safe_facts()
+    if plan.member_label:
+        safe_facts = f"本次整理对象：{plan.member_label}\n{safe_facts}"
     return responder.respond(
         intent=ConversationIntent.FAMILY_HEALTH_QUERY if plan.member_scope == "family" else ConversationIntent.HEALTH_RECORD_QUERY,
         user_message=user_message,
         session_summary=session_summary,
-        safe_facts=insight.safe_facts(),
+        safe_facts=safe_facts,
         fallback_answer=insight.render(),
     )
 
@@ -355,6 +358,28 @@ def _execute_tool(
             reason="chat_health_query",
         ),
     )
+
+
+def _execute_health_overview_tools(
+    context: AgentWorkflowContext,
+    executor: AgentToolExecutor,
+    *,
+    days: int,
+) -> list[ToolExecutionResult]:
+    """Collect a member overview only through existing read-only Agent tools.
+
+    The workflow never reads a service or database directly. Each result remains
+    permission-gated and traceable by AgentToolExecutor before insight composition.
+    """
+    calls = (
+        ("health_data.metrics.recent", {"days": days, "limit": 10}),
+        ("health_data.blood_pressure.summary", {"days": days}),
+        ("health_record.symptoms.query", {"days": days}),
+        ("documents.query", {"days": days, "limit": 10}),
+        ("medical_timeline.events.query", {"days": days, "limit": 10}),
+        ("alerts.query", {"days": days, "limit": 10}),
+    )
+    return [_execute_tool(context, executor, tool_name, input_data) for tool_name, input_data in calls]
 
 
 def _write_request_message(action: SuggestedAction | None) -> str:

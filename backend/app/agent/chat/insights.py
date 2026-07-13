@@ -32,12 +32,23 @@ class HealthInsight:
             sections.append("\n".join(f"- {fact}" for fact in self.facts))
         if self.observations:
             sections.append("\n".join(f"- {item}" for item in self.observations))
-        sections.append(self.next_step)
-        sections.append("以上根据系统内记录整理，不替代医生判断。")
+        sections.extend((self.next_step, "以上根据系统内记录整理，不替代医生判断。"))
         return "\n".join(sections)
 
 
+@dataclass(frozen=True)
+class HealthOverview:
+    """A safe aggregate assembled from ToolExecutor results, never from a DB."""
+
+    available_sections: tuple[str, ...]
+    unavailable_sections: tuple[str, ...]
+    facts: tuple[str, ...]
+
+
 def build_health_insight(plan: HealthQueryPlan, results: list[ToolExecutionResult]) -> HealthInsight:
+    if plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
+        return _build_overview_insight(plan, results)
+
     member = plan.member_label or "你"
     period = _period_label(plan.time_range.days)
     topic = _topic_label(plan)
@@ -57,13 +68,96 @@ def build_health_insight(plan: HealthQueryPlan, results: list[ToolExecutionResul
     if not facts:
         facts.append("系统内暂无相关记录；这不代表现实中没有相关情况。")
     if not observations and facts and not facts[0].startswith("系统内暂无"):
-        observations.append("这些内容来自已保存的记录，适合继续积累后再观察变化。")
+        observations.append("这些内容来自已保存的记录，后续持续记录会更方便回看变化。")
     return HealthInsight(
         opening=opening,
         facts=tuple(facts[:5]),
         observations=tuple(observations[:2]),
         next_step="如果你愿意，我也可以继续帮你整理最近一个月的记录，或准备就医沟通资料。",
     )
+
+
+def _build_overview_insight(plan: HealthQueryPlan, results: list[ToolExecutionResult]) -> HealthInsight:
+    """Turn the controlled overview into family-friendly, non-medical wording."""
+    member = plan.member_label or "你"
+    overview = _build_health_overview(results)
+    facts = list(overview.facts)
+    if overview.unavailable_sections:
+        facts.append("部分信息因权限设置暂不可用。")
+    if not facts:
+        facts.append("系统内暂无这段时间的相关记录；这不代表现实中没有相关情况。")
+
+    if len(overview.available_sections) >= 2:
+        observations = ("系统内已有多个类别的记录，可以按时间范围继续回看变化。",)
+    elif overview.available_sections:
+        observations = ("当前可查看的资料覆盖范围有限，后续持续记录会更方便整理。",)
+    else:
+        observations = ()
+
+    next_step = "如果需要，我也可以继续整理最近一个月的变化，或汇总已有资料供就医沟通时参考。"
+    return HealthInsight(
+        opening=f"我整理了一下{member}{_period_label(plan.time_range.days)}的健康情况。",
+        facts=tuple(facts[:8]),
+        observations=observations,
+        next_step=next_step,
+    )
+
+
+def _build_health_overview(results: list[ToolExecutionResult]) -> HealthOverview:
+    available: list[str] = []
+    unavailable: list[str] = []
+    facts: list[str] = []
+    for result in results:
+        label = _overview_label(result.tool_name)
+        if result.blocked or result.status != "completed":
+            unavailable.append(label)
+            continue
+        data = result.output_data or {}
+        summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
+        count = _count(data, summary)
+        if result.tool_name == "health_data.metrics.recent":
+            facts.append(
+                f"健康指标：已记录 {count} 条数据。" if count else "健康指标：系统内暂无相关记录。"
+            )
+        elif result.tool_name == "health_data.blood_pressure.summary":
+            systolic, diastolic = summary.get("latest_systolic"), summary.get("latest_diastolic")
+            if count and systolic is not None and diastolic is not None:
+                facts.append(f"血压记录：共 {count} 次，最近一次为 {systolic}/{diastolic} mmHg。")
+            elif count:
+                facts.append(f"血压记录：共 {count} 次。")
+            else:
+                facts.append("血压记录：系统内暂无相关记录。")
+        elif result.tool_name == "health_record.symptoms.query":
+            facts.append(f"症状记录：已保存 {count} 条。" if count else "症状记录：系统内暂无相关记录。")
+        elif result.tool_name == "documents.query":
+            facts.append(f"文档资料：已保存 {count} 份。" if count else "文档资料：系统内暂无相关记录。")
+        elif result.tool_name == "medical_timeline.events.query":
+            if count:
+                follow_up = int(data.get("follow_up_needed_count") or 0)
+                suffix = f"，其中标注待随访 {follow_up} 条" if follow_up else ""
+                facts.append(f"健康事件：已记录 {count} 条{suffix}。")
+            else:
+                facts.append("健康事件：系统内暂无相关记录。")
+        elif result.tool_name == "alerts.query":
+            active = data.get("active_count")
+            if count:
+                suffix = f"，当前可用 {active} 条" if active is not None else ""
+                facts.append(f"日常提醒：已保存 {count} 条{suffix}。")
+            else:
+                facts.append("日常提醒：系统内暂无相关记录。")
+        available.append(label)
+    return HealthOverview(tuple(available), tuple(unavailable), tuple(facts))
+
+
+def _overview_label(tool_name: str) -> str:
+    return {
+        "health_data.metrics.recent": "健康指标",
+        "health_data.blood_pressure.summary": "血压记录",
+        "health_record.symptoms.query": "症状记录",
+        "documents.query": "文档资料",
+        "medical_timeline.events.query": "健康事件",
+        "alerts.query": "日常提醒",
+    }.get(tool_name, "健康资料")
 
 
 def _append_result_insight(
@@ -135,7 +229,7 @@ def _period_label(days: int) -> str:
 
 def _topic_label(plan: HealthQueryPlan) -> str:
     if plan.intent == HealthQueryIntent.QUERY_DAILY_STATUS:
-        return "健康记录"
+        return "健康情况"
     if plan.intent == HealthQueryIntent.QUERY_BLOOD_PRESSURE:
         return "血压"
     if plan.intent == HealthQueryIntent.QUERY_METRICS:

@@ -13,7 +13,7 @@ import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
 import type { AgentRunResponse } from "@/types/api";
 
-const suggestions = ["我最近一周睡眠怎么样？", "爸爸最近身体情况怎么样？", "帮我整理体检资料", "帮我记录今天头痛"];
+const suggestions = ["查看我最近一周睡眠", "爸爸最近健康情况", "整理体检资料", "生成就医资料摘要"];
 type SuggestedAction = NonNullable<AgentRunResponse["suggested_action"]>;
 type ConversationMessage = {
   id: string;
