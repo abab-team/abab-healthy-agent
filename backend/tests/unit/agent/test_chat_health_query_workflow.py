@@ -520,6 +520,57 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.tool_calls_count, 6)
         self.assertEqual(calls[0].tool_name, "health_data.metrics.recent")
 
+    def test_new_health_question_pauses_active_task_instead_of_being_swallowed(self) -> None:
+        session = memory_service.get_or_create_session(self.db, user_id=self.actor.id, family_id=self.family.id)
+
+        started = AgentRuntime().run(self.db, self._request_with_session("\u8bb0\u5f55\u4e00\u4e0b\u6211\u7684\u4f53\u6e2936\u5ea6", session_id=session.id))
+        interrupted = AgentRuntime().run(self.db, self._request_with_session("\u6211\u5065\u5eb7\u5417", session_id=session.id))
+        task = self.db.scalar(select(AgentConversationTask).where(AgentConversationTask.session_id == session.id))
+
+        self.assertEqual(started.conversation_task["status"], "collecting")
+        self.assertEqual(interrupted.tool_calls_count, 0)
+        self.assertIsNone(interrupted.suggested_action)
+        self.assertIsNotNone(task)
+        self.assertEqual(task.status, "paused")
+        self.assertNotIn("\u6574\u7406\u4e00\u4e0b", interrupted.generated_content or "")
+
+        resumed = AgentRuntime().run(self.db, self._request_with_session("\u6574\u7406\u4e00\u4e0b", session_id=session.id))
+        self.assertEqual(resumed.suggested_action, "health_event_draft")
+        self.assertEqual(task.status, "ready_for_preview")
+
+    def test_family_overview_expansion_keeps_member_and_uses_all_overview_tools(self) -> None:
+        health_data_service.add_blood_pressure_record(self.db, user_id=self.target.id, systolic=120, diastolic=78)
+        session = memory_service.get_or_create_session(self.db, user_id=self.actor.id, family_id=self.family.id)
+
+        AgentRuntime().run(self.db, self._request_with_session("\u67e5\u8be2\u7238\u7238\u5065\u5eb7\u60c5\u51b5", session_id=session.id))
+        expanded = AgentRuntime().run(self.db, self._request_with_session("\u4e0d\u53ea\u662f\u8840\u538b", session_id=session.id))
+        calls = agent_service.list_tool_calls(self.db, trace_id=expanded.trace_id)
+
+        self.assertEqual(expanded.tool_calls_count, 6)
+        self.assertTrue(all(call.target_user_id == self.target.id for call in calls))
+        self.assertIn("\u7238\u7238", expanded.generated_content or "")
+
+    def test_relative_blood_pressure_interpretation_requeries_authorized_fact(self) -> None:
+        health_data_service.add_blood_pressure_record(self.db, user_id=self.actor.id, systolic=118, diastolic=76)
+        session = memory_service.get_or_create_session(self.db, user_id=self.actor.id, family_id=self.family.id)
+
+        AgentRuntime().run(self.db, self._request_with_session("\u67e5\u8be2\u8840\u538b", session_id=session.id))
+        interpreted = AgentRuntime().run(self.db, self._request_with_session("\u8fd9\u4e2a\u6570\u503c\u5065\u5eb7\u5417", session_id=session.id))
+        calls = agent_service.list_tool_calls(self.db, trace_id=interpreted.trace_id)
+
+        self.assertEqual(interpreted.tool_calls_count, 1)
+        self.assertEqual(calls[0].tool_name, "health_data.blood_pressure.summary")
+        self.assertIn("\u5e38\u89c1\u6210\u4eba\u9759\u606f\u8840\u538b\u53c2\u8003\u533a\u95f4", interpreted.generated_content or "")
+        self.assertNotIn("\u8bca\u65ad", interpreted.generated_content or "")
+
+    def test_cold_knowledge_reply_stays_within_non_treatment_boundary(self) -> None:
+        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "\u611f\u5192\u600e\u4e48\u529e"))
+
+        self.assertEqual(result.tool_calls_count, 0)
+        self.assertNotIn("\u5904\u65b9", result.generated_content or "")
+        self.assertNotIn("\u5242\u91cf", result.generated_content or "")
+        self.assertNotIn("\u505c\u836f", result.generated_content or "")
+
 
 if __name__ == "__main__":
     unittest.main()

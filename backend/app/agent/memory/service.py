@@ -59,6 +59,8 @@ class SessionMemoryContext:
     last_time_range_days: int | None = None
     last_tool_name: str | None = None
     last_write_action: str | None = None
+    semantic_topic: str | None = None
+    semantic_scope: str | None = None
     summary_lines: tuple[str, ...] = ()
 
 
@@ -191,6 +193,8 @@ def load_session_context(db: Session, *, user_id: UUID, session_id: UUID | str |
         last_time_range_days=reference.time_range_days if reference else None,
         last_tool_name=reference.tool_name if reference else None,
         last_write_action=_last_write_action(messages),
+        semantic_topic=_semantic_topic(reference),
+        semantic_scope=_semantic_scope(reference),
         summary_lines=tuple(message.content_summary for message in reversed(messages) if message.content_summary),
     )
 
@@ -221,6 +225,36 @@ def apply_session_context(
     *,
     reference_date: date | None = None,
 ) -> HealthQueryPlan:
+    if _requests_overview_expansion(message) and context.semantic_topic in {"self_health_overview", "family_health_overview"}:
+        days = context.last_time_range_days or plan.time_range.days
+        time_range = parse_time_range(f"last {days} days", reference_date=reference_date)
+        return _replace_plan(
+            plan,
+            intent=type(plan.intent).QUERY_DAILY_STATUS,
+            member_label=context.last_member_label,
+            member_scope=context.last_member_scope or "self",
+            metric_type=None,
+            source_type="daily_status",
+            aggregation="summary",
+            tool_name="health_data.metrics.recent",
+            tool_input={"days": time_range.days, "limit": 10},
+            time_range=time_range,
+        )
+    if _is_relative_blood_pressure_interpretation(message, context):
+        days = context.last_time_range_days or plan.time_range.days
+        time_range = parse_time_range(f"last {days} days", reference_date=reference_date)
+        return _replace_plan(
+            plan,
+            intent=type(plan.intent).QUERY_BLOOD_PRESSURE,
+            member_label=context.last_member_label,
+            member_scope=context.last_member_scope or "self",
+            metric_type="blood_pressure",
+            source_type=None,
+            aggregation="summary",
+            tool_name="health_data.blood_pressure.summary",
+            tool_input={"days": time_range.days},
+            time_range=time_range,
+        )
     if not _has_followup_marker(message):
         return plan
     updates: dict[str, object | None] = {}
@@ -400,3 +434,36 @@ def _mentions_followup_only(message: str) -> bool:
 def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
     lowered = (text or "").lower()
     return any(marker.lower() in lowered for marker in markers)
+
+
+def _semantic_topic(message: AgentMessage | None) -> str | None:
+    if message is None or message.intent is None:
+        return None
+    if message.intent == "query_daily_status":
+        return "family_health_overview" if message.member_scope == "family" else "self_health_overview"
+    if message.intent == "query_blood_pressure":
+        return "blood_pressure"
+    if message.intent == "query_metrics":
+        return "health_metrics"
+    return None
+
+
+def _semantic_scope(message: AgentMessage | None) -> str | None:
+    if message is None:
+        return None
+    if message.member_scope == "family":
+        return "family_shared_records"
+    if message.member_scope == "self":
+        return "self_records"
+    return None
+
+
+def _requests_overview_expansion(message: str) -> bool:
+    return _contains_any(message, ("\u4e0d\u53ea\u662f", "\u4e0d\u6b62", "\u5168\u90e8\u5065\u5eb7\u60c5\u51b5", "\u6574\u4f53\u60c5\u51b5"))
+
+
+def _is_relative_blood_pressure_interpretation(message: str, context: SessionMemoryContext) -> bool:
+    return (
+        context.last_metric_type == "blood_pressure"
+        and _contains_any(message, ("\u8fd9\u4e2a\u6570\u503c\u5065\u5eb7\u5417", "\u8fd9\u4e2a\u6570\u636e\u5065\u5eb7\u5417", "\u6709\u95ee\u9898\u5417", "\u4e25\u91cd\u5417"))
+    )

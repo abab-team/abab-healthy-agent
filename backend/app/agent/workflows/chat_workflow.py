@@ -165,7 +165,9 @@ def run_chat_health_query(
     conversation_manager: ConversationManager | None = None,
 ) -> ChatHealthQueryExecution:
     manager = conversation_manager or ConversationManager()
-    active_task = manager.handle_active_task(context)
+    interruption_plan = parse_health_query(context.request.user_message)
+    interruption_route = route_conversation(context.request.user_message, interruption_plan)
+    active_task = manager.handle_active_task(context, interruption_route)
     if active_task.handled:
         plan = parse_health_query(context.request.user_message)
         answer = active_task.answer or "当前任务状态暂不可用。"

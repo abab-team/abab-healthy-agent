@@ -29,8 +29,10 @@ class ConversationResponder:
         safe_facts: str = "",
         fallback_answer: str | None = None,
     ) -> str:
-        contextual_reply = _contextual_conversation_reply(user_message, assistant_context)
+        contextual_reply = _contextual_conversation_reply(user_message, assistant_context, safe_facts)
         if contextual_reply:
+            if intent in {ConversationIntent.HEALTH_RECORD_QUERY, ConversationIntent.FAMILY_HEALTH_QUERY} and safe_facts:
+                return _with_system_record_boundary(contextual_reply)
             return contextual_reply
         fallback = fallback_answer or _fallback_response(intent, user_message)
         if intent == ConversationIntent.OTHER:
@@ -109,6 +111,12 @@ def _preserve_record_facts(content: str, safe_facts: str) -> str:
     return content.rstrip() + "\n\n已整理的记录：\n" + "\n".join(f"- {line}" for line in missing)
 
 
+def _with_system_record_boundary(content: str) -> str:
+    if "\u7cfb\u7edf\u5185\u5df2\u6709\u8bb0\u5f55" in content or "\u7cfb\u7edf\u8bb0\u5f55" in content:
+        return content
+    return content.rstrip() + "\n\n\u4ee5\u4e0a\u4ec5\u57fa\u4e8e\u7cfb\u7edf\u5185\u5df2\u6709\u8bb0\u5f55\u6574\u7406\uff0c\u4e0d\u66ff\u4ee3\u533b\u751f\u5224\u65ad\u3002"
+
+
 def _ensure_knowledge_topic(content: str, user_message: str) -> str:
     """Keep a health-knowledge reply anchored to the user's stated topic."""
     if "睡" in user_message and "睡眠" not in content:
@@ -129,7 +137,11 @@ def _system_prompt(intent: ConversationIntent) -> str:
     return shared + "这是普通对话。自然回应用户；只有谈到健康记录时才说明可以协助整理。"
 
 
-def _contextual_conversation_reply(message: str, assistant_context: tuple[str, ...]) -> str | None:
+def _contextual_conversation_reply(
+    message: str,
+    assistant_context: tuple[str, ...],
+    safe_facts: str = "",
+) -> str | None:
     """Answer identity and continuity turns from controlled context only."""
     text = (message or "").strip()
     if _is_identity_question(text):
@@ -148,6 +160,8 @@ def _contextual_conversation_reply(message: str, assistant_context: tuple[str, .
     if reference_reply := explain_blood_pressure_reference(text):
         return reference_reply
     if _is_health_interpretation_question(text):
+        if reference_reply := explain_blood_pressure_reference(safe_facts):
+            return reference_reply
         return (
             "\u53ef\u4ee5\u3002\u8bf7\u628a\u5177\u4f53\u6570\u503c\u548c\u6307\u6807\u53d1\u7ed9\u6211\uff08\u4f8b\u5982 118/76 mmHg\uff09\uff0c"
             "\u6211\u53ef\u4ee5\u8bf4\u660e\u5e38\u89c1\u6210\u4eba\u53c2\u8003\u533a\u95f4\uff0c\u5e76\u5e2e\u4f60\u56de\u770b\u5df2\u8bb0\u5f55\u7684\u8d8b\u52bf\u3002"
@@ -206,6 +220,12 @@ def _fallback_response(intent: ConversationIntent, message: str) -> str:
             return (
                 "\u8bf7\u628a\u5177\u4f53\u6307\u6807\u548c\u6570\u503c\u53d1\u7ed9\u6211\uff0c\u6211\u53ef\u4ee5\u8bf4\u660e\u5e38\u89c1\u6210\u4eba\u53c2\u8003\u533a\u95f4\uff0c"
                 "\u5e76\u5e2e\u4f60\u56de\u770b\u6700\u8fd1\u8bb0\u5f55\u7684\u53d8\u5316\u3002\u5355\u6b21\u8bb0\u5f55\u4e0d\u4ee3\u8868\u6574\u4f53\u5065\u5eb7\u60c5\u51b5\u3002"
+            )
+        if "\u6211\u5065\u5eb7\u5417" in text:
+            return (
+                "\u5065\u5eb7\u60c5\u51b5\u9700\u8981\u7ed3\u5408\u8fde\u7eed\u8bb0\u5f55\u3001\u8eab\u4f53\u611f\u53d7\u548c\u4e2a\u4eba\u60c5\u51b5\u6765\u770b\u3002"
+                "\u6211\u53ef\u4ee5\u5148\u5e2e\u4f60\u6574\u7406\u5df2\u8bb0\u5f55\u7684\u7761\u7720\u3001\u8840\u538b\u3001\u4f53\u91cd\u6216\u75c7\u72b6\u8d8b\u52bf\uff0c"
+                "\u4e0d\u5c06\u5355\u6b21\u8bb0\u5f55\u5f53\u4f5c\u6574\u4f53\u5065\u5eb7\u7ed3\u8bba\u3002"
             )
         if "感冒" in text:
             return "感冒后的不适持续时间会因人和具体情况不同而不同。可以留意休息、补水和症状变化；如果不适加重、持续不缓解或出现明显不适，建议咨询医生。"

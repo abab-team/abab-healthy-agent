@@ -12,6 +12,7 @@ from app.db.mixins import utc_now
 
 
 ACTIVE_TASK_STATUSES = ("collecting", "ready_for_preview", "awaiting_confirmation")
+PAUSED_TASK_STATUS = "paused"
 DEFAULT_TASK_TTL_MINUTES = 30
 SENSITIVE_TASK_KEYS = {"raw_text", "raw_extracted_text", "file_path", "token", "password", "api_key", "private_key"}
 
@@ -25,6 +26,26 @@ def get_active_task(db: Session, *, session_id: UUID | str | None) -> AgentConve
         .where(
             AgentConversationTask.session_id == parsed_session_id,
             AgentConversationTask.status.in_(ACTIVE_TASK_STATUSES),
+        )
+        .order_by(AgentConversationTask.updated_at.desc())
+    )
+    if task is not None and task.expires_at is not None and _is_expired(task.expires_at):
+        task.status = "expired"
+        db.flush()
+        return None
+    return task
+
+
+def get_latest_paused_task(db: Session, *, session_id: UUID | str | None) -> AgentConversationTask | None:
+    """Return a resumable draft task without making it active again."""
+    parsed_session_id = _parse_uuid(session_id)
+    if parsed_session_id is None:
+        return None
+    task = db.scalar(
+        select(AgentConversationTask)
+        .where(
+            AgentConversationTask.session_id == parsed_session_id,
+            AgentConversationTask.status == PAUSED_TASK_STATUS,
         )
         .order_by(AgentConversationTask.updated_at.desc())
     )
@@ -86,6 +107,20 @@ def update_task(
 
 def cancel_task(db: Session, task: AgentConversationTask) -> AgentConversationTask:
     task.status = "cancelled"
+    db.flush()
+    return task
+
+
+def pause_task(db: Session, task: AgentConversationTask) -> AgentConversationTask:
+    """Keep a draft available while another conversational intent is handled."""
+    task.status = PAUSED_TASK_STATUS
+    db.flush()
+    return task
+
+
+def resume_task(db: Session, task: AgentConversationTask) -> AgentConversationTask:
+    task.status = "collecting" if task.missing_fields else "ready_for_preview"
+    task.expires_at = utc_now() + timedelta(minutes=DEFAULT_TASK_TTL_MINUTES)
     db.flush()
     return task
 

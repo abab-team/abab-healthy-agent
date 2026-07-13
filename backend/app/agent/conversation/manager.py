@@ -33,9 +33,17 @@ class ConversationManager:
     short-lived draft navigation state before the existing confirmed workflows.
     """
 
-    def handle_active_task(self, context: AgentWorkflowContext) -> ConversationTaskDecision:
+    def handle_active_task(
+        self,
+        context: AgentWorkflowContext,
+        route: ConversationRoute,
+    ) -> ConversationTaskDecision:
         task = tasks.get_active_task(context.db, session_id=context.request.session_id)
         if task is None:
+            paused = tasks.get_latest_paused_task(context.db, session_id=context.request.session_id)
+            if paused is not None and _is_task_continuation(context.request.user_message, route):
+                tasks.resume_task(context.db, paused)
+                return self._continue_task(context, paused, (context.request.user_message or "").strip())
             return ConversationTaskDecision(handled=False)
 
         message = (context.request.user_message or "").strip()
@@ -46,6 +54,9 @@ class ConversationManager:
                 answer="好的，已取消这次草稿整理，不会写入任何健康记录。",
                 task_state=tasks.safe_task_summary(task),
             )
+        if not _is_task_continuation(message, route):
+            tasks.pause_task(context.db, task)
+            return ConversationTaskDecision(handled=False, task_state=tasks.safe_task_summary(task))
         return self._continue_task(context, task, message)
 
     def start_record_task(self, context: AgentWorkflowContext, route: ConversationRoute) -> ConversationTaskDecision:
@@ -174,6 +185,25 @@ def _suggested_action_for_task(task_type: str) -> str:
 
 def _contains(message: str, markers: tuple[str, ...]) -> bool:
     return any(marker in message for marker in markers)
+
+
+def _is_task_continuation(message: str, route: ConversationRoute) -> bool:
+    """Only explicit task supplements may claim an active draft.
+
+    Fresh queries, health questions, and casual turns pause a draft first so
+    the existing Router can serve them. The draft remains resumable.
+    """
+    text = (message or "").strip()
+    if route.intent == ConversationIntent.RECORD_TASK and not _starts_new_record_task(text):
+        return True
+    if _contains(text, (*_ORGANIZE_MARKERS, *_CONFIRM_MARKERS, *_CANCEL_MARKERS, *_START_NOW_MARKERS)):
+        return True
+    return _duration(text) is not None
+
+
+def _starts_new_record_task(message: str) -> bool:
+    """Keep a fresh record request from being merged into an older draft."""
+    return any(marker in message for marker in ("\u8bb0\u5f55", "\u5e2e\u6211\u8bb0", "\u65b0\u5efa"))
 
 
 def _excerpt(message: str) -> str:
