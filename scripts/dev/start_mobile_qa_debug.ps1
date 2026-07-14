@@ -165,7 +165,7 @@ Write-Host ""
 Write-Host "QA notes:" -ForegroundColor Cyan
 Write-Host "1. Phone and computer must be on the same Wi-Fi."
 Write-Host "2. Use $apiBaseUrl on the phone. Do not use localhost."
-Write-Host "3. Demo login: gala.demo@example.com / DemoPass123!"
+Write-Host "3. Demo login: gala.demo@example.com / 123456"
 Write-Host "4. If /health does not open on the phone, allow Windows Firewall port $BackendPort."
 Write-Host "5. If LAN QR scanning fails, try from apps/mobile: npx expo start --tunnel"
 Write-Host ""

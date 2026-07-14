@@ -84,7 +84,7 @@ DEMO_EMAILS = {
     "father": "father.demo@example.com",
     "mother": "mother.demo@example.com",
 }
-DEMO_PASSWORD = "DemoPass123!"
+DEMO_PASSWORD = "123456"
 DEMO_FAMILY_NAME = "Gala 的家庭"
 # Keep local QA records current so relative queries such as "recent 7 days"
 # exercise the same data shown in the mobile app. A fixed date remains
