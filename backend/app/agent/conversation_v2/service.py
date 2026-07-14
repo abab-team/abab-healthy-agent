@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Callable
 from uuid import UUID
 
@@ -59,19 +60,41 @@ class ConversationRuntimeV2:
         self.llm_client = llm_client or get_llm_client(self.settings)
         self.graph = self._build_graph()
 
-    def run_turn(self, *, session_id: UUID | str, user_id: UUID, user_message: str) -> ConversationTurnResult:
+    def run_turn(
+        self,
+        *,
+        session_id: UUID | str,
+        user_id: UUID,
+        user_message: str,
+        request_id: str | None = None,
+    ) -> ConversationTurnResult:
         thread_id = str(session_id)
         self._assert_session_owner(thread_id, user_id)
         safe_message = sanitize_checkpoint_message(user_message)
         if not safe_message:
             safe_message = "[empty message]"
         config = {"configurable": {"thread_id": thread_id}}
-        snapshot = self.graph.get_state(config)
-        new_messages: list[BaseMessage] = []
-        if not snapshot.values.get("messages"):
-            new_messages.append(SystemMessage(content=SYSTEM_PROMPT))
-        new_messages.append(HumanMessage(content=safe_message))
-        state = self.graph.invoke({"messages": new_messages}, config=config)
+        with self.checkpointer.lock_thread(thread_id):
+            snapshot = self.graph.get_state(config)
+            safe_request_id = _safe_request_id(request_id)
+            if safe_request_id and safe_request_id in snapshot.values.get("processed_request_ids", []):
+                messages = tuple(snapshot.values.get("messages", ()))
+                return ConversationTurnResult(
+                    thread_id=thread_id,
+                    answer=_latest_ai_content(messages),
+                    messages=messages,
+                )
+            new_messages: list[BaseMessage] = []
+            if not snapshot.values.get("messages"):
+                new_messages.append(SystemMessage(content=SYSTEM_PROMPT))
+            new_messages.append(HumanMessage(content=safe_message))
+            processed_request_ids = list(snapshot.values.get("processed_request_ids", []))
+            if safe_request_id:
+                processed_request_ids = [*processed_request_ids[-19:], safe_request_id]
+            state = self.graph.invoke(
+                {"messages": new_messages, "processed_request_ids": processed_request_ids},
+                config=config,
+            )
         messages = tuple(state.get("messages", ()))
         answer = _latest_ai_content(messages)
         return ConversationTurnResult(thread_id=thread_id, answer=answer, messages=messages)
@@ -79,7 +102,8 @@ class ConversationRuntimeV2:
     def get_messages(self, *, session_id: UUID | str, user_id: UUID) -> tuple[BaseMessage, ...]:
         thread_id = str(session_id)
         self._assert_session_owner(thread_id, user_id)
-        snapshot = self.graph.get_state({"configurable": {"thread_id": thread_id}})
+        with self.checkpointer.lock_thread(thread_id):
+            snapshot = self.graph.get_state({"configurable": {"thread_id": thread_id}})
         return tuple(snapshot.values.get("messages", ()))
 
     def close(self) -> None:
@@ -134,10 +158,39 @@ def _trim_messages(messages: list[BaseMessage], max_messages: int) -> list[Remov
     if len(messages) <= allowed_before_response:
         return []
     system_messages = [message for message in messages if isinstance(message, SystemMessage)]
-    keep_regular_count = max(1, allowed_before_response - len(system_messages))
-    regular_messages = [message for message in messages if not isinstance(message, SystemMessage)]
-    keep_ids = {message.id for message in system_messages + regular_messages[-keep_regular_count:]}
+    capacity = max(1, allowed_before_response - len(system_messages))
+    turn_groups = _conversation_turn_groups([message for message in messages if not isinstance(message, SystemMessage)])
+    kept_groups: list[list[BaseMessage]] = []
+    used = 0
+    for group in reversed(turn_groups):
+        if kept_groups and used + len(group) > capacity:
+            break
+        kept_groups.append(group)
+        used += len(group)
+    kept_regular = [message for group in reversed(kept_groups) for message in group]
+    keep_ids = {message.id for message in [*system_messages, *kept_regular]}
     return [RemoveMessage(id=message.id) for message in messages if message.id not in keep_ids]
+
+
+def _conversation_turn_groups(messages: list[BaseMessage]) -> list[list[BaseMessage]]:
+    """Keep a user turn and any future tool-call exchange as one unit.
+
+    Phase B does not execute tools. The grouping only protects forward
+    compatibility so a future ``AIMessage(tool_calls)`` and its matching
+    ``ToolMessage`` cannot be separated by history trimming.
+    """
+
+    groups: list[list[BaseMessage]] = []
+    current: list[BaseMessage] = []
+    for message in messages:
+        if isinstance(message, HumanMessage) and current:
+            groups.append(current)
+            current = [message]
+        else:
+            current.append(message)
+    if current:
+        groups.append(current)
+    return groups
 
 
 def _messages_after_trim(messages: list[BaseMessage], removals: list[RemoveMessage]) -> list[BaseMessage]:
@@ -150,6 +203,11 @@ def _latest_ai_content(messages: tuple[BaseMessage, ...]) -> str:
         if isinstance(message, AIMessage):
             return str(message.content)
     return ""
+
+
+def _safe_request_id(value: str | None) -> str | None:
+    normalized = re.sub(r"[^A-Za-z0-9_.:-]", "", str(value or ""))[:100]
+    return normalized or None
 
 
 def _local_reply(messages: list[BaseMessage]) -> str:

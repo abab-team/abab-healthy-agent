@@ -60,6 +60,7 @@ def create_agent_run(
             workflow_type=payload.workflow_type,
             user_message=payload.user_message,
             source=payload.source,
+            request_id=payload.request_id,
             session_id=session_id,
             confirmation=payload.confirmation,
             workflow_payload=workflow_payload,

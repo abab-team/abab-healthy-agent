@@ -29,6 +29,7 @@ from app.agent.schemas import AgentRunResult
 AgentUserMessage = Annotated[str, required_text(2000), Field(min_length=1, max_length=2000)]
 AgentWorkflowType = Annotated[str, required_text(64), Field(min_length=1, max_length=64)]
 AgentSource = Annotated[str | None, optional_text(100)]
+AgentRequestId = Annotated[str | None, optional_text(100)]
 DAILY_HEALTH_BRIEF_WORKFLOW = "daily_health_brief"
 CHAT_WORKFLOW = "chat"
 SYMPTOM_DRAFT_CREATE_WORKFLOW = "symptom_draft_create"
@@ -77,6 +78,7 @@ class AgentRunCreateRequest(BaseModel):
     workflow_type: AgentWorkflowType
     user_message: AgentUserMessage
     source: AgentSource = None
+    request_id: AgentRequestId = None
     session_id: UUID | None = None
     confirmation: bool = False
     workflow_payload: dict[str, Any] | None = None

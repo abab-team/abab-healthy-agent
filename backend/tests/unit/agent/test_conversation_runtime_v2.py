@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from uuid import uuid4
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from app.agent.conversation_v2.checkpointer import PersistentConversationCheckpointer
 from app.agent.conversation_v2.message_safety import sanitize_checkpoint_message
@@ -54,14 +55,16 @@ class ConversationRuntimeV2TestCase(unittest.TestCase):
         self.assertIsInstance(result.messages[2], AIMessage)
 
     def test_checkpoint_restores_after_runtime_restart(self) -> None:
-        self.runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="first turn")
+        for message in ("learning LangGraph", "I care about persistence", "I am building a health agent"):
+            self.runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message=message)
         self.runtime.close()
         self.runtime = self._runtime()
 
         restored = self.runtime.get_messages(session_id=self.session_one, user_id=self.owner)
 
-        self.assertEqual([message.type for message in restored], ["system", "human", "ai"])
-        self.assertEqual(str(restored[1].content), "first turn")
+        self.assertEqual([message.type for message in restored], ["system", "human", "ai", "human", "ai"])
+        self.assertIn("health agent", str(restored[-2].content))
+        self.assertEqual(sum(isinstance(message, SystemMessage) for message in restored), 1)
 
     def test_sessions_and_users_are_isolated(self) -> None:
         self.runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="owner message")
@@ -83,6 +86,93 @@ class ConversationRuntimeV2TestCase(unittest.TestCase):
 
         self.assertLessEqual(len(messages), self.settings.CONVERSATION_RUNTIME_V2_MAX_MESSAGES)
         self.assertIn("turn 9", str(messages[-2].content))
+
+    def test_fifty_turns_remain_bounded_and_keep_message_order(self) -> None:
+        for index in range(50):
+            self.runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message=f"load {index}")
+
+        messages = self.runtime.get_messages(session_id=self.session_one, user_id=self.owner)
+
+        self.assertLessEqual(len(messages), self.settings.CONVERSATION_RUNTIME_V2_MAX_MESSAGES)
+        self.assertEqual(messages[0].type, "system")
+        self.assertEqual([message.type for message in messages[1:]], ["human", "ai", "human", "ai"])
+        self.assertIn("load 49", str(messages[-2].content))
+
+    def test_same_thread_requests_are_serialized_without_message_loss(self) -> None:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [
+                executor.submit(
+                    self.runtime.run_turn,
+                    session_id=self.session_one,
+                    user_id=self.owner,
+                    user_message=message,
+                )
+                for message in ("parallel one", "parallel two")
+            ]
+            for future in futures:
+                future.result()
+
+        messages = self.runtime.get_messages(session_id=self.session_one, user_id=self.owner)
+        human_messages = [str(message.content) for message in messages if isinstance(message, HumanMessage)]
+        self.assertCountEqual(human_messages, ["parallel one", "parallel two"])
+        self.assertEqual([message.type for message in messages], ["system", "human", "ai", "human", "ai"])
+
+    def test_same_request_id_is_not_appended_twice(self) -> None:
+        first = self.runtime.run_turn(
+            session_id=self.session_one,
+            user_id=self.owner,
+            user_message="retry-safe message",
+            request_id="request-retry-001",
+        )
+        repeated = self.runtime.run_turn(
+            session_id=self.session_one,
+            user_id=self.owner,
+            user_message="retry-safe message",
+            request_id="request-retry-001",
+        )
+
+        self.assertEqual(first.answer, repeated.answer)
+        self.assertEqual([message.type for message in repeated.messages], ["system", "human", "ai"])
+
+    def test_tool_message_pair_is_persisted_and_trimmed_as_one_turn(self) -> None:
+        tool_settings = Settings(
+            CONVERSATION_RUNTIME_V2_ENABLED=True,
+            CONVERSATION_RUNTIME_V2_MAX_MESSAGES=7,
+            LLM_ENABLED=False,
+        )
+        tool_runtime = ConversationRuntimeV2(
+            settings=tool_settings,
+            checkpointer=PersistentConversationCheckpointer(Path(self.temp_dir.name) / "tool.sqlite3"),
+            owner_resolver=lambda session_id: self.owners.get(session_id),
+        )
+        config = {"configurable": {"thread_id": str(self.session_one)}}
+        tool_call_id = "safe-tool-call-1"
+        try:
+            tool_runtime.graph.update_state(
+                config,
+                {
+                    "messages": [
+                        SystemMessage(content="system"),
+                        HumanMessage(content="tool context"),
+                        AIMessage(
+                            content="",
+                            tool_calls=[{"name": "safe_lookup", "args": {}, "id": tool_call_id, "type": "tool_call"}],
+                        ),
+                        ToolMessage(content="safe result", tool_call_id=tool_call_id),
+                        AIMessage(content="tool result summarized"),
+                    ]
+                },
+            )
+            tool_runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="continue")
+            messages = tool_runtime.get_messages(session_id=self.session_one, user_id=self.owner)
+        finally:
+            tool_runtime.close()
+
+        tool_messages = [message for message in messages if isinstance(message, ToolMessage)]
+        tool_call_messages = [message for message in messages if isinstance(message, AIMessage) and message.tool_calls]
+        self.assertEqual(len(tool_messages), 1)
+        self.assertEqual(len(tool_call_messages), 1)
+        self.assertEqual(tool_messages[0].tool_call_id, tool_call_messages[0].tool_calls[0]["id"])
 
     def test_llm_receives_standard_message_roles_without_prompt_aggregation(self) -> None:
         client = _RecordingLLMClient()
@@ -115,16 +205,34 @@ class ConversationRuntimeV2TestCase(unittest.TestCase):
         )
 
     def test_checkpoint_sanitizes_secrets_paths_and_long_pastes(self) -> None:
-        raw = "api_key=secret-value C:\\users\\private.txt SELECT * FROM records\n" + ("x" * 1800)
+        raw = "api_key=secret-value \u5bc6\u7801\u662f abc123456 \u8eab\u4efd\u8bc1\u53f7 123456789012345678 C:\\users\\private.txt SELECT * FROM records\n" + ("x" * 1800)
         safe = sanitize_checkpoint_message(raw)
         self.runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message=raw)
         messages = self.runtime.get_messages(session_id=self.session_one, user_id=self.owner)
 
         self.assertIn("[redacted]", safe)
         self.assertNotIn("secret-value", str(messages[1].content))
+        self.assertNotIn("abc123456", str(messages[1].content))
+        self.assertNotIn("123456789012345678", str(messages[1].content))
         self.assertNotIn("C:\\users", str(messages[1].content).lower())
         self.assertNotIn("SELECT", str(messages[1].content))
         self.assertIn("[long content omitted]", str(messages[1].content))
+
+    def test_llm_failure_uses_nonempty_controlled_fallback(self) -> None:
+        settings = Settings(CONVERSATION_RUNTIME_V2_ENABLED=True, LLM_ENABLED=True, LLM_CHAT_ENABLED=True)
+        runtime = ConversationRuntimeV2(
+            settings=settings,
+            checkpointer=PersistentConversationCheckpointer(Path(self.temp_dir.name) / "failure.sqlite3"),
+            owner_resolver=lambda session_id: self.owners.get(session_id),
+            llm_client=_FailingLLMClient(),
+        )
+        try:
+            result = runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="hello")
+        finally:
+            runtime.close()
+
+        self.assertTrue(result.answer)
+        self.assertNotIn("traceback", result.answer.lower())
 
     def test_feature_flag_keeps_legacy_workflow_as_rollback_path(self) -> None:
         legacy = _WorkflowResult("legacy")
@@ -183,6 +291,11 @@ class _RecordingLLMClient:
             model="test",
             is_mock=True,
         )
+
+
+class _FailingLLMClient:
+    def chat(self, messages, **kwargs):  # noqa: ANN001, ANN003
+        raise RuntimeError("provider failure")
 
 
 def _context(user_id, session_id):  # noqa: ANN001

@@ -90,6 +90,25 @@ class AgentApiTestCase(unittest.TestCase):
         for term in UNSAFE_TERMS:
             self.assertNotIn(term, response.text.lower())
 
+    def test_same_request_id_reuses_the_existing_run(self) -> None:
+        payload = self._payload(target_user_id=self.actor["id"])
+        payload["request_id"] = "api-idempotency-001"
+
+        first = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=payload,
+        )
+        retry = client.post(
+            "/api/v1/agent/runs",
+            headers=auth_headers(self.actor["id"]),
+            json=payload,
+        )
+
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(retry.status_code, 201)
+        self.assertEqual(first.json()["trace_id"], retry.json()["trace_id"])
+
     def test_free_text_record_workflow_preview_and_confirm_through_api(self) -> None:
         preview_before = self._draft_counts()
         preview_response = client.post(

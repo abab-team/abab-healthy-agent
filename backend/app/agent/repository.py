@@ -54,6 +54,11 @@ def get_trace(db: Session, trace_id: UUID) -> AgentTrace | None:
     return db.get(AgentTrace, trace_id)
 
 
+def get_trace_by_request_id(db: Session, request_id: str) -> AgentTrace | None:
+    stmt = select(AgentTrace).where(AgentTrace.request_id == request_id)
+    return db.scalar(stmt)
+
+
 def mark_trace_running(db: Session, trace_id: UUID, *, started_at: datetime | None = None) -> AgentTrace | None:
     trace = get_trace(db, trace_id)
     if trace is None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -28,7 +29,22 @@ class AgentRuntime:
 
     def run(self, db: Session, request: AgentRunRequest) -> AgentRunResult:
         request_id = request.request_id or str(uuid4())
+        request = replace(request, request_id=request_id)
         workflow_name, requested_workflow, workflow_is_registered_name = _coerce_workflow_name(request.workflow_type)
+        existing_trace = service.get_trace_by_request_id(db, request_id)
+        if existing_trace is not None:
+            if existing_trace.current_user_id != request.actor_user_id:
+                return _failed_result(None, requested_workflow, AgentSafetyLevel.SAFE)
+            return AgentRunResult(
+                trace_id=existing_trace.id,
+                status="completed" if existing_trace.status == AgentTraceStatus.SUCCESS else existing_trace.status.value,
+                workflow_type=requested_workflow,
+                message=existing_trace.final_output_summary or SAFE_FAILED_MESSAGE,
+                blocked=existing_trace.status == AgentTraceStatus.BLOCKED,
+                safety_level=AgentSafetyLevel.SAFE.value,
+                generated_content=existing_trace.final_output_summary,
+                session_id=existing_trace.session_id,
+            )
         trace = service.start_trace(
             db,
             request_id=request_id,

@@ -45,6 +45,7 @@ class ConversationRuntimeWorkflow:
                 session_id=context.request.session_id,
                 user_id=context.request.actor_user_id,
                 user_message=context.request.user_message,
+                request_id=context.request.request_id,
             )
         except ConversationAccessDeniedError:
             return AgentWorkflowResult(

@@ -11,3 +11,4 @@ class ConversationState(TypedDict):
 
     messages: Annotated[list[BaseMessage], add_messages]
     runtime_metadata: NotRequired[dict[str, str | int | bool]]
+    processed_request_ids: NotRequired[list[str]]
