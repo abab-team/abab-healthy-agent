@@ -10,7 +10,10 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from app.agent.conversation_v2.checkpointer import PersistentConversationCheckpointer
 from app.agent.conversation_v2.message_safety import sanitize_checkpoint_message
-from app.agent.conversation_v2.service import ConversationAccessDeniedError, ConversationRuntimeV2
+from app.agent.conversation_v2.service import SYSTEM_PROMPT, ConversationAccessDeniedError, ConversationRuntimeV2
+from app.agent.conversation_v2.tool_runtime import ConversationToolPlan, PlannedToolCall, safe_tool_result
+from app.agent.chat.schemas import HealthQueryIntent, HealthQueryPlan, HealthQueryTimeRange
+from app.agent.schemas import ToolExecutionResult
 from app.agent.enums import AgentWorkflowName
 from app.agent.schemas import AgentRunRequest, AgentWorkflowContext, AgentWorkflowResult
 from app.agent.workflows.conversation_runtime_v2 import ConversationRuntimeWorkflow
@@ -197,7 +200,7 @@ class ConversationRuntimeV2TestCase(unittest.TestCase):
         self.assertEqual(
             [(message.role, message.content) for message in client.calls[-1]],
             [
-                ("system", "You are a friendly family health assistant. Hold a natural conversation, but do not claim to access health records or invoke tools. Keep replies concise."),
+                ("system", SYSTEM_PROMPT),
                 ("user", "first"),
                 ("assistant", "recorded reply"),
                 ("user", "second"),
@@ -233,6 +236,80 @@ class ConversationRuntimeV2TestCase(unittest.TestCase):
 
         self.assertTrue(result.answer)
         self.assertNotIn("traceback", result.answer.lower())
+
+    def test_controlled_tool_result_is_saved_as_standard_tool_message(self) -> None:
+        runtime = ConversationRuntimeV2(
+            settings=self.settings,
+            checkpointer=PersistentConversationCheckpointer(Path(self.temp_dir.name) / "controlled-tools.sqlite3"),
+            owner_resolver=lambda session_id: self.owners.get(session_id),
+            tool_runtime=_FakeToolRuntime(),
+        )
+        try:
+            result = runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="查询血压")
+        finally:
+            runtime.close()
+
+        tool_call = next(message for message in result.messages if isinstance(message, AIMessage) and message.tool_calls)
+        tool_message = next(message for message in result.messages if isinstance(message, ToolMessage))
+        self.assertEqual(tool_call.tool_calls[0]["id"], tool_message.tool_call_id)
+        self.assertIn("118/76", result.answer)
+        self.assertEqual(result.tool_calls_count, 1)
+
+    def test_health_follow_up_uses_persisted_tool_message_without_another_execution(self) -> None:
+        tool_runtime = _FakeToolRuntime()
+        runtime = ConversationRuntimeV2(
+            settings=self.settings,
+            checkpointer=PersistentConversationCheckpointer(Path(self.temp_dir.name) / "follow-up.sqlite3"),
+            owner_resolver=lambda session_id: self.owners.get(session_id),
+            tool_runtime=tool_runtime,
+        )
+        try:
+            runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="查询血压")
+            answer = runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="这个数值健康吗？").answer
+        finally:
+            runtime.close()
+
+        self.assertEqual(tool_runtime.execute_calls, 1)
+        self.assertIn("118/76", answer)
+
+    def test_latest_health_request_reexecutes_controlled_tool(self) -> None:
+        tool_runtime = _FakeToolRuntime()
+        runtime = ConversationRuntimeV2(
+            settings=self.settings,
+            checkpointer=PersistentConversationCheckpointer(Path(self.temp_dir.name) / "fresh.sqlite3"),
+            owner_resolver=lambda session_id: self.owners.get(session_id),
+            tool_runtime=tool_runtime,
+        )
+        try:
+            runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="查询血压")
+            runtime.run_turn(session_id=self.session_one, user_id=self.owner, user_message="查询最新血压")
+        finally:
+            runtime.close()
+
+        self.assertEqual(tool_runtime.execute_calls, 2)
+
+    def test_checkpoint_tool_summary_redacts_raw_sensitive_payload(self) -> None:
+        safe = safe_tool_result(
+            ToolExecutionResult(
+                tool_name="documents.query",
+                status="completed",
+                blocked=False,
+                requires_confirmation=False,
+                message="completed",
+                output_data={
+                    "count": 1,
+                    "raw_extracted_text": "private long text",
+                    "file_path": "C:/private/report.pdf",
+                    "token": "secret-token",
+                    "summary": {"count": 1},
+                },
+            )
+        )
+
+        encoded = str(safe)
+        self.assertNotIn("raw_extracted_text", encoded)
+        self.assertNotIn("file_path", encoded)
+        self.assertNotIn("secret-token", encoded)
 
     def test_feature_flag_keeps_legacy_workflow_as_rollback_path(self) -> None:
         legacy = _WorkflowResult("legacy")
@@ -296,6 +373,34 @@ class _RecordingLLMClient:
 class _FailingLLMClient:
     def chat(self, messages, **kwargs):  # noqa: ANN001, ANN003
         raise RuntimeError("provider failure")
+
+
+class _FakeToolRuntime:
+    def __init__(self) -> None:
+        self.execute_calls = 0
+
+    def plan(self, message, *, previous_plan_summary=None):  # noqa: ANN001
+        plan = HealthQueryPlan(
+            intent=HealthQueryIntent.QUERY_BLOOD_PRESSURE,
+            time_range=HealthQueryTimeRange(__import__("datetime").date.today(), __import__("datetime").date.today(), "today", 1),
+        )
+        return ConversationToolPlan(plan=plan, calls=(PlannedToolCall("call-blood", "health_data.blood_pressure.summary", {"days": 1}),))
+
+    def execute(self, plan, calls):  # noqa: ANN001
+        self.execute_calls += 1
+        return (
+            [
+                ToolExecutionResult(
+                    tool_name="health_data.blood_pressure.summary",
+                    status="completed",
+                    blocked=False,
+                    requires_confirmation=False,
+                    message="completed",
+                    output_data={"summary": {"count": 1, "latest_systolic": 118, "latest_diastolic": 76}},
+                )
+            ],
+            {"allowed": True, "reason": None, "member": None},
+        )
 
 
 def _context(user_id, session_id):  # noqa: ANN001

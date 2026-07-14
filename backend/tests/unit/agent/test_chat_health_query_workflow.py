@@ -20,6 +20,7 @@ from app.agent.runtime import AgentRuntime  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
 from app.agent.workflows import AgentWorkflowRegistry  # noqa: E402
 from app.agent.workflows.chat_workflow import ChatHealthQueryWorkflow  # noqa: E402
+from app.agent.workflows.conversation_runtime_v2 import ConversationRuntimeWorkflow  # noqa: E402
 from app.core.config import Settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.session import SessionLocal, engine  # noqa: E402
@@ -635,6 +636,64 @@ class ChatHealthQueryWorkflowTestCase(unittest.TestCase):
         self.assertEqual(calls[0].tool_name, "health_data.blood_pressure.summary")
         self.assertIn("\u5e38\u89c1\u6210\u4eba\u9759\u606f\u8840\u538b\u53c2\u8003\u533a\u95f4", interpreted.generated_content or "")
         self.assertNotIn("\u8bca\u65ad", interpreted.generated_content or "")
+
+    def test_v2_runtime_executes_controlled_tool_and_reuses_persisted_tool_message(self) -> None:
+        health_data_service.add_blood_pressure_record(self.db, user_id=self.actor.id, systolic=118, diastolic=76)
+        session = memory_service.get_or_create_session(self.db, user_id=self.actor.id, family_id=self.family.id)
+        checkpoint_path = Path(tempfile.gettempdir()) / f"phase_c_v2_{uuid4().hex}.sqlite3"
+        settings = Settings(
+            CONVERSATION_RUNTIME_V2_ENABLED=True,
+            CONVERSATION_RUNTIME_V2_CHECKPOINT_PATH=str(checkpoint_path),
+            LLM_ENABLED=False,
+            LLM_CHAT_ENABLED=False,
+        )
+        registry = AgentWorkflowRegistry()
+        registry.register(ConversationRuntimeWorkflow(settings=settings))
+        runtime = AgentRuntime(registry=registry)
+
+        first = runtime.run(self.db, self._request_with_session("\u67e5\u8be2\u8840\u538b", session_id=session.id))
+        follow_up = runtime.run(self.db, self._request_with_session("\u8fd9\u4e2a\u6570\u503c\u5065\u5eb7\u5417", session_id=session.id))
+        first_calls = agent_service.list_tool_calls(self.db, trace_id=first.trace_id)
+        follow_calls = agent_service.list_tool_calls(self.db, trace_id=follow_up.trace_id)
+
+        self.assertEqual(first.status, "completed")
+        self.assertEqual(first.tool_calls_count, 1)
+        self.assertEqual(first_calls[0].tool_name, "health_data.blood_pressure.summary")
+        self.assertEqual(follow_up.tool_calls_count, 0)
+        self.assertEqual(follow_calls, [])
+        self.assertIn("118/76", follow_up.generated_content or "")
+
+    def test_v2_runtime_resolves_family_member_before_controlled_execution(self) -> None:
+        health_data_service.add_blood_pressure_record(self.db, user_id=self.target.id, systolic=120, diastolic=78)
+        session = memory_service.get_or_create_session(self.db, user_id=self.actor.id, family_id=self.family.id)
+        settings = Settings(
+            CONVERSATION_RUNTIME_V2_ENABLED=True,
+            CONVERSATION_RUNTIME_V2_CHECKPOINT_PATH=str(Path(tempfile.gettempdir()) / f"phase_c_family_{uuid4().hex}.sqlite3"),
+            LLM_ENABLED=False,
+            LLM_CHAT_ENABLED=False,
+        )
+        registry = AgentWorkflowRegistry()
+        registry.register(ConversationRuntimeWorkflow(settings=settings))
+
+        result = AgentRuntime(registry=registry).run(
+            self.db,
+            self._request_with_session("\u7238\u7238\u6700\u8fd1\u5065\u5eb7\u60c5\u51b5", session_id=session.id),
+        )
+        calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.tool_calls_count, 3)
+        self.assertTrue(calls)
+        self.assertTrue(all(call.target_user_id == self.target.id for call in calls))
+
+        blood_pressure = AgentRuntime(registry=registry).run(
+            self.db,
+            self._request_with_session("血压呢", session_id=session.id),
+        )
+        blood_pressure_calls = agent_service.list_tool_calls(self.db, trace_id=blood_pressure.trace_id)
+        self.assertEqual(blood_pressure.tool_calls_count, 1)
+        self.assertEqual(blood_pressure_calls[0].tool_name, "health_data.blood_pressure.summary")
+        self.assertEqual(blood_pressure_calls[0].target_user_id, self.target.id)
 
     def test_cold_knowledge_reply_stays_within_non_treatment_boundary(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id, "\u611f\u5192\u600e\u4e48\u529e"))

@@ -6,11 +6,16 @@ from uuid import UUID
 
 from app.agent.conversation_v2 import ConversationAccessDeniedError, ConversationRuntimeV2
 from app.agent.conversation_v2.adapters.legacy_session_adapter import mirror_turn_for_display
+from app.agent.conversation_v2.tool_runtime import ConversationToolRuntime
 from app.agent.memory import service as memory_service
 from app.agent.enums import AgentWorkflowName
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult
+from app.agent.tool_executor import AgentToolExecutor
+from app.agent.tool_registry import AgentToolRegistry
+from app.agent.tools import register_health_query_tools
 from app.agent.workflows.chat_workflow import ChatHealthQueryWorkflow
 from app.core.config import Settings, get_settings
+from app.modules.identity import service as identity_service
 
 
 class ConversationRuntimeWorkflow:
@@ -23,11 +28,13 @@ class ConversationRuntimeWorkflow:
         *,
         settings: Settings | None = None,
         legacy_workflow: ChatHealthQueryWorkflow | None = None,
+        executor: AgentToolExecutor | None = None,
         runtime_v2_factory=None,
         display_mirror=mirror_turn_for_display,
     ) -> None:
         self.settings = settings or get_settings()
         self.legacy_workflow = legacy_workflow or ChatHealthQueryWorkflow(settings=self.settings)
+        self.executor = executor or AgentToolExecutor(register_health_query_tools(AgentToolRegistry()))
         self.runtime_v2_factory = runtime_v2_factory or self._new_runtime_v2
         self.display_mirror = display_mirror
 
@@ -58,7 +65,11 @@ class ConversationRuntimeWorkflow:
             user_message=context.request.user_message,
             assistant_message=result.answer,
         )
-        return AgentWorkflowResult(message=result.answer, generated_content=result.answer)
+        return AgentWorkflowResult(
+            message=result.answer,
+            generated_content=result.answer,
+            tool_calls_count=int(getattr(result, "tool_calls_count", 0) or 0),
+        )
 
     def _new_runtime_v2(self, context: AgentWorkflowContext) -> ConversationRuntimeV2:
         def owner_resolver(session_id: str) -> UUID | None:
@@ -69,4 +80,10 @@ class ConversationRuntimeWorkflow:
             )
             return session.user_id if session is not None else None
 
-        return ConversationRuntimeV2(settings=self.settings, owner_resolver=owner_resolver)
+        user = identity_service.get_user(context.db, context.request.actor_user_id)
+        return ConversationRuntimeV2(
+            settings=self.settings,
+            owner_resolver=owner_resolver,
+            tool_runtime=ConversationToolRuntime(context=context, executor=self.executor),
+            user_context={"name": (getattr(user, "nickname", None) or "")},
+        )
