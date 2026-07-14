@@ -1,5 +1,21 @@
 # 对话 Runtime 替换 Phase A 架构审计
 
+## Phase B checkpointer boundary correction
+
+Phase B uses the official LangGraph SQLite checkpointer package
+(`langgraph-checkpoint-sqlite`) and compiles the V2 graph with
+`graph.compile(checkpointer=SqliteSaver(...))`. The stable `AgentSession.id`
+is passed only as `configurable.thread_id`; session ownership is checked before
+the graph can read a checkpoint.
+
+This first V2 slice persists only bounded, redacted `SystemMessage`,
+`HumanMessage`, and `AIMessage` values. It does not create `ToolMessage`
+values, invoke health tools, or move health facts into checkpoints. The
+checkpointer owns its internal SQLite tables in the ignored local storage file,
+so Phase B adds no application model or Alembic migration. A production SQL
+checkpointer choice still requires its own retention, encryption, and security
+review.
+
 > 审计日期：2026-07-14
 >
 > 范围：`chat_workflow`、会话存储、长期记忆、ConversationTask、LangGraph 适配层、聊天 API 与现有 Agent 单元测试。

@@ -6,7 +6,7 @@ from app.agent.enums import AgentWorkflowName
 from app.agent.exceptions import AgentWorkflowNotRegisteredError
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult
 from app.agent.workflows.alert_create import AlertCreateWorkflow
-from app.agent.workflows.chat_workflow import ChatHealthQueryWorkflow
+from app.agent.workflows.conversation_runtime_v2 import ConversationRuntimeWorkflow
 from app.agent.workflows.daily_health_brief import DailyHealthBriefWorkflow
 from app.agent.workflows.daily_report_workflow import DailyReportWorkflow
 from app.agent.workflows.document_extract_workflow import DocumentExtractWorkflow
@@ -54,7 +54,7 @@ class AgentWorkflowRegistry:
 
 def default_workflow_registry() -> AgentWorkflowRegistry:
     registry = AgentWorkflowRegistry()
-    registry.register(ChatHealthQueryWorkflow())
+    registry.register(ConversationRuntimeWorkflow())
     registry.register(DailyHealthBriefWorkflow())
     registry.register(FreeTextRecordWorkflow())
     registry.register(DoctorVisitSummaryWorkflow())
