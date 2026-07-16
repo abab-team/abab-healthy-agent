@@ -20,7 +20,9 @@ export default function LoginScreen() {
     try {
       await auth.login(email.trim(), password);
       setMessage("登录成功，已保存本地会话摘要。");
-      router.replace("/(tabs)/settings");
+      // Navigate by the public route. Addressing the route group here causes
+      // React Navigation to look for a literal "(tabs)" screen on Android.
+      router.replace("/settings");
     } catch {
       setMessage("登录失败，请检查账号、密码和 API Base URL。");
     }

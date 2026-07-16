@@ -4,6 +4,8 @@ import { getAccessTokenForRequest, refreshStoredAuthSession, shouldRefreshAuthSe
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
+  rawBody?: BodyInit;
+  headers?: Record<string, string>;
   currentUserId?: string;
 };
 
@@ -98,6 +100,10 @@ export const apiClient = {
     return this.request<T>(path, { body, currentUserId, method: "POST" });
   },
 
+  upload<T>(path: string, body: BodyInit, headers: Record<string, string>, currentUserId?: string): Promise<T> {
+    return this.request<T>(path, { currentUserId, headers, method: "POST", rawBody: body });
+  },
+
   patch<T>(path: string, body: unknown, currentUserId?: string): Promise<T> {
     return this.request<T>(path, { body, currentUserId, method: "PATCH" });
   },
@@ -109,9 +115,10 @@ export const apiClient = {
 
 async function sendRequest(path: string, options: RequestOptions): Promise<Response> {
     const headers: Record<string, string> = {
-      Accept: "application/json"
+      Accept: "application/json",
+      ...options.headers
     };
-    if (options.body !== undefined) {
+    if (options.body !== undefined && options.rawBody === undefined) {
       headers["Content-Type"] = "application/json";
     }
     const accessToken = authMode === "auth" ? getAccessTokenForRequest() : null;
@@ -124,6 +131,6 @@ async function sendRequest(path: string, options: RequestOptions): Promise<Respo
     return fetch(buildUrl(path), {
       method: options.method ?? "GET",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+      body: options.rawBody ?? (options.body === undefined ? undefined : JSON.stringify(options.body))
     });
 }

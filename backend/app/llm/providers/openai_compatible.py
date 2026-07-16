@@ -61,16 +61,20 @@ class OpenAICompatibleProvider(LLMProvider):
         payload = {key: value for key, value in payload.items() if value is not None}
 
         try:
-            response = httpx.post(
-                f"{self.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-                timeout=self.timeout_seconds,
-            )
-            response.raise_for_status()
+            # Provider calls must not inherit HTTP_PROXY/HTTPS_PROXY from a
+            # developer shell. Domain-specific routing remains the operating
+            # system's responsibility, while this avoids accidental app-level
+            # forwarding through a configured environment proxy.
+            with httpx.Client(timeout=self.timeout_seconds, trust_env=False) as client:
+                response = client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                response.raise_for_status()
         except httpx.TimeoutException as exc:
             raise LLMTimeoutError("LLM provider request timed out.") from exc
         except httpx.HTTPError as exc:

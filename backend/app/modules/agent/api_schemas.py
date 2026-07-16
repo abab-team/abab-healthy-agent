@@ -81,6 +81,7 @@ class AgentRunCreateRequest(BaseModel):
     request_id: AgentRequestId = None
     session_id: UUID | None = None
     confirmation: bool = False
+    quick_note_mode: bool = False
     workflow_payload: dict[str, Any] | None = None
 
 
@@ -165,7 +166,7 @@ def workflow_payload_for_runtime(payload: AgentRunCreateRequest) -> dict[str, An
     if payload.workflow_type == CHAT_WORKFLOW:
         if raw_payload:
             raise ValueError("workflow_payload is not supported for chat")
-        return None
+        return {"quick_note_mode": bool(payload.quick_note_mode)}
     if payload.workflow_type == SYMPTOM_DRAFT_CREATE_WORKFLOW:
         return SymptomDraftWorkflowPayload.model_validate(raw_payload).model_dump(exclude_none=True)
     if payload.workflow_type == FREE_TEXT_RECORD_WORKFLOW:
@@ -197,6 +198,15 @@ class AgentRunResponse(BaseModel):
     session_id: str | None = None
     suggested_action: str | None = None
     conversation_task: dict[str, Any] | None = None
+
+
+class ConversationDraftUpdateRequest(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    summary: ShortText = None
+    details: SummaryText = None
+    occurred_at_hint: ShortText = None
+    duration_hint: ShortText = None
 
 
 class AgentSessionResponse(BaseModel):

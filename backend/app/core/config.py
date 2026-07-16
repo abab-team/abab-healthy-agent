@@ -46,9 +46,10 @@ class Settings(BaseSettings):
     LLM_PLANNER_ENABLED: bool = False
     LLM_ANSWER_COMPOSER_ENABLED: bool = False
     LLM_CHAT_ENABLED: bool = True
-    # Conversation Runtime V2 is deliberately opt-in while the legacy chat
-    # workflow remains the rollback path during the migration.
-    CONVERSATION_RUNTIME_V2_ENABLED: bool = False
+    # Conversation Runtime V2 is the only supported conversation runtime.
+    # The setting remains for deployment compatibility, but it does not route
+    # requests to the retired legacy chat workflow.
+    CONVERSATION_RUNTIME_V2_ENABLED: bool = True
     CONVERSATION_RUNTIME_V2_CHECKPOINT_PATH: str = "backend/storage/local/conversation_runtime_v2.sqlite3"
     CONVERSATION_RUNTIME_V2_MAX_MESSAGES: int = 20
     RULE_CRITIC_ENABLED: bool = True

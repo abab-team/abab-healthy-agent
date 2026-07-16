@@ -60,3 +60,11 @@ def get_persistent_checkpointer(checkpoint_path: str | Path) -> PersistentConver
         checkpointer = PersistentConversationCheckpointer(path)
         _CHECKPOINTS[path] = checkpointer
     return checkpointer
+
+
+def close_persistent_checkpointer(checkpoint_path: str | Path) -> None:
+    """Release a cached saver when an application or test process shuts down."""
+    path = Path(checkpoint_path).expanduser().resolve()
+    checkpointer = _CHECKPOINTS.pop(path, None)
+    if checkpointer is not None:
+        checkpointer.close()

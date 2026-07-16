@@ -161,8 +161,8 @@ def seed_users(session: Session) -> dict[str, User]:
             email=DEMO_EMAILS["gala"],
             password_hash=hash_password(DEMO_PASSWORD),
             nickname="Gala",
-            gender=Gender.FEMALE,
-            birth_date=date(2004, 1, 1),
+            gender=Gender.MALE,
+            birth_date=date(2006, 1, 1),
             status=UserStatus.ACTIVE,
         ),
         "father": User(
@@ -180,7 +180,7 @@ def seed_users(session: Session) -> dict[str, User]:
             password_hash=hash_password(DEMO_PASSWORD),
             nickname="妈妈",
             gender=Gender.FEMALE,
-            birth_date=date(1976, 1, 1),
+            birth_date=date(1976, 7, 15),
             status=UserStatus.ACTIVE,
         ),
     }
@@ -274,36 +274,36 @@ def seed_health_profiles(session: Session, users: dict[str, User]) -> None:
     profiles = [
         HealthProfile(
             user_id=users["gala"].id,
-            height_cm=165,
-            gender=Gender.FEMALE,
-            birth_date=date(2004, 1, 1),
-            blood_type=BloodType.UNKNOWN,
-            health_goal="保持规律作息和基础活动量",
-            chronic_conditions_summary="暂无记录",
-            allergy_summary="系统内暂无记录",
-            medication_summary="系统内暂无记录",
+            height_cm=182,
+            gender=Gender.MALE,
+            birth_date=date(2006, 1, 1),
+            blood_type=BloodType.A,
+            health_goal="保持规律睡眠和偶尔运动的记录习惯",
+            chronic_conditions_summary="系统内暂无相关记录",
+            allergy_summary="系统内暂无相关记录",
+            medication_summary="系统内暂无相关记录",
         ),
         HealthProfile(
             user_id=users["father"].id,
-            height_cm=172,
+            height_cm=175,
             gender=Gender.MALE,
             birth_date=date(1974, 1, 1),
             blood_type=BloodType.UNKNOWN,
-            health_goal="关注血压和日常活动",
-            chronic_conditions_summary="系统内暂无明确慢病记录",
-            allergy_summary="系统内暂无记录",
-            medication_summary="系统内暂无长期用药记录",
+            health_goal="记录血压、睡眠和日常活动",
+            chronic_conditions_summary="系统内暂无相关记录",
+            allergy_summary="系统内暂无相关记录",
+            medication_summary="系统内暂无相关记录",
         ),
         HealthProfile(
             user_id=users["mother"].id,
             height_cm=160,
             gender=Gender.FEMALE,
-            birth_date=date(1976, 1, 1),
+            birth_date=date(1976, 7, 15),
             blood_type=BloodType.UNKNOWN,
-            health_goal="关注膝盖疼痛、活动量和睡眠",
-            chronic_conditions_summary="系统内暂无明确慢病记录",
-            allergy_summary="系统内暂无记录",
-            medication_summary="系统内暂无长期用药记录",
+            health_goal="保持运动习惯并记录睡眠和体重",
+            chronic_conditions_summary="系统内暂无相关记录",
+            allergy_summary="系统内暂无相关记录",
+            medication_summary="系统内暂无相关记录",
         ),
     ]
     session.add_all(profiles)
@@ -319,6 +319,10 @@ def metric_at(days_ago: int, hour: int = 8) -> datetime:
     return datetime.combine(DEMO_TODAY - timedelta(days=days_ago), datetime.min.time(), tzinfo=timezone.utc).replace(hour=hour)
 
 
+def recorded_at(year: int, month: int, day: int, hour: int = 8) -> datetime:
+    return datetime(year, month, day, hour, tzinfo=timezone.utc)
+
+
 # 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
 # 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
 def seed_health_metrics(session: Session, users: dict[str, User]) -> None:
@@ -326,60 +330,56 @@ def seed_health_metrics(session: Session, users: dict[str, User]) -> None:
     # 1. 接收上游传入的数据或上下文。
     # 2. 完成本函数职责范围内的处理。
     # 3. 将结果返回给调用方，继续由上层流程编排。
-    gala_series = {
-        MetricType.SLEEP_DURATION: ([7.2, 6.8, 7.5, 7.0, 6.9, 7.4, 7.1], "hour"),
-        MetricType.STEPS: ([8200, 7600, 9100, 6800, 7400, 8000, 8600], "steps"),
-        MetricType.WEIGHT: ([56.2, 56.1, 56.3, 56.2, 56.0, 56.1, 56.2], "kg"),
-        MetricType.BMI: ([20.6, 20.6, 20.7, 20.6, 20.6, 20.6, 20.6], "kg/m2"),
-        MetricType.HEART_RATE: ([72, 74, 71, 73, 75, 72, 70], "bpm"),
-    }
     records: list[HealthMetric] = []
-    for metric_type, (values, unit) in gala_series.items():
-        for days_ago, value in enumerate(values):
-            records.append(
-                HealthMetric(
-                    user_id=users["gala"].id,
-                    metric_type=metric_type,
-                    value_numeric=value,
-                    unit=unit,
-                    measured_at=metric_at(days_ago),
-                    source=MetricSource.MANUAL,
-                    source_detail="phase03_demo_seed",
-                    confidence_level=ConfidenceLevel.HIGH,
-                    note="合成 demo 指标数据",
-                ),
-            )
 
-    mother_steps = [4200, 3900, 6100, 6800, 7200, 7000, 6600]
-    for days_ago, value in enumerate(mother_steps):
+    def add_metric(
+        member: str,
+        metric_type: MetricType,
+        value: float,
+        unit: str,
+        measured_at: datetime,
+        note: str | None = None,
+    ) -> None:
         records.append(
             HealthMetric(
-                user_id=users["mother"].id,
-                metric_type=MetricType.STEPS,
+                user_id=users[member].id,
+                metric_type=metric_type,
                 value_numeric=value,
-                unit="steps",
-                measured_at=metric_at(days_ago),
+                unit=unit,
+                measured_at=measured_at,
                 source=MetricSource.MANUAL,
-                source_detail="phase03_demo_seed",
+                source_detail="family_health_demo_v1",
                 confidence_level=ConfidenceLevel.HIGH,
-                note="合成 demo 步数数据，最近两天略低用于演示",
+                note=note,
             ),
         )
 
-    for days_ago, value in enumerate([78, 76]):
-        records.append(
-            HealthMetric(
-                user_id=users["father"].id,
-                metric_type=MetricType.HEART_RATE,
-                value_numeric=value,
-                unit="bpm",
-                measured_at=metric_at(days_ago, hour=20),
-                source=MetricSource.MANUAL,
-                source_detail="phase03_demo_seed",
-                confidence_level=ConfidenceLevel.MEDIUM,
-                note="合成 demo 心率数据",
-            ),
-        )
+    for day, value, quality in [(20, 7.2, "良好"), (28, 6.5, "一般")]:
+        add_metric("gala", MetricType.SLEEP_DURATION, value, "hours", recorded_at(2026, 6, day), f"睡眠质量：{quality}")
+    add_metric("gala", MetricType.SLEEP_DURATION, 6.8, "hours", recorded_at(2026, 7, 8), "睡眠质量：良好")
+    for month, day, value in [(6, 20, 72), (7, 5, 68), (7, 12, 70)]:
+        add_metric("gala", MetricType.HEART_RATE, value, "bpm", recorded_at(2026, month, day))
+    add_metric("gala", MetricType.EXERCISE_DURATION, 40, "minutes", recorded_at(2026, 6, 22), "步行")
+    add_metric("gala", MetricType.EXERCISE_DURATION, 30, "minutes", recorded_at(2026, 7, 2), "跑步")
+    add_metric("gala", MetricType.WEIGHT, 65, "kg", recorded_at(2026, 7, 10))
+    add_metric("gala", MetricType.BMI, 19.6, "kg/m2", recorded_at(2026, 7, 10))
+
+    for month, day, value in [(6, 18, 76), (7, 10, 74)]:
+        add_metric("father", MetricType.HEART_RATE, value, "bpm", recorded_at(2026, month, day))
+    add_metric("father", MetricType.SLEEP_DURATION, 6.2, "hours", recorded_at(2026, 6, 20))
+    add_metric("father", MetricType.SLEEP_DURATION, 6.5, "hours", recorded_at(2026, 7, 5))
+    add_metric("father", MetricType.EXERCISE_DURATION, 30, "minutes", recorded_at(2026, 6, 22), "快走")
+    add_metric("father", MetricType.EXERCISE_DURATION, 40, "minutes", recorded_at(2026, 7, 8), "散步")
+    add_metric("father", MetricType.WEIGHT, 78, "kg", recorded_at(2026, 7, 10))
+    add_metric("father", MetricType.BMI, 25.5, "kg/m2", recorded_at(2026, 7, 10))
+
+    add_metric("mother", MetricType.BLOOD_GLUCOSE, 5.4, "mmol/L", recorded_at(2026, 6, 10), "空腹血糖")
+    for month, day, value in [(6, 18, 6.0), (7, 3, 5.8), (7, 12, 6.3)]:
+        add_metric("mother", MetricType.SLEEP_DURATION, value, "hours", recorded_at(2026, month, day))
+    add_metric("mother", MetricType.EXERCISE_DURATION, 30, "minutes", recorded_at(2026, 6, 25), "瑜伽")
+    add_metric("mother", MetricType.EXERCISE_DURATION, 45, "minutes", recorded_at(2026, 7, 9), "散步")
+    add_metric("mother", MetricType.WEIGHT, 62, "kg", recorded_at(2026, 7, 8))
+    add_metric("mother", MetricType.BMI, 24.2, "kg/m2", recorded_at(2026, 7, 8))
     session.add_all(records)
 
 
@@ -390,48 +390,33 @@ def seed_blood_pressure(session: Session, users: dict[str, User]) -> list[BloodP
     # 1. 接收上游传入的数据或上下文。
     # 2. 完成本函数职责范围内的处理。
     # 3. 将结果返回给调用方，继续由上层流程编排。
-    father_values = [
-        (0, 145, 92, 78),
-        (1, 142, 90, 80),
-        (2, 146, 91, 79),
-        (5, 136, 86, 76),
-        (8, 132, 84, 74),
-        (11, 138, 88, 82),
-        (15, 130, 82, 72),
-        (19, 134, 85, 75),
-        (23, 128, 82, 73),
-        (29, 135, 86, 77),
-    ]
-    gala_values = [
-        (0, 118, 76, 72),
-        (2, 116, 74, 70),
-        (5, 119, 77, 71),
-        (8, 117, 75, 69),
-        (12, 120, 78, 73),
-        (16, 118, 76, 71),
-        (21, 121, 79, 74),
-        (28, 117, 75, 70),
-    ]
     record_specs = [
-        (users["father"].id, *value) for value in father_values
-    ] + [
-        (users["gala"].id, *value) for value in gala_values
+        ("gala", 2026, 6, 18, 126, 82),
+        ("gala", 2026, 6, 26, 121, 78),
+        ("gala", 2026, 7, 10, 118, 76),
+        ("father", 2026, 4, 15, 148, 94),
+        ("father", 2026, 5, 20, 142, 90),
+        ("father", 2026, 6, 18, 145, 92),
+        ("father", 2026, 7, 10, 138, 88),
+        ("mother", 2026, 5, 20, 126, 82),
+        ("mother", 2026, 6, 15, 124, 80),
+        ("mother", 2026, 7, 8, 128, 83),
     ]
     records = [
         BloodPressureRecord(
-            user_id=user_id,
+            user_id=users[member].id,
             systolic=systolic,
             diastolic=diastolic,
-            pulse=pulse,
-            measured_at=metric_at(days_ago, hour=20 if days_ago < 3 else 7),
-            measurement_context=BloodPressureMeasurementContext.EVENING if days_ago < 3 else BloodPressureMeasurementContext.MORNING,
-            arm=BloodPressureArm.LEFT if days_ago % 2 == 0 else BloodPressureArm.RIGHT,
+            pulse=None,
+            measured_at=recorded_at(year, month, day),
+            measurement_context=BloodPressureMeasurementContext.UNKNOWN,
+            arm=BloodPressureArm.UNKNOWN,
             posture=BloodPressurePosture.SITTING,
             source=MetricSource.MANUAL,
             confidence_level=ConfidenceLevel.HIGH,
-            note="合成 demo 血压记录，仅用于后续规则和查询演示",
+            note="家庭健康 Demo 数据集 V1：用户提供的血压记录。",
         )
-        for user_id, days_ago, systolic, diastolic, pulse in record_specs
+        for member, year, month, day, systolic, diastolic in record_specs
     ]
     session.add_all(records)
     session.flush()
@@ -447,121 +432,122 @@ def seed_symptoms(session: Session, family: Family, users: dict[str, User]) -> l
     # 3. 将结果返回给调用方，继续由上层流程编排。
     records = [
         SymptomRecord(
-            user_id=users["mother"].id,
-            family_id=family.id,
-            created_by_user_id=users["gala"].id,
-            raw_text="妈妈这两天膝盖疼，走路少了。",
-            symptom_name="膝盖疼",
-            body_part="膝盖",
-            severity=2,
-            started_at=metric_at(1, hour=18),
-            duration_text="近两天",
-            possible_trigger="走路或活动后不适",
-            related_metric_types=[MetricType.STEPS.value],
-            follow_up_needed=True,
-            follow_up_at=metric_at(-3, hour=9),
-            status=SymptomRecordStatus.ACTIVE,
-            confidence_level=ConfidenceLevel.MEDIUM,
-            ai_summary="妈妈近两天有膝盖疼记录，活动量有所下降，建议继续记录变化。",
-            timeline_visible=True,
-            source=HealthRecordSource.MANUAL,
-        ),
-        SymptomRecord(
-            user_id=users["mother"].id,
-            family_id=family.id,
-            created_by_user_id=users["gala"].id,
-            raw_text="妈妈昨晚睡得一般，今天有点疲劳。",
-            symptom_name="疲劳",
-            body_part=None,
-            severity=1,
-            started_at=metric_at(0, hour=9),
-            duration_text="一天内",
-            possible_trigger="睡眠不佳后感觉疲劳",
-            follow_up_needed=False,
-            status=SymptomRecordStatus.ACTIVE,
-            confidence_level=ConfidenceLevel.MEDIUM,
-            ai_summary="妈妈有一次睡眠不佳后的疲劳记录，建议继续观察作息和感受变化。",
-            timeline_visible=True,
-            source=HealthRecordSource.MANUAL,
-        ),
-        SymptomRecord(
             user_id=users["father"].id,
             family_id=family.id,
             created_by_user_id=users["gala"].id,
-            raw_text="爸爸晚上说有点头晕，测了血压偏高。",
+            raw_text="偶尔头晕，约持续 10 分钟。",
             symptom_name="头晕",
             body_part="头部",
-            severity=2,
-            started_at=metric_at(0, hour=20),
-            duration_text="晚间一次",
-            related_metric_types=[MetricType.HEART_RATE.value],
-            follow_up_needed=True,
-            follow_up_at=metric_at(-1, hour=20),
+            severity=None,
+            started_at=recorded_at(2026, 6, 25),
+            duration_text="约 10 分钟",
+            possible_trigger=None,
+            related_metric_types=None,
+            follow_up_needed=False,
             status=SymptomRecordStatus.ACTIVE,
-            confidence_level=ConfidenceLevel.MEDIUM,
-            ai_summary="爸爸有一次头晕记录，并关联晚间血压偏高，建议后续继续复测记录。",
+            confidence_level=ConfidenceLevel.HIGH,
+            ai_summary="已记录：偶尔头晕，约持续 10 分钟。",
+            timeline_visible=True,
+            source=HealthRecordSource.MANUAL,
+        ),
+        SymptomRecord(
+            user_id=users["mother"].id,
+            family_id=family.id,
+            created_by_user_id=users["gala"].id,
+            raw_text="颈肩酸痛，持续 2 天，已自行缓解。",
+            symptom_name="颈肩酸痛",
+            body_part="颈肩部",
+            severity=None,
+            started_at=recorded_at(2026, 7, 1),
+            duration_text="2 天",
+            possible_trigger=None,
+            follow_up_needed=False,
+            status=SymptomRecordStatus.RESOLVED,
+            confidence_level=ConfidenceLevel.HIGH,
+            ai_summary="已记录：颈肩酸痛持续 2 天，备注为已自行缓解。",
             timeline_visible=True,
             source=HealthRecordSource.MANUAL,
         ),
     ]
     session.add_all(records)
     session.flush()
-    session.add(
-        HealthRecordDraft(
-            user_id=users["father"].id,
-            family_id=family.id,
-            created_by_user_id=users["gala"].id,
-            target_display_name="爸爸",
-            raw_text="爸爸晚上有点头晕，血压145/92，心率78。",
-            draft_type=HealthRecordDraftType.MIXED_HEALTH_RECORD,
-            extracted_json={
-                "symptom_name": "头晕",
-                "blood_pressure": "145/92",
-                "heart_rate": 78,
-                "target": "爸爸",
-                "demo_note": "pending demo draft; not a confirmed health fact",
-            },
-            missing_fields=[],
-            safety_flags=[],
-            confidence_level=ConfidenceLevel.MEDIUM,
-            status=HealthRecordDraftStatus.PENDING,
-            expires_at=DEMO_NOW + timedelta(days=7),
-        ),
-    )
     return records
 
 
 # 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
 # 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
-def seed_document(session: Session, family: Family, users: dict[str, User]) -> MedicalDocument:
+def seed_documents(session: Session, family: Family, users: dict[str, User]) -> dict[str, MedicalDocument]:
     # 流程说明：
     # 1. 接收上游传入的数据或上下文。
     # 2. 完成本函数职责范围内的处理。
     # 3. 将结果返回给调用方，继续由上层流程编排。
-    document = MedicalDocument(
-        user_id=users["father"].id,
-        family_id=family.id,
-        uploaded_by_user_id=users["gala"].id,
-        document_type=DocumentType.CHECKUP_REPORT,
-        title="爸爸 Demo 体检报告",
-        file_name="father_demo_checkup_report.pdf",
-        file_path="demo://documents/father_demo_checkup_report.pdf",
-        file_mime_type="application/pdf",
-        file_size=204800,
-        document_date=DEMO_TODAY - timedelta(days=14),
-        hospital_or_org="Demo 体检中心",
-        description="合成 demo 资料元信息，不对应真实文件。",
-        ai_extract_status=DocumentExtractStatus.CONFIRMED,
-        ai_summary="Demo 体检报告摘要，用于资料中心展示。",
-        extracted_json={"demo": True, "source": "synthetic"},
-        confirmed_at=DEMO_NOW,
-        related_event_count=1,
-        source=DocumentSource.UPLOAD,
-        visibility=DocumentVisibility.FAMILY_SHARED,
-    )
-    session.add(document)
+    documents = {
+        "father_checkup": MedicalDocument(
+            user_id=users["father"].id,
+            family_id=family.id,
+            uploaded_by_user_id=users["gala"].id,
+            document_type=DocumentType.CHECKUP_REPORT,
+            title="体检报告（2026 年）",
+            file_name="father_checkup_2026.pdf",
+            file_path="demo://documents/father_checkup_2026.pdf",
+            file_mime_type="application/pdf",
+            document_date=date(2026, 5, 10),
+            description="家庭健康 Demo 数据集 V1：体检报告资料条目。",
+            ai_extract_status=DocumentExtractStatus.CONFIRMED,
+            related_event_count=1,
+            source=DocumentSource.UPLOAD,
+            visibility=DocumentVisibility.FAMILY_SHARED,
+        ),
+        "father_bp": MedicalDocument(
+            user_id=users["father"].id,
+            family_id=family.id,
+            uploaded_by_user_id=users["gala"].id,
+            document_type=DocumentType.MEDICAL_RECORD,
+            title="血压测量记录",
+            file_name="father_blood_pressure_records.pdf",
+            file_path="demo://documents/father_blood_pressure_records.pdf",
+            file_mime_type="application/pdf",
+            document_date=date(2026, 7, 10),
+            description="家庭健康 Demo 数据集 V1：血压测量资料条目。",
+            ai_extract_status=DocumentExtractStatus.CONFIRMED,
+            source=DocumentSource.UPLOAD,
+            visibility=DocumentVisibility.FAMILY_SHARED,
+        ),
+        "mother_checkup": MedicalDocument(
+            user_id=users["mother"].id,
+            family_id=family.id,
+            uploaded_by_user_id=users["gala"].id,
+            document_type=DocumentType.CHECKUP_REPORT,
+            title="年度体检报告",
+            file_name="mother_annual_checkup.pdf",
+            file_path="demo://documents/mother_annual_checkup.pdf",
+            file_mime_type="application/pdf",
+            document_date=date(2026, 3, 15),
+            description="家庭健康 Demo 数据集 V1：年度体检资料条目。",
+            ai_extract_status=DocumentExtractStatus.CONFIRMED,
+            related_event_count=1,
+            source=DocumentSource.UPLOAD,
+            visibility=DocumentVisibility.FAMILY_SHARED,
+        ),
+        "mother_glucose": MedicalDocument(
+            user_id=users["mother"].id,
+            family_id=family.id,
+            uploaded_by_user_id=users["gala"].id,
+            document_type=DocumentType.LAB_TEST,
+            title="血糖检测记录",
+            file_name="mother_glucose_record.pdf",
+            file_path="demo://documents/mother_glucose_record.pdf",
+            file_mime_type="application/pdf",
+            document_date=date(2026, 6, 10),
+            description="家庭健康 Demo 数据集 V1：空腹血糖 5.4 mmol/L 的资料条目。",
+            ai_extract_status=DocumentExtractStatus.CONFIRMED,
+            source=DocumentSource.UPLOAD,
+            visibility=DocumentVisibility.FAMILY_SHARED,
+        ),
+    }
+    session.add_all(documents.values())
     session.flush()
-    return document
+    return documents
 
 
 # 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
@@ -570,7 +556,7 @@ def seed_medical_events(
     session: Session,
     family: Family,
     users: dict[str, User],
-    document: MedicalDocument,
+    documents: dict[str, MedicalDocument],
 ) -> list[MedicalEvent]:
     # 流程说明：
     # 1. 接收上游传入的数据或上下文。
@@ -581,20 +567,20 @@ def seed_medical_events(
             user_id=users["father"].id,
             family_id=family.id,
             created_by_user_id=users["gala"].id,
-            event_type=MedicalEventType.CHECKUP,
-            title="2026 年家庭健康 Demo 体检记录",
-            event_date=DEMO_TODAY - timedelta(days=14),
-            hospital_or_org="Demo 体检中心",
+            event_type=MedicalEventType.FOLLOW_UP,
+            title="血压相关复诊记录",
+            event_date=date(2026, 5, 10),
+            hospital_or_org=None,
             diagnosis_text=None,
-            summary="Demo 体检资料记录，用于展示健康时间线。",
+            summary="已完成的复查记录。",
             doctor_advice=None,
             medications=None,
             key_findings=[
-                {"type": "blood_pressure_note", "text": "血压记录需要结合日常复测观察"},
+                {"type": "record_type", "text": "血压相关复诊记录"},
             ],
             follow_up_needed=True,
-            follow_up_at=DEMO_NOW + timedelta(days=45),
-            related_document_id=document.id,
+            follow_up_at=recorded_at(2026, 8, 10),
+            related_document_id=documents["father_checkup"].id,
             source=MedicalEventSource.MANUAL,
             confidence_level=ConfidenceLevel.MEDIUM,
             timeline_visible=True,
@@ -604,21 +590,21 @@ def seed_medical_events(
             user_id=users["mother"].id,
             family_id=family.id,
             created_by_user_id=users["gala"].id,
-            event_type=MedicalEventType.FOLLOW_UP,
-            title="膝盖不适观察记录",
-            event_date=DEMO_TODAY - timedelta(days=1),
+            event_type=MedicalEventType.CHECKUP,
+            title="年度体检",
+            event_date=date(2026, 3, 15),
             hospital_or_org=None,
             diagnosis_text=None,
-            summary="Demo 记录，用于后续就医摘要演示。",
+            summary="已完成的年度体检记录。",
             doctor_advice=None,
             medications=None,
-            key_findings=[{"type": "symptom_note", "text": "近期有膝盖疼记录，可继续观察变化"}],
-            follow_up_needed=True,
-            follow_up_at=DEMO_NOW + timedelta(days=14),
+            key_findings=[{"type": "record_type", "text": "年度体检"}],
+            follow_up_needed=False,
+            related_document_id=documents["mother_checkup"].id,
             source=MedicalEventSource.MANUAL,
             confidence_level=ConfidenceLevel.MEDIUM,
             timeline_visible=True,
-            status=MedicalEventStatus.ACTIVE,
+            status=MedicalEventStatus.ARCHIVED,
         ),
     ]
     session.add_all(events)
@@ -639,13 +625,13 @@ def seed_daily_reports(session: Session, family: Family, users: dict[str, User])
                 user_id=users["gala"].id,
                 family_id=family.id,
                 report_date=DEMO_TODAY,
-                overall_status="平稳",
+                overall_status="记录摘要",
                 status_level=DailyReportStatusLevel.NORMAL,
-                summary_text="今日整体状态平稳，睡眠和活动量可继续保持。",
-                highlights=[{"text": "睡眠和活动量较稳定"}],
+                summary_text="系统内有血压、心率、睡眠、运动和体重记录。",
+                highlights=[{"text": "最近一次血压记录为 118/76 mmHg"}],
                 concerns=[],
-                suggestions=[{"text": "继续保持规律作息和基础活动量。"}],
-                metrics_snapshot={"sleep_duration_hour": 7.2, "steps": 8200, "weight_kg": 56.2, "heart_rate_bpm": 72},
+                suggestions=[{"text": "可继续保持规律睡眠和运动记录。"}],
+                metrics_snapshot={"latest_blood_pressure": "118/76", "weight_kg": 65, "bmi": 19.6},
                 generated_by=DailyReportGeneratedBy.SYSTEM,
                 generation_status=DailyReportGenerationStatus.SUCCESS,
             ),
@@ -653,13 +639,13 @@ def seed_daily_reports(session: Session, family: Family, users: dict[str, User])
                 user_id=users["father"].id,
                 family_id=family.id,
                 report_date=DEMO_TODAY,
-                overall_status="需要关注",
+                overall_status="记录摘要",
                 status_level=DailyReportStatusLevel.ATTENTION,
-                summary_text="近期血压记录需要关注，建议接下来几天固定时间复测并记录。如伴随明显不适，请咨询医生。",
-                highlights=[],
-                concerns=[{"text": "近 3 次血压记录偏高"}],
-                suggestions=[{"text": "固定时间复测并继续记录。"}],
-                metrics_snapshot={"recent_blood_pressure": ["145/92", "142/90", "146/91"], "pulse_range": "78-80"},
+                summary_text="系统内有血压、心率、睡眠、运动、症状、复诊和资料记录。",
+                highlights=[{"text": "最近一次血压记录为 138/88 mmHg"}],
+                concerns=[],
+                suggestions=[{"text": "已设置每周测量血压和 2026-08-10 复查提醒。"}],
+                metrics_snapshot={"recent_blood_pressure": ["148/94", "142/90", "145/92", "138/88"], "weight_kg": 78, "bmi": 25.5},
                 generated_by=DailyReportGeneratedBy.SYSTEM,
                 generation_status=DailyReportGenerationStatus.SUCCESS,
             ),
@@ -667,13 +653,13 @@ def seed_daily_reports(session: Session, family: Family, users: dict[str, User])
                 user_id=users["mother"].id,
                 family_id=family.id,
                 report_date=DEMO_TODAY,
-                overall_status="需要观察",
+                overall_status="记录摘要",
                 status_level=DailyReportStatusLevel.ATTENTION,
-                summary_text="近期有膝盖疼记录，活动量略低，建议继续观察并记录变化。",
-                highlights=[],
-                concerns=[{"text": "近期有膝盖疼记录，最近两天步数略低"}],
-                suggestions=[{"text": "继续观察疼痛和活动量变化。"}],
-                metrics_snapshot={"recent_steps": [4200, 3900, 6100, 6800, 7200, 7000, 6600]},
+                summary_text="系统内有血压、空腹血糖、睡眠、运动、症状、年度体检和资料记录。",
+                highlights=[{"text": "最近一次血压记录为 128/83 mmHg"}],
+                concerns=[],
+                suggestions=[{"text": "已设置年度体检和保持运动习惯提醒。"}],
+                metrics_snapshot={"latest_blood_pressure": "128/83", "fasting_blood_glucose_mmol_l": 5.4, "weight_kg": 62, "bmi": 24.2},
                 generated_by=DailyReportGeneratedBy.SYSTEM,
                 generation_status=DailyReportGenerationStatus.SUCCESS,
             ),
@@ -695,18 +681,19 @@ def seed_alerts(
     # 1. 接收上游传入的数据或上下文。
     # 2. 完成本函数职责范围内的处理。
     # 3. 将结果返回给调用方，继续由上层流程编排。
+    father_bp_record = next(record for record in bp_records if record.user_id == users["father"].id)
     father_bp_alert = Alert(
         user_id=users["father"].id,
         family_id=family.id,
         created_by_user_id=None,
         alert_type=AlertType.METRIC_ATTENTION,
         level=AlertLevel.ATTENTION,
-        title="近期血压记录需要关注",
-        message="近几次血压记录偏高，建议固定时间复测并继续记录。如伴随明显不适，请咨询医生。",
-        suggested_action="固定时间复测并记录变化。",
+        title="每周测量血压",
+        message="记录每周血压测量。",
+        suggested_action="记录本周血压。",
         related_entity_type="blood_pressure_records",
-        related_entity_id=bp_records[0].id,
-        trigger_reason="近 3 次血压记录偏高",
+        related_entity_id=father_bp_record.id,
+        trigger_reason="家庭健康 Demo 数据集 V1 的日常记录提醒",
         status=AlertStatus.ACTIVE,
         source=AlertSource.RULE,
     )
@@ -716,14 +703,14 @@ def seed_alerts(
         created_by_user_id=None,
         alert_type=AlertType.MEDICAL_FOLLOW_UP,
         level=AlertLevel.ATTENTION,
-        title="体检后复查提醒",
-        message="Demo 体检记录设置了后续关注时间，建议按计划整理资料或咨询医生。",
-        suggested_action="按计划整理资料或咨询医生。",
+        title="复查提醒",
+        message="2026-08-10 复查提醒。",
+        suggested_action="查看复查资料。",
         related_entity_type="medical_events",
         related_entity_id=events[0].id,
-        trigger_reason="Demo 体检记录设置了后续关注时间",
+        trigger_reason="家庭健康 Demo 数据集 V1 的复查提醒",
         status=AlertStatus.ACTIVE,
-        due_at=DEMO_NOW + timedelta(days=45),
+        due_at=recorded_at(2026, 8, 10),
         source=AlertSource.SYSTEM,
     )
     mother_symptom = Alert(
@@ -732,16 +719,52 @@ def seed_alerts(
         created_by_user_id=None,
         alert_type=AlertType.SYMPTOM_FOLLOW_UP,
         level=AlertLevel.INFO,
-        title="膝盖疼记录随访",
-        message="妈妈近期有膝盖疼记录，建议继续观察疼痛和活动量变化。",
-        suggested_action="继续记录疼痛和活动量变化。",
+        title="年度体检提醒",
+        message="年度体检提醒。",
+        suggested_action="查看年度体检资料。",
         related_entity_type="symptom_records",
-        related_entity_id=symptoms[0].id,
-        trigger_reason="近期有膝盖疼记录",
+        related_entity_id=events[1].id,
+        trigger_reason="家庭健康 Demo 数据集 V1 的年度体检提醒",
         status=AlertStatus.ACTIVE,
         source=AlertSource.RULE,
     )
-    session.add_all([father_bp_alert, father_follow_up, mother_symptom])
+    gala_sleep = Alert(
+        user_id=users["gala"].id,
+        family_id=family.id,
+        created_by_user_id=users["gala"].id,
+        alert_type=AlertType.DATA_MISSING,
+        level=AlertLevel.INFO,
+        title="规律睡眠记录提醒",
+        message="建议保持规律睡眠。",
+        suggested_action="记录睡眠时长。",
+        status=AlertStatus.ACTIVE,
+        source=AlertSource.USER,
+    )
+    gala_weight = Alert(
+        user_id=users["gala"].id,
+        family_id=family.id,
+        created_by_user_id=users["gala"].id,
+        alert_type=AlertType.DATA_MISSING,
+        level=AlertLevel.INFO,
+        title="体重记录提醒",
+        message="每月记录一次体重。",
+        suggested_action="记录体重。",
+        status=AlertStatus.ACTIVE,
+        source=AlertSource.USER,
+    )
+    mother_exercise = Alert(
+        user_id=users["mother"].id,
+        family_id=family.id,
+        created_by_user_id=users["mother"].id,
+        alert_type=AlertType.DATA_MISSING,
+        level=AlertLevel.INFO,
+        title="保持运动习惯提醒",
+        message="保持运动习惯。",
+        suggested_action="记录运动时长。",
+        status=AlertStatus.ACTIVE,
+        source=AlertSource.USER,
+    )
+    session.add_all([father_bp_alert, father_follow_up, mother_symptom, gala_sleep, gala_weight, mother_exercise])
 
 
 # 函数职责：业务函数，封装 开发脚本 中的一段可复用逻辑。
@@ -760,8 +783,8 @@ def main() -> None:
         seed_health_metrics(session, users)
         bp_records = seed_blood_pressure(session, users)
         symptoms = seed_symptoms(session, family, users)
-        document = seed_document(session, family, users)
-        events = seed_medical_events(session, family, users, document)
+        documents = seed_documents(session, family, users)
+        events = seed_medical_events(session, family, users, documents)
         seed_daily_reports(session, family, users)
         seed_alerts(session, family, users, bp_records, symptoms, events)
         session.commit()

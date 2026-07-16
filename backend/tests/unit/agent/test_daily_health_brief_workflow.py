@@ -18,7 +18,11 @@ from app.agent.runtime import AgentRuntime  # noqa: E402
 from app.agent.safety import AgentSafetyPolicy  # noqa: E402
 from app.agent.schemas import AgentRunRequest  # noqa: E402
 from app.agent.workflows import AgentWorkflowRegistry, default_workflow_registry  # noqa: E402
-from app.agent.workflows.daily_health_brief import DailyHealthBriefWorkflow  # noqa: E402
+from app.agent.workflows.daily_health_brief import (  # noqa: E402
+    READONLY_HEALTH_BRIEF_TOOLS,
+    DailyHealthBriefWorkflow,
+    _daily_brief_system_prompt,
+)
 from app.core.config import Settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.session import SessionLocal, engine  # noqa: E402
@@ -44,13 +48,7 @@ from app.llm.errors import LLMProviderError, LLMTimeoutError  # noqa: E402
 from app.llm.schemas import LLMResponse  # noqa: E402
 
 
-READONLY_TOOL_NAMES = [
-    "health_profile.get",
-    "health_data.blood_pressure.summary",
-    "health_record.symptoms.summary",
-    "medical_timeline.followups.list",
-    "alerts.active.list",
-]
+READONLY_TOOL_NAMES = list(READONLY_HEALTH_BRIEF_TOOLS)
 UNSAFE_OUTPUT_TERMS = (
     "正常",
     "异常",
@@ -145,6 +143,25 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
 
         self.assertIsInstance(handler, DailyHealthBriefWorkflow)
 
+    def test_daily_brief_system_prompt_uses_health_companion_voice(self) -> None:
+        prompt = _daily_brief_system_prompt()
+
+        self.assertIn("健康小伙伴", prompt)
+        self.assertIn("温柔、细心、自然", prompt)
+
+    def test_rule_brief_uses_one_useful_health_highlight_with_companion_voice(self) -> None:
+        health_profile_service.create_or_update_profile(self.db, self.actor.id, {"height_cm": 182})
+        health_data_service.add_metric(self.db, user_id=self.actor.id, metric_type="weight", value_numeric=65, unit="kg")
+
+        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id))
+        content = result.generated_content or ""
+
+        self.assertIn("BMI 约为 19.6", content)
+        self.assertIn("我看见啦", content)
+        self.assertIn("我先替你记着", content)
+        self.assertNotIn("记录连续", content)
+        self.assertNotIn("资料归档", content)
+
     def test_runtime_executes_daily_health_brief_for_self_access(self) -> None:
         self._seed_health_records(self.actor.id, self.actor.id, family_id=None)
 
@@ -154,11 +171,11 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertFalse(result.blocked)
         self.assertEqual(result.workflow_type, "daily_health_brief")
-        self.assertEqual(result.tool_calls_count, 5)
+        self.assertEqual(result.tool_calls_count, len(READONLY_TOOL_NAMES))
         self.assertEqual([call.tool_name for call in calls], READONLY_TOOL_NAMES)
         self.assertTrue(all(call.status.value == "success" for call in calls))
-        self.assertIn("根据系统内记录", result.generated_content or "")
-        self.assertIn("健康简报", result.generated_content or "")
+        self.assertIn("内容基于系统内已有记录整理", result.generated_content or "")
+        self.assertIn("我看见啦", result.generated_content or "")
 
     def test_family_access_allowed_generates_brief(self) -> None:
         self._seed_health_records(self.target.id, self.actor.id, family_id=self.family.id)
@@ -167,9 +184,9 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
 
         self.assertEqual(result.status, "completed")
-        self.assertEqual(len(calls), 5)
+        self.assertEqual(len(calls), len(READONLY_TOOL_NAMES))
         self.assertTrue(all(call.permission_checked for call in calls))
-        self.assertIn("系统内共有", result.generated_content or "")
+        self.assertIn("血压记录", result.generated_content or "")
 
     def test_family_access_denied_does_not_leak_target_data(self) -> None:
         self._seed_health_records(self.target.id, self.actor.id, family_id=self.family.id, secret_text="private target symptom")
@@ -184,6 +201,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
                 "can_view_metrics": False,
                 "can_view_symptoms": False,
                 "can_view_medical_events": False,
+                "can_view_documents": False,
                 "can_view_alerts": False,
             },
         )
@@ -193,7 +211,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         content = result.generated_content or ""
 
         self.assertEqual(result.status, "completed")
-        self.assertEqual(len(calls), 5)
+        self.assertEqual(len(calls), len(READONLY_TOOL_NAMES))
         self.assertTrue(all(call.status.value == "blocked_by_permission" for call in calls))
         self.assertIn("部分信息因权限设置暂不可用", content)
         self.assertNotIn("private target symptom", content)
@@ -219,9 +237,9 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         calls = agent_service.list_tool_calls(self.db, trace_id=result.trace_id)
 
         self.assertEqual(result.status, "completed")
-        self.assertEqual(len(calls), 5)
+        self.assertEqual(len(calls), len(READONLY_TOOL_NAMES))
         self.assertIn("部分信息因权限设置暂不可用", result.generated_content or "")
-        self.assertIn("根据系统内记录", result.generated_content or "")
+        self.assertIn("内容基于系统内已有记录整理", result.generated_content or "")
 
     def test_no_records_uses_system_no_record_wording(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id))
@@ -312,14 +330,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertIn("fallback_reason=daily_brief_use_llm_disabled", result.message)
 
     def test_llm_enabled_can_generate_safe_daily_brief(self) -> None:
-        safe_content = "\n".join(
-            [
-                "根据系统内记录，已整理一份健康简报。",
-                "- 系统内记录已完成摘要整理。",
-                "- 本简报不能替代医生诊断或治疗建议。",
-                "- 如有不适或紧急情况，请联系医生或当地急救服务。",
-            ]
-        )
+        safe_content = "我看见啦，最近一次血压记录是 118/76 mmHg。这个小数字我先替你记着，之后我们再一起看看。"
         fake_llm = FakeLLMClient(safe_content)
         registry = AgentWorkflowRegistry()
         registry.register(
@@ -332,11 +343,28 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
 
         self.assertEqual(fake_llm.calls, 1)
-        self.assertEqual(result.generated_content, safe_content)
+        self.assertTrue((result.generated_content or "").startswith(safe_content))
         self.assertIn("llm_used=true", result.message)
         self.assertIn("fallback_used=false", result.message)
         self.assertNotIn("api_key", result.message.lower())
         self.assertNotIn("raw prompt", result.message.lower())
+
+    def test_report_like_llm_output_falls_back_to_compact_companion_brief(self) -> None:
+        fake_llm = FakeLLMClient("健康简报：\n- 血压记录 3 次\n- 睡眠记录 2 次\n- 体重记录 1 次")
+        registry = AgentWorkflowRegistry()
+        registry.register(
+            DailyHealthBriefWorkflow(
+                settings=Settings(LLM_ENABLED=True, DAILY_BRIEF_USE_LLM=True),
+                llm_client=fake_llm,
+            )
+        )
+
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
+
+        self.assertEqual(fake_llm.calls, 1)
+        self.assertIn("系统内暂无相关记录", result.generated_content or "")
+        self.assertNotIn("\n-", result.generated_content or "")
+        self.assertIn("fallback_reason=llm_output_not_compact", result.message)
 
     def test_llm_provider_error_falls_back_to_rule_brief(self) -> None:
         fake_llm = FakeLLMClient("", raise_error=True)
@@ -351,7 +379,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
 
         self.assertEqual(fake_llm.calls, 1)
-        self.assertIn("根据系统内记录", result.generated_content or "")
+        self.assertIn("内容基于系统内已有记录整理", result.generated_content or "")
         self.assertIn("fallback_used=true", result.message)
         self.assertIn("fallback_reason=llm_provider_error", result.message)
 
@@ -417,7 +445,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
 
         self.assertEqual(fake_llm.calls, 1)
-        self.assertIn("根据系统内记录", result.generated_content or "")
+        self.assertIn("内容基于系统内已有记录整理", result.generated_content or "")
         self.assertNotIn("诊断结果", result.generated_content or "")
         self.assertIn("fallback_reason=llm_output_safety_blocked", result.message)
         self.assertIn("safety_filtered=true", result.message)
@@ -481,6 +509,9 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertNotIn("raw_text", fake_llm.last_user_prompt)
         self.assertNotIn("file_path", fake_llm.last_user_prompt)
         self.assertNotIn("raw_extracted_text", fake_llm.last_user_prompt)
+        self.assertIn("可选健康重点", fake_llm.last_user_prompt)
+        self.assertIn("只选其中一项表达", fake_llm.last_user_prompt)
+        self.assertNotIn("资料与安排", fake_llm.last_user_prompt)
         self.assertNotIn("api_key", result.message.lower())
 
     def test_workflow_does_not_write_daily_reports_or_health_business_data(self) -> None:

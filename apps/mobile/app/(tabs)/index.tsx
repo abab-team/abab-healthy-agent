@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
@@ -81,6 +81,10 @@ export default function HomeScreen() {
             <MetricTile key={metric.label} {...metric} />
           ))}
         </View>
+        <Pressable onPress={() => router.push(routes.recordHealthMetric)} style={styles.metricEntry}>
+          <Ionicons color={theme.colors.primaryDark} name="add-circle-outline" size={18} />
+          <Text style={styles.metricEntryText}>记录健康指标</Text>
+        </Pressable>
       </CardBase>
 
       <HealthTrendSection error={trendResource.error} loading={trendResource.loading} trends={trendResource.data} />
@@ -146,6 +150,8 @@ const styles = StyleSheet.create({
   disclaimerText: { color: theme.colors.subtle, flex: 1, fontSize: 11, lineHeight: 17 },
   dotTeal: { backgroundColor: theme.colors.primary },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
+  metricEntry: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 6, marginTop: 14 },
+  metricEntryText: { color: theme.colors.primaryDark, fontSize: 13, fontWeight: "900" },
   overviewCard: { backgroundColor: "#FFFFFF" },
   overviewHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   recordDot: { backgroundColor: "#B9C9C3", borderRadius: 5, height: 8, width: 8 },

@@ -4,6 +4,7 @@ export const routes = {
   archive: "/archive" as Href,
   archiveRecords: "/archive-records" as Href,
   archiveMetrics: "/archive-metrics" as Href,
+  recordHealthMetric: "/record-health-metric" as Href,
   archiveMetric: (metric: string) => `/archive-metric/${metric}` as Href,
   archiveAiSummary: "/archive-ai-summary" as Href,
   family: "/family" as Href,

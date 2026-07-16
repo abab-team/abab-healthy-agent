@@ -23,3 +23,7 @@ class ConversationState(TypedDict):
     resolved_member_context: NotRequired[dict[str, str | bool | None]]
     permission_context: NotRequired[dict[str, str | bool | None]]
     plan_summary: NotRequired[dict[str, str | int | bool | None]]
+    # This is short-lived, server-produced conversation metadata.  It is
+    # derived only after a guarded business capability has been executed and
+    # never stores identifiers, raw records, or permission decisions.
+    conversation_context: NotRequired[dict[str, str | bool | None]]

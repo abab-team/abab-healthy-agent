@@ -17,7 +17,7 @@ export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
       requestAnimationFrame(() => scrollRef.current?.scrollTo({ animated: false, y: 0 }));
     }
   }, [scroll]));
-  const content = <View style={styles.content}>{children}</View>;
+  const content = <View style={[styles.content, footer ? styles.contentWithFooter : null]}>{children}</View>;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -43,6 +43,9 @@ const styles = StyleSheet.create({
     gap: theme.spacing.lg,
     paddingBottom: 118,
     paddingHorizontal: theme.spacing.lg
+  },
+  contentWithFooter: {
+    paddingBottom: 0
   },
   footer: {
     backgroundColor: theme.colors.canvas,

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.agent.prompts import PromptRegistry, get_prompt_registry
+from app.agent.persona import CONVERSATION_PERSONA_GUIDANCE
 from app.agent.safety import AgentSafetyPolicy
 from app.core.config import Settings, get_settings
 from app.llm.client import LLMClient, get_llm_client
@@ -58,7 +59,7 @@ class LLMAnswerComposer:
             )
             client = self.llm_client or get_llm_client(self.settings)
             response = client.generate_text(
-                system_prompt=(
+                system_prompt=(CONVERSATION_PERSONA_GUIDANCE + "\n\n" +
                     "只重写安全的系统内记录摘要，不要补充医疗建议。"
                     "所有面向用户的内容必须使用简体中文，并说明内容基于系统内记录且不替代医生判断。"
                 ),

@@ -19,6 +19,8 @@ import type {
   FamilyMember,
   HealthStatus,
   HealthMetricRecord,
+  HealthMetricCreateInput,
+  BloodPressureCreateInput,
   ImportPreviewResult,
   ImportPreviewRow,
   MedicalDocument,
@@ -263,6 +265,7 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         ],
         source: "mock"
       }),
+      createHealthMetric: async (_input: HealthMetricCreateInput | BloodPressureCreateInput) => fail(new Error("演示模式不会提交真实健康记录。")),
       previewHealthDataImport: async (rows: ImportPreviewRow[]) => mockApi.previewHealthDataImport(rows),
       confirmHealthDataImport: async (rows: ImportPreviewRow[]) => mockApi.confirmHealthDataImport(rows),
       runDailyHealthBrief: async () => {
@@ -392,6 +395,16 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         return ok<PersonalHealthMetricsData>({ bloodPressure, metrics, source: "api" });
       } catch (error) {
         return fail<PersonalHealthMetricsData>(error);
+      }
+    },
+    createHealthMetric: async (input: HealthMetricCreateInput | BloodPressureCreateInput) => {
+      try {
+        if ("systolic" in input) {
+          return ok(await backendApi.createMyBloodPressure(input, currentUserId));
+        }
+        return ok(await backendApi.createMyMetric(input, currentUserId));
+      } catch (error) {
+        return fail<HealthMetricRecord | BloodPressureRecord>(error);
       }
     },
     previewHealthDataImport: async (rows: ImportPreviewRow[]) => {

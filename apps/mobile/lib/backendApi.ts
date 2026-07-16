@@ -18,6 +18,8 @@ import type {
   FamilyMember,
   HealthProfile,
   HealthMetricRecord,
+  HealthMetricCreateInput,
+  BloodPressureCreateInput,
   HealthStatus,
   ImportPreviewResult,
   ImportPreviewRow,
@@ -65,6 +67,12 @@ type BackendSafetyCheck = {
   input_risk_summary?: string | null;
   revised_answer_summary?: string | null;
 };
+
+type BackendBloodPressureRecord = Omit<BloodPressureRecord, "recorded_at"> & { measured_at?: string; recorded_at?: string };
+
+function toBloodPressureRecord(record: BackendBloodPressureRecord): BloodPressureRecord {
+  return { ...record, recorded_at: record.recorded_at ?? record.measured_at ?? new Date(0).toISOString() };
+}
 
 function toFamilyMember(member: BackendFamilyMember): FamilyMember {
   return {
@@ -120,7 +128,9 @@ export const backendApi = {
   },
 
   getMyBloodPressureRecent(currentUserId: string, days = 30) {
-    return apiClient.get<BloodPressureRecord[]>(`/api/v1/health-data/me/blood-pressure/recent?days=${days}`, currentUserId);
+    return apiClient
+      .get<{ items: BackendBloodPressureRecord[] }>(`/api/v1/health-data/me/blood-pressure/recent?days=${days}`, currentUserId)
+      .then((response) => response.items.map(toBloodPressureRecord));
   },
 
   getMyRecentMetrics(currentUserId: string, days = 30) {
@@ -129,11 +139,20 @@ export const backendApi = {
       .then((response) => response.items);
   },
 
+  createMyMetric(input: HealthMetricCreateInput, currentUserId: string) {
+    return apiClient.post<HealthMetricRecord>("/api/v1/health-data/me/metrics", { ...input, source: "manual" }, currentUserId);
+  },
+
+  createMyBloodPressure(input: BloodPressureCreateInput, currentUserId: string) {
+    return apiClient
+      .post<BackendBloodPressureRecord>("/api/v1/health-data/me/blood-pressure", { ...input, source: "manual" }, currentUserId)
+      .then(toBloodPressureRecord);
+  },
+
   getFamilyMemberBloodPressureRecent(familyId: string, targetUserId: string, currentUserId: string, days = 30) {
-    return apiClient.get<BloodPressureRecord[]>(
-      `/api/v1/families/${familyId}/members/${targetUserId}/health-data/blood-pressure/recent?days=${days}`,
-      currentUserId
-    );
+    return apiClient
+      .get<{ items: BackendBloodPressureRecord[] }>(`/api/v1/families/${familyId}/members/${targetUserId}/health-data/blood-pressure/recent?days=${days}`, currentUserId)
+      .then((response) => response.items.map(toBloodPressureRecord));
   },
 
   getMyBloodPressureSummary(currentUserId: string, days = 30) {
@@ -211,6 +230,22 @@ export const backendApi = {
     return apiClient.get<{ items: MedicalDocument[] }>("/api/v1/documents/me", currentUserId).then((response) => response.items);
   },
 
+  uploadMyDocument(
+    input: { content: Blob; documentType: "checkup_report" | "medical_record" | "lab_test" | "prescription" | "other"; fileName: string; mimeType: string; title: string },
+    currentUserId: string
+  ) {
+    const query = new URLSearchParams({
+      document_type: input.documentType,
+      title: input.title
+    });
+    return apiClient.upload<MedicalDocument>(
+      `/api/v1/documents/me/upload?${query.toString()}`,
+      input.content,
+      { "Content-Type": input.mimeType, "X-File-Name": input.fileName },
+      currentUserId
+    );
+  },
+
   listFamilyMemberDocuments(familyId: string, targetUserId: string, currentUserId: string) {
     return apiClient
       .get<{ items: MedicalDocument[] }>(`/api/v1/families/${familyId}/members/${targetUserId}/documents`, currentUserId)
@@ -283,11 +318,20 @@ export const backendApi = {
         family_id: input.familyId,
         session_id: input.sessionId ?? undefined,
         source: "mobile_phase_16_chat",
+        quick_note_mode: Boolean(input.quickNoteMode),
         target_user_id: input.targetUserId,
         user_message: input.question,
         workflow_type: "chat"
       }
     });
+  },
+
+  confirmQuickNote(sessionId: string, taskId: string, currentUserId: string) {
+    return apiClient.post<{ conversation_task: NonNullable<AgentRunResponse["conversation_task"]>; message: string }>(`/api/v1/agent/sessions/${sessionId}/quick-note/${taskId}/confirm`, {}, currentUserId);
+  },
+
+  cancelQuickNote(sessionId: string, taskId: string, currentUserId: string) {
+    return apiClient.post<{ conversation_task: NonNullable<AgentRunResponse["conversation_task"]>; message: string }>(`/api/v1/agent/sessions/${sessionId}/quick-note/${taskId}/cancel`, {}, currentUserId);
   },
 
   createSymptomDraftPreview(input: SymptomDraftInput & { currentUserId: string }) {

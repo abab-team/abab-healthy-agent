@@ -9,6 +9,7 @@ from app.agent.tools.health_data_tools import BloodPressureSummaryTool, MetricSu
 from app.agent.tools.health_profile_tools import HealthProfileGetTool
 from app.agent.tools.health_record_tools import SymptomDraftCreateTool, SymptomsQueryTool, SymptomsSummaryTool
 from app.agent.tools.medical_timeline_tools import MedicalEventsQueryTool, MedicalFollowupsListTool
+from app.agent.tools.conversation_quick_note_tools import ConversationQuickNoteConfirmTool, ConversationQuickNoteDraftCreateTool
 
 if TYPE_CHECKING:
     from app.agent.tool_registry import AgentToolRegistry
@@ -38,6 +39,8 @@ def register_health_query_tools(registry: AgentToolRegistry) -> AgentToolRegistr
     registry.register(MedicalEventsQueryTool())
     registry.register(DocumentsQueryTool())
     registry.register(AlertsQueryTool())
+    registry.register(ConversationQuickNoteDraftCreateTool())
+    registry.register(ConversationQuickNoteConfirmTool())
     return registry
 
 
@@ -48,6 +51,8 @@ __all__ = [
     "AgentTool",
     "BloodPressureSummaryTool",
     "DocumentsQueryTool",
+    "ConversationQuickNoteDraftCreateTool",
+    "ConversationQuickNoteConfirmTool",
     "HealthProfileGetTool",
     "MedicalEventDraftCreateTool",
     "MedicalEventsQueryTool",

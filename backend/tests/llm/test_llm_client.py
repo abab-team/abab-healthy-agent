@@ -14,7 +14,7 @@ from app.llm.schemas import LLMMessage, LLMResponse  # noqa: E402
 
 class LLMClientTests(unittest.TestCase):
     def test_default_configuration_uses_mock_provider(self) -> None:
-        client = get_llm_client(Settings())
+        client = get_llm_client(Settings(LLM_ENABLED=False, LLM_PROVIDER="mock", LLM_MODEL="mock-model"))
 
         response = client.generate_text(system_prompt="system", user_prompt="hello")
 
@@ -66,7 +66,7 @@ class LLMClientTests(unittest.TestCase):
             get_llm_client(Settings(LLM_ENABLED=True, LLM_PROVIDER="unknown"))
 
     def test_chat_schema_output_is_valid(self) -> None:
-        client = get_llm_client(Settings(LLM_MODEL="mock-model"))
+        client = get_llm_client(Settings(LLM_ENABLED=False, LLM_PROVIDER="mock", LLM_MODEL="mock-model"))
 
         response = client.chat([LLMMessage(role="user", content="hello")])
 

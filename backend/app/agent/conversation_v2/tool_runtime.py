@@ -224,6 +224,8 @@ def _apply_conversation_context(
     prior = _plan_from_summary(previous)
     if prior is None:
         return plan
+    if _is_time_range_continuation(text):
+        return replace(prior, time_range=plan.time_range)
     if _is_overview_expansion(text):
         return replace(
             prior,
@@ -265,6 +267,10 @@ def _has_explicit_member_reference(text: str) -> bool:
 
 def _is_overview_expansion(text: str) -> bool:
     return any(term in text for term in ("不只是血压", "除了血压", "还有什么", "整体情况", "健康情况"))
+
+
+def _is_time_range_continuation(text: str) -> bool:
+    return any(term in text for term in ("最近30天", "30天", "30 天", "一个月", "上个月", "最近一周", "7天", "7 天"))
 
 
 def _safe_count(data: dict[str, Any], summary: dict[str, Any]) -> int | None:

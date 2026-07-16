@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ChatBubble } from "@/components/common/ChatBubble";
+import { PendingHealthDraftCard } from "@/components/agent/PendingHealthDraftCard";
+import { QuickNoteModeToggle } from "@/components/agent/QuickNoteModeToggle";
 import { ScreenHeader } from "@/components/common/ScreenHeader";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
@@ -50,6 +52,8 @@ export default function AgentScreen() {
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [familyId, setFamilyId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [quickNoteMode, setQuickNoteMode] = useState(false);
+  const [draftBusyId, setDraftBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -96,6 +100,7 @@ export default function AgentScreen() {
       familyId,
       question: normalized,
       sessionId: chatSessionId,
+      quickNoteMode,
       targetUserId: session.currentUserId
     });
     setQueryLoading(false);
@@ -114,7 +119,21 @@ export default function AgentScreen() {
     setQueryError(result.error?.message ?? "暂时无法回复这条消息，请稍后再试。");
   }
 
+  async function changeDraft(task: NonNullable<AgentRunResponse["conversation_task"]>, action: "confirm" | "cancel") {
+    if (!chatSessionId || !task.id || draftBusyId) return;
+    setDraftBusyId(task.id);
+    try {
+      const response = action === "confirm"
+        ? await (await import("@/lib/backendApi")).backendApi.confirmQuickNote(chatSessionId, task.id, session.currentUserId)
+        : await (await import("@/lib/backendApi")).backendApi.cancelQuickNote(chatSessionId, task.id, session.currentUserId);
+      setMessages((items) => items.map((item) => item.conversationTask?.id === task.id ? { ...item, conversationTask: response.conversation_task } : item));
+    } catch (error) {
+      setQueryError(error instanceof Error ? error.message : "暂时无法更新这条待确认记录。");
+    } finally { setDraftBusyId(null); }
+  }
+
   const composer = <View>
+    <QuickNoteModeToggle enabled={quickNoteMode} onChange={setQuickNoteMode} />
     <View style={styles.composer}>
       <TextInput
         multiline
@@ -128,7 +147,7 @@ export default function AgentScreen() {
         <Ionicons color="#FFFFFF" name="arrow-up" size={20} />
       </Pressable>
     </View>
-    <Text style={styles.composerHint}>{queryLoading ? "正在准备回复…" : "涉及家人记录时，我会先核对家庭共享权限。"}</Text>
+    {queryLoading ? <Text style={styles.composerHint}>正在准备回复…</Text> : null}
   </View>;
 
   return <AppScreen footer={composer} scroll={false}>
@@ -144,6 +163,7 @@ export default function AgentScreen() {
           <Text style={styles.taskStateTitle}>{taskStatusLabels[message.conversationTask.status] ?? "正在处理这条记录"}</Text>
           {message.conversationTask.missing_fields?.length ? <Text style={styles.taskStateHint}>还需要：{message.conversationTask.missing_fields.map((field) => taskFieldLabels[field] ?? field).join("、")}</Text> : <Text style={styles.taskStateHint}>预览不会写入正式健康记录。</Text>}
         </View> : null}
+        {message.role === "assistant" && message.conversationTask?.draft ? <PendingHealthDraftCard busy={draftBusyId === message.conversationTask.id} onCancel={() => void changeDraft(message.conversationTask!, "cancel")} onConfirm={() => void changeDraft(message.conversationTask!, "confirm")} task={message.conversationTask} /> : null}
         {message.role === "assistant" && message.suggestedAction ? <Pressable onPress={() => openSuggestedAction(message.suggestedAction!)} style={styles.actionButton}><Text style={styles.actionButtonText}>{actionLabels[message.suggestedAction]}</Text><Ionicons color={theme.colors.primaryDark} name="arrow-forward" size={15} /></Pressable> : null}
       </View>)}
       {queryLoading ? <View style={styles.typing}><View style={styles.typingDot} /><View style={styles.typingDot} /><View style={styles.typingDot} /></View> : null}
@@ -157,14 +177,14 @@ const styles = StyleSheet.create({
   actionButtonText: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
   chatContent: { gap: 12, paddingBottom: 18, paddingHorizontal: theme.spacing.lg },
   chatScroll: { flex: 1, marginHorizontal: -theme.spacing.lg },
-  composer: { alignItems: "flex-end", backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: theme.radius.md, borderWidth: 1, flexDirection: "row", gap: 8, padding: 7 },
+  composer: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: theme.radius.md, borderWidth: 1, flexDirection: "row", gap: 8, padding: 7 },
   composerHint: { color: theme.colors.subtle, fontSize: 11, lineHeight: 17, paddingHorizontal: 4 },
-  input: { color: theme.colors.ink, flex: 1, fontSize: 14, lineHeight: 20, maxHeight: 96, minHeight: 42, paddingHorizontal: 8, paddingVertical: 10, textAlignVertical: "top" },
+  input: { color: theme.colors.ink, flex: 1, fontSize: 14, lineHeight: 20, maxHeight: 96, minHeight: 42, minWidth: 0, paddingHorizontal: 8, paddingVertical: 10, textAlignVertical: "center" },
   messageGroup: { gap: 7 },
   questionHeader: { marginTop: 2 },
   sectionCaption: { color: theme.colors.subtle, fontSize: 12, marginTop: 4 },
   sectionTitle: { color: theme.colors.ink, fontSize: theme.type.section, fontWeight: "900" },
-  sendButton: { alignItems: "center", backgroundColor: theme.colors.primary, borderRadius: theme.radius.pill, height: 42, justifyContent: "center", width: 42 },
+  sendButton: { alignItems: "center", backgroundColor: theme.colors.primary, borderRadius: theme.radius.pill, flexShrink: 0, height: 42, justifyContent: "center", width: 42 },
   sendButtonDisabled: { opacity: 0.45 },
   suggestion: { alignItems: "center", alignSelf: "flex-start", backgroundColor: theme.colors.tealSoft, borderRadius: theme.radius.pill, flexDirection: "row", gap: 7, paddingHorizontal: 12, paddingVertical: 9 },
   suggestionText: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "800" },

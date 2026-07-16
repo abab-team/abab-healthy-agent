@@ -20,6 +20,7 @@ from app.modules.alerts.models import Alert  # noqa: E402
 from app.modules.document_center.models import MedicalDocument  # noqa: E402
 from app.modules.family.models import Family, FamilyMember  # noqa: E402
 from app.modules.health_data.models import BloodPressureRecord, HealthMetric  # noqa: E402
+from app.modules.health_data.enums import MetricType  # noqa: E402
 from app.modules.health_profile.models import HealthProfile  # noqa: E402
 from app.modules.health_record.models import HealthRecordDraft, SymptomRecord  # noqa: E402
 from app.modules.identity.models import User  # noqa: E402
@@ -109,6 +110,32 @@ def main() -> None:
                 .join(User, BloodPressureRecord.user_id == User.id)
                 .where(User.email == "father.demo@example.com"),
             ),
+            "gala_blood_pressure_118_76": session.scalar(
+                select(func.count())
+                .select_from(BloodPressureRecord)
+                .join(User, BloodPressureRecord.user_id == User.id)
+                .where(
+                    User.email == "gala.demo@example.com",
+                    BloodPressureRecord.systolic == 118,
+                    BloodPressureRecord.diastolic == 76,
+                ),
+            ),
+            "mother_blood_pressure_records": session.scalar(
+                select(func.count())
+                .select_from(BloodPressureRecord)
+                .join(User, BloodPressureRecord.user_id == User.id)
+                .where(User.email == "mother.demo@example.com"),
+            ),
+            "mother_fasting_blood_glucose": session.scalar(
+                select(func.count())
+                .select_from(HealthMetric)
+                .join(User, HealthMetric.user_id == User.id)
+                .where(
+                    User.email == "mother.demo@example.com",
+                    HealthMetric.metric_type == MetricType.BLOOD_GLUCOSE,
+                    HealthMetric.value_numeric == 5.4,
+                ),
+            ),
             "mother_symptom_records": session.scalar(
                 select(func.count())
                 .select_from(SymptomRecord)
@@ -150,10 +177,15 @@ def main() -> None:
         "permissions": 3,
         "permissions_with_alert_create": 3,
         "health_profiles": 3,
-        "father_blood_pressure_records": 10,
-        "mother_symptom_records": 2,
+        "father_blood_pressure_records": 4,
+        "gala_blood_pressure_118_76": 1,
+        "mother_blood_pressure_records": 3,
+        "mother_fasting_blood_glucose": 1,
+        "mother_symptom_records": 1,
+        "medical_events": 2,
+        "medical_documents": 4,
         "daily_reports": 3,
-        "alerts": 3,
+        "alerts": 6,
     }
     failures = [
         f"{name}: expected >= {minimum}, got {checks.get(name, 0)}"

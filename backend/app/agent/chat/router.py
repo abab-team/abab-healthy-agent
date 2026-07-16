@@ -32,6 +32,7 @@ class ConversationRoute:
 
 _WRITE_SYMPTOM_TERMS = ("头晕", "头痛", "不舒服", "症状", "睡不好", "咳嗽", "发烧")
 _WRITE_REQUEST_MARKERS = ("帮我记录", "记录一下", "记一下", "记录今天", "帮我记")
+_WRITE_EDIT_MARKERS = ("改成", "改为", "修改", "更新", "写入", "设为")
 _WRITE_EVENT_TERMS = ("就医记录", "检查记录", "复查记录", "健康事件", "门诊记录")
 _WRITE_ALERT_TERMS = ("提醒我", "创建提醒", "设个提醒", "健康提醒")
 _WRITE_EVENT_RECORD_TERMS = ("体温", "温度", "血压", "睡眠", "体重", "步数")
@@ -94,6 +95,8 @@ def route_conversation(
     if any(marker in text for marker in _WRITE_REQUEST_MARKERS) and any(term in text for term in _WRITE_SYMPTOM_TERMS):
         return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.SYMPTOM_DRAFT)
     if any(marker in text for marker in _WRITE_REQUEST_MARKERS) and any(term in text for term in _WRITE_EVENT_RECORD_TERMS):
+        return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.HEALTH_EVENT_DRAFT)
+    if any(marker in text for marker in _WRITE_EDIT_MARKERS) and any(term in text for term in _WRITE_EVENT_RECORD_TERMS):
         return ConversationRoute(ConversationIntent.RECORD_TASK, SuggestedAction.HEALTH_EVENT_DRAFT)
     if any(term in text for term in _HEALTH_INTERPRETATION_TERMS) and (plan.is_unknown or not plan.tool_name):
         return ConversationRoute(ConversationIntent.HEALTH_KNOWLEDGE)

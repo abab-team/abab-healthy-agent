@@ -13,7 +13,8 @@ export default function RootLayout() {
   }
 
   if (loginRequired && auth.session && pathname === "/login") {
-    return <Redirect href="/(tabs)" />;
+    // Route groups are implementation details, not navigation targets.
+    return <Redirect href="/" />;
   }
 
   return (

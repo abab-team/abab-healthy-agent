@@ -11,7 +11,7 @@ from app.agent.models import AgentConversationTask
 from app.db.mixins import utc_now
 
 
-ACTIVE_TASK_STATUSES = ("collecting", "ready_for_preview", "awaiting_confirmation")
+ACTIVE_TASK_STATUSES = ("collecting", "ready_for_preview", "awaiting_confirmation", "pending_confirmation")
 PAUSED_TASK_STATUS = "paused"
 DEFAULT_TASK_TTL_MINUTES = 30
 SENSITIVE_TASK_KEYS = {"raw_text", "raw_extracted_text", "file_path", "token", "password", "api_key", "private_key"}
@@ -129,12 +129,40 @@ def safe_task_summary(task: AgentConversationTask | None) -> dict[str, Any] | No
     if task is None:
         return None
     return {
+        "id": str(task.id),
         "task_type": task.task_type,
         "status": task.status,
         "missing_fields": list(task.missing_fields or [])[:5],
         "target_member": task.target_member,
         "expires_at": task.expires_at.isoformat() if task.expires_at else None,
+        "draft": _safe_card_payload(task.task_payload),
     }
+
+
+def create_pending_confirmation_task(
+    db: Session,
+    *,
+    session_id: UUID | str,
+    candidate: dict[str, Any],
+) -> AgentConversationTask | None:
+    """Persist a user-confirmable candidate, never a health fact."""
+    task = create_task(
+        db,
+        session_id=session_id,
+        task_type="quick_note_draft",
+        task_payload=candidate,
+        missing_fields=[],
+    )
+    if task is not None:
+        update_task(db, task, status="pending_confirmation")
+    return task
+
+
+def _safe_card_payload(payload: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not payload:
+        return None
+    allowed = {"candidate_type", "summary", "occurred_at_hint", "duration_hint", "details", "raw_description", "destination", "metric_type", "value", "unit", "measured_at", "systolic", "diastolic", "pulse", "title", "message"}
+    return {key: value for key, value in payload.items() if key in allowed and isinstance(value, (str, int, float, bool, type(None)))} or None
 
 
 def _safe_task_payload(payload: dict[str, Any] | None) -> dict[str, Any] | None:

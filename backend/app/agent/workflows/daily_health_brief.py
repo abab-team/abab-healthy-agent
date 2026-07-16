@@ -10,7 +10,8 @@ from app.agent.safety import AgentSafetyPolicy
 from app.agent.schemas import AgentWorkflowContext, AgentWorkflowResult, ToolExecutionRequest, ToolExecutionResult
 from app.agent.tool_executor import AgentToolExecutor
 from app.agent.tool_registry import AgentToolRegistry
-from app.agent.tools import register_readonly_health_tools
+from app.agent.persona import DAILY_BRIEF_PERSONA_GUIDANCE
+from app.agent.tools import register_health_query_tools
 from app.core.config import Settings, get_settings
 from app.llm.client import LLMClient, get_llm_client
 from app.llm.errors import LLMConfigurationError, LLMProviderError, LLMTimeoutError
@@ -18,11 +19,17 @@ from app.rag.context import safe_rag_context_for_agent
 
 
 DEFAULT_DAYS = 7
+RECENT_DAYS = 2
 DEFAULT_LIMIT = 10
 READONLY_HEALTH_BRIEF_TOOLS = (
     "health_profile.get",
+    "health_data.metrics.recent",
+    "health_data.metrics.recent",
+    "health_data.blood_pressure.summary",
     "health_data.blood_pressure.summary",
     "health_record.symptoms.summary",
+    "medical_timeline.events.query",
+    "documents.query",
     "medical_timeline.followups.list",
     "alerts.active.list",
 )
@@ -63,7 +70,7 @@ class DailyHealthBriefWorkflow:
         llm_client: LLMClient | None = None,
     ) -> None:
         if executor is None:
-            registry = register_readonly_health_tools(AgentToolRegistry())
+            registry = register_health_query_tools(AgentToolRegistry())
             executor = AgentToolExecutor(registry)
         self.executor = executor
         self.settings = settings
@@ -81,11 +88,15 @@ class DailyHealthBriefWorkflow:
         )
 
     def _run_without_graph(self, context: AgentWorkflowContext) -> AgentWorkflowResult:
-        request = context.request
         results = _BriefToolResults(
             profile=self._call_tool(context, "health_profile.get", {}),
+            recent_metrics=self._call_tool(context, "health_data.metrics.recent", {"days": RECENT_DAYS, "limit": DEFAULT_LIMIT}),
+            weekly_metrics=self._call_tool(context, "health_data.metrics.recent", {"days": DEFAULT_DAYS, "limit": 50}),
+            recent_blood_pressure=self._call_tool(context, "health_data.blood_pressure.summary", {"days": RECENT_DAYS}),
             blood_pressure=self._call_tool(context, "health_data.blood_pressure.summary", {"days": DEFAULT_DAYS}),
             symptoms=self._call_tool(context, "health_record.symptoms.summary", {"days": DEFAULT_DAYS}),
+            events=self._call_tool(context, "medical_timeline.events.query", {"days": DEFAULT_DAYS}),
+            documents=self._call_tool(context, "documents.query", {"limit": DEFAULT_LIMIT}),
             followups=self._call_tool(context, "medical_timeline.followups.list", {"limit": DEFAULT_LIMIT}),
             alerts=self._call_tool(context, "alerts.active.list", {"limit": DEFAULT_LIMIT}),
         )
@@ -132,8 +143,13 @@ class DailyHealthBriefWorkflow:
 @dataclass(frozen=True)
 class _BriefToolResults:
     profile: ToolExecutionResult
+    recent_metrics: ToolExecutionResult
+    weekly_metrics: ToolExecutionResult
+    recent_blood_pressure: ToolExecutionResult
     blood_pressure: ToolExecutionResult
     symptoms: ToolExecutionResult
+    events: ToolExecutionResult
+    documents: ToolExecutionResult
     followups: ToolExecutionResult
     alerts: ToolExecutionResult
 
@@ -250,6 +266,17 @@ def maybe_generate_daily_brief_with_llm(
             fallback_reason="llm_output_not_chinese",
         )
 
+    if not _is_compact_daily_brief(content):
+        return DailyBriefLLMAttempt(
+            content=rule_content,
+            llm_used=True,
+            llm_attempted=True,
+            llm_provider=response.provider,
+            llm_model=response.model,
+            fallback_used=True,
+            fallback_reason="llm_output_not_compact",
+        )
+
     content = _ensure_daily_brief_boundary(content)
     decision = AgentSafetyPolicy().evaluate_output(content, "daily_health_brief")
     if decision.blocked or _contains_blocked_llm_brief_terms(content):
@@ -276,6 +303,185 @@ def maybe_generate_daily_brief_with_llm(
 
 
 def build_daily_brief_llm_prompt(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
+    return _build_daily_brief_llm_prompt_v2(results, days=days)
+
+
+def _build_daily_brief_llm_prompt_v2(results: _BriefToolResults, *, days: int) -> str:
+    fact_package = build_daily_brief_fact_package(results, days=days)
+    return "\n".join(
+        [
+            "请依据下面的安全事实包，写一份首页健康小结。",
+            "只选一件对用户此刻真正有用的健康信息：优先近48小时的新变化，其次是最近7天的睡眠、体重、BMI、血压或待办提醒。",
+            "只写一小段，两到三句即可；不要标题、项目符号、编号、数据清单或逐项盘点。",
+            "开头用自然的陪伴式表达，例如“我看见啦”或“我替你留意到”；说完事实后，用一句温柔且贴合事实的收尾，例如“这个小变化我先替你记着，之后我们再一起看看”。",
+            "绝对不要把记录次数、资料归档、缺少哪些类别、记录连续性当成正文内容；没有足够有用信息时，只简短说明系统内暂时没有足够的近期记录。",
+            "内容只能整理已给出的事实。不要诊断、确诊、开处方、给剂量、建议停药或替代医生判断。",
+            "BMI 事实只可作为已有身高和体重的计算结果说明；不要据此给出疾病或健康保证。",
+            "不要提及工具、文件路径、原始文本、模型或内部状态。用简体中文。",
+            "安全事实包：",
+            fact_package,
+        ]
+    )
+
+
+def build_daily_brief_fact_package(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
+    """Create a compact, ToolExecutor-derived fact package for the LLM only."""
+    highlights = _brief_candidate_lines(results, days=days)
+    return "\n".join(
+        [
+            "可选健康重点（只选其中一项表达）：",
+            *[f"- {line}" for line in highlights],
+        ]
+    )
+
+
+def _brief_candidate_lines(results: _BriefToolResults, *, days: int) -> list[str]:
+    """Keep only facts that can become a useful, user-facing daily insight."""
+    candidates = [
+        _bmi_line(results.profile, results.weekly_metrics),
+        *_metric_overview_lines(results.recent_metrics, window_label="近48小时"),
+        *_blood_pressure_lines(results.recent_blood_pressure, window_label="近48小时"),
+        *_metric_overview_lines(results.weekly_metrics, window_label=f"最近{days}天"),
+        *_blood_pressure_lines(results.blood_pressure, window_label=f"最近{days}天"),
+        *_positive_count_lines(results.followups, label="待随访事项"),
+        *_positive_count_lines(results.alerts, label="健康提醒"),
+    ]
+    meaningful = [line for line in candidates if line and "暂时没有" not in line and line != PARTIAL_UNAVAILABLE_MESSAGE]
+    return _unique_lines(meaningful) or ["系统内暂时没有足够的近期健康记录"]
+
+
+def _recent_focus_lines(results: _BriefToolResults) -> list[str]:
+    lines = _metric_overview_lines(results.recent_metrics, window_label="近48小时")
+    lines.extend(_blood_pressure_lines(results.recent_blood_pressure, window_label="近48小时"))
+    return _unique_lines(lines) or ["系统内暂时没有近48小时的健康记录"]
+
+
+def _weekly_overview_lines(results: _BriefToolResults, *, days: int) -> list[str]:
+    lines = _metric_overview_lines(results.weekly_metrics, window_label=f"最近{days}天")
+    lines.extend(_blood_pressure_lines(results.blood_pressure, window_label=f"最近{days}天"))
+    lines.extend(_count_line(results.symptoms, label="症状记录"))
+    lines.extend(_count_line(results.events, label="健康事件"))
+    return _unique_lines(lines) or [f"系统内暂时没有最近{days}天的相关记录"]
+
+
+def _care_context_lines(results: _BriefToolResults) -> list[str]:
+    lines = [_profile_line(results.profile)]
+    lines.extend(_count_line(results.documents, label="医疗资料"))
+    lines.extend(_count_line(results.followups, label="待随访事项"))
+    lines.extend(_count_line(results.alerts, label="健康提醒"))
+    return _unique_lines(lines)
+
+
+def _metric_overview_lines(result: ToolExecutionResult, *, window_label: str) -> list[str]:
+    if _blocked_or_failed(result):
+        return [PARTIAL_UNAVAILABLE_MESSAGE]
+    data = result.output_data or {}
+    summaries = data.get("metric_summaries") if isinstance(data.get("metric_summaries"), list) else []
+    if not summaries:
+        return []
+    lines: list[str] = []
+    for summary in summaries:
+        if not isinstance(summary, dict):
+            continue
+        label = _metric_label(summary.get("metric_type"))
+        count = int(summary.get("count") or 0)
+        latest = _format_metric_value(summary.get("latest_value"), summary.get("unit"))
+        average = _format_metric_value(summary.get("avg_value"), summary.get("unit"))
+        if count <= 0:
+            continue
+        detail = f"{window_label}{label}记录 {count} 条"
+        if latest:
+            detail += f"，最近一次 {latest}"
+        if average and average != latest:
+            detail += f"，平均约 {average}"
+        lines.append(detail)
+    return lines
+
+
+def _blood_pressure_lines(result: ToolExecutionResult, *, window_label: str | None = None) -> list[str]:
+    if _blocked_or_failed(result):
+        return [PARTIAL_UNAVAILABLE_MESSAGE]
+    summary = ((result.output_data or {}).get("summary") or {})
+    count = int(summary.get("count") or 0)
+    prefix = f"{window_label}" if window_label else "系统内"
+    if count <= 0:
+        return [f"{prefix}暂时没有血压记录"]
+    latest_systolic = summary.get("latest_systolic")
+    latest_diastolic = summary.get("latest_diastolic")
+    average_systolic = summary.get("avg_systolic")
+    average_diastolic = summary.get("avg_diastolic")
+    detail = f"{prefix}血压记录 {count} 次"
+    if latest_systolic is not None and latest_diastolic is not None:
+        detail += f"，最近一次 {latest_systolic}/{latest_diastolic} mmHg"
+    if average_systolic is not None and average_diastolic is not None:
+        detail += f"，平均约 {_format_number(average_systolic)}/{_format_number(average_diastolic)} mmHg"
+    return [detail]
+
+
+def _count_line(result: ToolExecutionResult, *, label: str) -> list[str]:
+    if _blocked_or_failed(result):
+        return [f"{label}{PARTIAL_UNAVAILABLE_MESSAGE}"]
+    data = result.output_data or {}
+    count = int(data.get("count") or ((data.get("summary") or {}).get("count") or 0))
+    if count <= 0:
+        return [f"系统内暂时没有{label}"]
+    return [f"系统内有 {count} 条{label}"]
+
+
+def _positive_count_lines(result: ToolExecutionResult, *, label: str) -> list[str]:
+    if _blocked_or_failed(result):
+        return []
+    data = result.output_data or {}
+    count = int(data.get("count") or ((data.get("summary") or {}).get("count") or 0))
+    return [f"当前有 {count} 条{label}"] if count > 0 else []
+
+
+def _bmi_line(profile_result: ToolExecutionResult, metrics_result: ToolExecutionResult) -> str | None:
+    if _blocked_or_failed(profile_result) or _blocked_or_failed(metrics_result):
+        return None
+    profile = (profile_result.output_data or {}).get("profile") or {}
+    height_cm = profile.get("height_cm") if isinstance(profile, dict) else None
+    if not isinstance(height_cm, (int, float)) or height_cm <= 0:
+        return None
+    for summary in (metrics_result.output_data or {}).get("metric_summaries") or []:
+        if not isinstance(summary, dict) or summary.get("metric_type") != "weight":
+            continue
+        weight_kg = summary.get("latest_value")
+        if isinstance(weight_kg, (int, float)) and weight_kg > 0:
+            bmi = round(float(weight_kg) / ((float(height_cm) / 100) ** 2), 1)
+            return f"按最近一次体重 {_format_number(weight_kg)} kg 和身高 {_format_number(height_cm)} cm 计算，BMI 约为 {bmi}"
+    return None
+
+
+def _metric_label(value: Any) -> str:
+    return {
+        "sleep": "睡眠",
+        "sleep_duration": "睡眠",
+        "weight": "体重",
+        "steps": "步数",
+        "heart_rate": "心率",
+        "bmi": "BMI",
+        "temperature": "体温",
+    }.get(str(value or ""), "健康指标")
+
+
+def _format_metric_value(value: Any, unit: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    return f"{_format_number(value)} {str(unit or '').strip()}".strip()
+
+
+def _format_number(value: Any) -> str:
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(round(value, 1)) if isinstance(value, float) else str(value)
+
+
+def _unique_lines(lines: list[str]) -> list[str]:
+    return list(dict.fromkeys(line for line in lines if line))
+
+
+def _legacy_build_daily_brief_llm_prompt(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
     lines = [
         f"请根据以下系统内结构化摘要生成最近 {days} 天健康简报。",
         "只能整理记录，不能诊断、不能处方、不能给剂量、不能建议停药、不能判断急救。",
@@ -293,6 +499,10 @@ def build_daily_brief_llm_prompt(results: _BriefToolResults, *, days: int = DEFA
 
 
 def _daily_brief_system_prompt() -> str:
+    return DAILY_BRIEF_PERSONA_GUIDANCE + "\n\n" + _legacy_daily_brief_system_prompt()
+
+
+def _legacy_daily_brief_system_prompt() -> str:
     natural_language_rule = (
         "请始终使用简体中文，以自然、温和、简洁的方式整理已有记录。"
         "先给出一句概括，再提供不超过四条易读要点。"
@@ -310,6 +520,14 @@ def _daily_brief_system_prompt() -> str:
 
 def _contains_cjk(value: str) -> bool:
     return any("\u4e00" <= character <= "\u9fff" for character in value)
+
+
+def _is_compact_daily_brief(content: str) -> bool:
+    """Keep homepage summaries conversational instead of report-shaped."""
+    stripped = content.strip()
+    if len(stripped) > 180:
+        return False
+    return not any(marker in stripped for marker in ("\n-", "\n*", "\n1.", "\n2.", "###", "健康简报"))
 
 
 def _ensure_daily_brief_boundary(content: str) -> str:
@@ -409,7 +627,43 @@ def _record_rag_safety_summary(context: AgentWorkflowContext, summary: DailyBrie
 
 
 def build_daily_health_brief_content(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
-    return _build_conversational_daily_health_brief_content(results, days=days)
+    return _build_daily_health_brief_fallback_v2(results, days=days)
+
+
+def _build_daily_health_brief_fallback_v2(results: _BriefToolResults, *, days: int) -> str:
+    highlight = _brief_candidate_lines(results, days=days)[0]
+    if highlight == "系统内暂时没有足够的近期健康记录":
+        body = "系统内暂无相关记录。今天我先在这里替你留着位置；下次补记一项睡眠、体重或血压时，我们就能慢慢看出变化。"
+    else:
+        body = f"我看见啦，{highlight}。这个小变化我先替你记着，之后我们再一起看看。"
+    availability_note = _brief_availability_note(results)
+    return "\n\n".join(
+        [
+            body,
+            *([availability_note] if availability_note else []),
+            "内容基于系统内已有记录整理，不替代医生判断。如有明显不适或紧急情况，请联系医生或当地急救服务。",
+        ]
+    )
+
+
+def _brief_availability_note(results: _BriefToolResults) -> str | None:
+    if any(
+        result.blocked
+        for result in (
+            results.profile,
+            results.recent_metrics,
+            results.weekly_metrics,
+            results.recent_blood_pressure,
+            results.blood_pressure,
+            results.symptoms,
+            results.events,
+            results.documents,
+            results.followups,
+            results.alerts,
+        )
+    ):
+        return PARTIAL_UNAVAILABLE_MESSAGE
+    return None
 
 
 def _build_conversational_daily_health_brief_content(results: _BriefToolResults, *, days: int) -> str:
@@ -469,7 +723,7 @@ def _profile_line(result: ToolExecutionResult) -> str:
     return "系统内已有基础健康档案记录。"
 
 
-def _blood_pressure_lines(result: ToolExecutionResult) -> list[str]:
+def _legacy_blood_pressure_lines(result: ToolExecutionResult) -> list[str]:
     if _blocked_or_failed(result):
         return [PARTIAL_UNAVAILABLE_MESSAGE]
     summary = ((result.output_data or {}).get("summary") or {})

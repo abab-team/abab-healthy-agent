@@ -244,7 +244,9 @@ class _DeniedPermissionResult:
 
 
 def _requires_confirmation(metadata: AgentToolMetadata) -> bool:
-    return metadata.requires_confirmation or metadata.access_mode in {"write", "draft"} or metadata.risk_level in {"high", "critical"}
+    # A draft can be safely created without confirmation only when its own
+    # metadata explicitly says so. Formal writes always require confirmation.
+    return metadata.requires_confirmation or metadata.access_mode == "write" or metadata.risk_level in {"high", "critical"}
 
 
 def _safety_blocks_execution(safety_level: str | None) -> bool:

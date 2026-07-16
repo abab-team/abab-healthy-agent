@@ -41,6 +41,21 @@ export type BloodPressureRecord = {
   recorded_at: string;
   systolic: number;
   diastolic: number;
+  pulse?: number | null;
+};
+
+export type HealthMetricCreateInput = {
+  metric_type: "temperature" | "weight" | "sleep_duration" | "heart_rate" | "steps";
+  value_numeric: number;
+  unit: string;
+  measured_at: string;
+};
+
+export type BloodPressureCreateInput = {
+  systolic: number;
+  diastolic: number;
+  pulse?: number;
+  measured_at: string;
 };
 
 export type HealthMetricRecord = {
@@ -94,6 +109,8 @@ export type MedicalDocument = {
   file_name: string;
   file_mime_type?: string | null;
   file_size?: number | null;
+  document_type?: string | null;
+  document_date?: string | null;
   ai_extract_status: string;
   created_at?: string | null;
 };
@@ -200,6 +217,7 @@ type AgentRunBaseRequest = {
   session_id?: string;
   user_message: string;
   confirmation?: boolean;
+  quick_note_mode?: boolean;
   source?: string;
   tool_name?: never;
   input_data?: never;
@@ -272,11 +290,13 @@ export type AgentRunResponse = {
   tool_calls_count?: number;
   suggested_action?: "symptom_draft" | "health_event_draft" | "health_alert" | null;
   conversation_task?: {
+    id?: string;
     task_type: string;
     status: string;
     missing_fields?: string[];
     target_member?: string | null;
     expires_at?: string | null;
+    draft?: PendingHealthDraft | null;
   } | null;
   generated_content: string;
 };
@@ -374,6 +394,20 @@ export type AlertCreateInput = ControlledWorkflowInput & {
 export type ChatHealthQueryInput = ControlledWorkflowInput & {
   question: string;
   sessionId?: string | null;
+  quickNoteMode?: boolean;
+};
+
+export type PendingHealthDraft = {
+  candidate_type: "symptom" | "metric" | "medical_event" | "alert";
+  summary: string;
+  raw_description?: string;
+  details?: string;
+  occurred_at_hint?: string;
+  duration_hint?: string;
+  destination?: string;
+  metric_type?: string;
+  value?: number;
+  unit?: string;
 };
 
 export type AgentSessionSummary = {

@@ -49,6 +49,8 @@ class ConversationManager:
         message = (context.request.user_message or "").strip()
         if _contains(message, _CANCEL_MARKERS):
             tasks.cancel_task(context.db, task)
+            if _has_follow_up_after_cancel(message):
+                return ConversationTaskDecision(handled=False, task_state=tasks.safe_task_summary(task))
             return ConversationTaskDecision(
                 handled=True,
                 answer="好的，已取消这次草稿整理，不会写入任何健康记录。",
@@ -131,6 +133,14 @@ class ConversationManager:
                 task_state=tasks.safe_task_summary(task),
             )
 
+        if not missing:
+            tasks.update_task(context.db, task, task_payload=payload, missing_fields=[], status="ready_for_preview")
+            return ConversationTaskDecision(
+                handled=True,
+                answer=_ready_for_preview_prompt(payload),
+                suggested_action=_suggested_action_for_task(task.task_type),
+                task_state=tasks.safe_task_summary(task),
+            )
         tasks.update_task(context.db, task, task_payload=payload, missing_fields=missing)
         return ConversationTaskDecision(
             handled=True,
@@ -199,6 +209,23 @@ def _is_task_continuation(message: str, route: ConversationRoute) -> bool:
     if _contains(text, (*_ORGANIZE_MARKERS, *_CONFIRM_MARKERS, *_CANCEL_MARKERS, *_START_NOW_MARKERS)):
         return True
     return _duration(text) is not None
+
+
+def _has_follow_up_after_cancel(message: str) -> bool:
+    remaining = message
+    for marker in _CANCEL_MARKERS:
+        remaining = remaining.replace(marker, "")
+    return any(marker in remaining for marker in ("天气", "查询", "查看", "帮我"))
+
+
+def _ready_for_preview_prompt(payload: dict[str, Any]) -> str:
+    label = str(payload.get("label") or "这条症状")
+    start_time = str(payload.get("start_time") or "未填写")
+    duration = str(payload.get("duration") or "未填写")
+    return (
+        f"我已整理为待确认健康记录：\n症状：{label}\n开始时间：{start_time}\n持续：{duration}\n"
+        "请先预览并确认；确认前不会写入正式健康记录。"
+    )
 
 
 def _starts_new_record_task(message: str) -> bool:

@@ -19,6 +19,8 @@ const metricInfo = {
   sleep: { average: "7.2", history: ["7.2 小时", "6.8 小时", "7.5 小时", "7.0 小时"], label: "睡眠历史", max: "8.1", min: "6.2", type: "sleep_duration", unit: "小时" },
   weight: { average: "62.1", history: ["62.1 kg", "62.4 kg", "62.0 kg", "62.3 kg"], label: "体重历史", max: "62.8", min: "61.7", type: "weight", unit: "kg" },
   steps: { average: "6,100", history: ["6,100 步", "5,820 步", "6,520 步", "5,760 步"], label: "步数历史", max: "7,420", min: "4,880", type: "steps", unit: "步" }
+  ,"heart-rate": { average: "70", history: ["70 次/分"], label: "心率历史", max: "72", min: "68", type: "heart_rate", unit: "次/分" },
+  temperature: { average: "36.5", history: ["36.5 °C"], label: "体温历史", max: "36.8", min: "36.2", type: "temperature", unit: "°C" }
 } as const;
 
 function fallbackSeries(type: string, label: string, unit: string): ArchiveTrendSeries {

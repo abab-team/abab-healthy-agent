@@ -6,6 +6,10 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.agent import safety, service
+from app.agent.conversation_v2.response_composer import (
+    remove_disallowed_assurance_sentences,
+    remove_disallowed_medical_sentences,
+)
 from app.agent.enums import AgentSafetyLevel, AgentTraceStatus, AgentWorkflowName
 from app.agent.exceptions import AgentRuntimeError, AgentWorkflowNotRegisteredError
 from app.agent.schemas import AgentRunRequest, AgentRunResult, AgentWorkflowContext
@@ -101,6 +105,15 @@ class AgentRuntime:
                     safety_level=input_decision.safety_level,
                 )
             )
+            if workflow_name == AgentWorkflowName.CHAT_WORKFLOW:
+                normalized = _normalize_chat_output_for_harness(
+                    workflow_result.generated_content or workflow_result.message
+                )
+                workflow_result = replace(
+                    workflow_result,
+                    message=normalized,
+                    generated_content=normalized,
+                )
             output_decision = self.safety_policy.evaluate_output(workflow_result.generated_content or workflow_result.message, requested_workflow)
             service.record_safety_check(
                 db,
@@ -178,6 +191,20 @@ def _coerce_workflow_name(workflow_type: AgentWorkflowName | str) -> tuple[Agent
 def _input_summary(user_message: str, workflow_type: str) -> str:
     excerpt = safety.excerpt_text(user_message, max_length=200) or ""
     return f"workflow={workflow_type}; length={len(user_message)}; excerpt={excerpt}"
+
+
+def _normalize_chat_output_for_harness(content: str) -> str:
+    """Preserve safe general explanations before the shared final safety check.
+
+    Conversation V3 already applies this same presentation cleanup.  Repeating
+    it at the Harness boundary keeps a general-reference sentence from being
+    mistaken for a diagnosis while leaving an entirely unsafe response intact
+    for the global policy to block.
+    """
+    original = str(content or "")
+    cleaned = remove_disallowed_medical_sentences(original)
+    cleaned = remove_disallowed_assurance_sentences(cleaned)
+    return cleaned or original
 
 
 def _failed_result(trace_id, workflow_type: str, safety_level: AgentSafetyLevel) -> AgentRunResult:

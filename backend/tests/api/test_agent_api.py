@@ -17,6 +17,7 @@ from backend.tests.api.helpers import (
 
 from app.agent.enums import AgentMemorySource, AgentMemoryStatus, AgentMemoryType, AgentMemoryVisibility
 from app.agent.models import AgentMemory
+from app.agent.workflows.daily_health_brief import READONLY_HEALTH_BRIEF_TOOLS
 from app.modules.agent import api as agent_api
 from app.modules.alerts.models import Alert
 from app.modules.document_processing.models import MedicalEventDraft
@@ -290,7 +291,7 @@ class AgentApiTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["status"], "completed")
-        self.assertEqual(response.json()["tool_calls_count"], 5)
+        self.assertEqual(response.json()["tool_calls_count"], len(READONLY_HEALTH_BRIEF_TOOLS))
 
     def test_family_permission_denied_does_not_leak_target_data(self) -> None:
         patch_response = client.patch(
@@ -505,7 +506,7 @@ class AgentApiTestCase(unittest.TestCase):
         self.assertEqual(trace_response.status_code, 200)
         self.assertEqual(trace_response.json()["trace_id"], trace_id)
         self.assertEqual(tool_calls_response.status_code, 200)
-        self.assertEqual(len(tool_calls_response.json()), 5)
+        self.assertEqual(len(tool_calls_response.json()), len(READONLY_HEALTH_BRIEF_TOOLS))
         self.assertEqual(safety_response.status_code, 200)
         self.assertGreaterEqual(len(safety_response.json()), 2)
         for payload in (trace_response.text, tool_calls_response.text, safety_response.text):

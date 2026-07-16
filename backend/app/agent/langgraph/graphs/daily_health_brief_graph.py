@@ -27,11 +27,16 @@ class DailyHealthBriefGraph(CompiledStateGraphRunner):
     def _nodes(self):
         return [
             ("load_member_context", self._load_member_context),
-            ("metrics_tool", self._metrics_tool),
-            ("blood_pressure_tool", self._blood_pressure_tool),
+            ("profile_tool", self._profile_tool),
+            ("recent_metrics_tool", self._recent_metrics_tool),
+            ("weekly_metrics_tool", self._weekly_metrics_tool),
+            ("recent_blood_pressure_tool", self._recent_blood_pressure_tool),
+            ("weekly_blood_pressure_tool", self._weekly_blood_pressure_tool),
             ("symptoms_tool", self._symptoms_tool),
-            ("alerts_tool", self._alerts_tool),
             ("events_tool", self._events_tool),
+            ("documents_tool", self._documents_tool),
+            ("followups_tool", self._followups_tool),
+            ("alerts_tool", self._alerts_tool),
             ("brief_builder", self._brief_builder),
             ("critic", self._critic),
             ("optional_store_report", self._optional_store_report),
@@ -41,25 +46,45 @@ class DailyHealthBriefGraph(CompiledStateGraphRunner):
     def _load_member_context(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
         return append_graph_node(state, "load_member_context", metadata={**state.get("metadata", {}), "member_context": "request_context"})
 
-    def _metrics_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
+    def _profile_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
         self._call_profile_tool()
-        return append_graph_node(state, "metrics_tool", tool_calls_count=1)
+        return append_graph_node(state, "profile_tool", tool_calls_count=1)
 
-    def _blood_pressure_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
+    def _recent_metrics_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
+        self._call_recent_metrics_tool()
+        return append_graph_node(state, "recent_metrics_tool", tool_calls_count=2)
+
+    def _weekly_metrics_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
+        self._call_weekly_metrics_tool()
+        return append_graph_node(state, "weekly_metrics_tool", tool_calls_count=3)
+
+    def _recent_blood_pressure_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
+        self._call_recent_blood_pressure_tool()
+        return append_graph_node(state, "recent_blood_pressure_tool", tool_calls_count=4)
+
+    def _weekly_blood_pressure_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
         self._call_blood_pressure_tool()
-        return append_graph_node(state, "blood_pressure_tool", tool_calls_count=2)
+        return append_graph_node(state, "weekly_blood_pressure_tool", tool_calls_count=5)
 
     def _symptoms_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
         self._call_symptoms_tool()
-        return append_graph_node(state, "symptoms_tool", tool_calls_count=3)
+        return append_graph_node(state, "symptoms_tool", tool_calls_count=6)
 
     def _alerts_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
         self._call_alerts_tool()
-        return append_graph_node(state, "alerts_tool", tool_calls_count=4)
+        return append_graph_node(state, "alerts_tool", tool_calls_count=10)
 
     def _events_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
         self._call_events_tool()
-        return append_graph_node(state, "events_tool", tool_calls_count=5)
+        return append_graph_node(state, "events_tool", tool_calls_count=7)
+
+    def _documents_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
+        self._call_documents_tool()
+        return append_graph_node(state, "documents_tool", tool_calls_count=8)
+
+    def _followups_tool(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
+        self._call_followups_tool()
+        return append_graph_node(state, "followups_tool", tool_calls_count=9)
 
     def _brief_builder(self, state: BaseAgentGraphState) -> BaseAgentGraphState:
         from app.agent.workflows.daily_health_brief import (
@@ -125,6 +150,33 @@ class DailyHealthBriefGraph(CompiledStateGraphRunner):
             )
         return self._tool_results["blood_pressure"]
 
+    def _call_recent_metrics_tool(self):
+        if "recent_metrics" not in self._tool_results:
+            from app.agent.workflows.daily_health_brief import DEFAULT_LIMIT, RECENT_DAYS
+
+            self._tool_results["recent_metrics"] = self.workflow._call_tool(
+                self._require_context(), "health_data.metrics.recent", {"days": RECENT_DAYS, "limit": DEFAULT_LIMIT}
+            )
+        return self._tool_results["recent_metrics"]
+
+    def _call_weekly_metrics_tool(self):
+        if "weekly_metrics" not in self._tool_results:
+            from app.agent.workflows.daily_health_brief import DEFAULT_DAYS
+
+            self._tool_results["weekly_metrics"] = self.workflow._call_tool(
+                self._require_context(), "health_data.metrics.recent", {"days": DEFAULT_DAYS, "limit": 50}
+            )
+        return self._tool_results["weekly_metrics"]
+
+    def _call_recent_blood_pressure_tool(self):
+        if "recent_blood_pressure" not in self._tool_results:
+            from app.agent.workflows.daily_health_brief import RECENT_DAYS
+
+            self._tool_results["recent_blood_pressure"] = self.workflow._call_tool(
+                self._require_context(), "health_data.blood_pressure.summary", {"days": RECENT_DAYS}
+            )
+        return self._tool_results["recent_blood_pressure"]
+
     def _call_symptoms_tool(self):
         if "symptoms" not in self._tool_results:
             from app.agent.workflows.daily_health_brief import DEFAULT_DAYS
@@ -135,6 +187,24 @@ class DailyHealthBriefGraph(CompiledStateGraphRunner):
         return self._tool_results["symptoms"]
 
     def _call_events_tool(self):
+        if "events" not in self._tool_results:
+            from app.agent.workflows.daily_health_brief import DEFAULT_DAYS
+
+            self._tool_results["events"] = self.workflow._call_tool(
+                self._require_context(), "medical_timeline.events.query", {"days": DEFAULT_DAYS}
+            )
+        return self._tool_results["events"]
+
+    def _call_documents_tool(self):
+        if "documents" not in self._tool_results:
+            from app.agent.workflows.daily_health_brief import DEFAULT_LIMIT
+
+            self._tool_results["documents"] = self.workflow._call_tool(
+                self._require_context(), "documents.query", {"limit": DEFAULT_LIMIT}
+            )
+        return self._tool_results["documents"]
+
+    def _call_followups_tool(self):
         if "followups" not in self._tool_results:
             from app.agent.workflows.daily_health_brief import DEFAULT_LIMIT
 
@@ -155,9 +225,14 @@ class DailyHealthBriefGraph(CompiledStateGraphRunner):
 
         return _BriefToolResults(
             profile=self._call_profile_tool(),
+            recent_metrics=self._call_recent_metrics_tool(),
+            weekly_metrics=self._call_weekly_metrics_tool(),
+            recent_blood_pressure=self._call_recent_blood_pressure_tool(),
             blood_pressure=self._call_blood_pressure_tool(),
             symptoms=self._call_symptoms_tool(),
-            followups=self._call_events_tool(),
+            events=self._call_events_tool(),
+            documents=self._call_documents_tool(),
+            followups=self._call_followups_tool(),
             alerts=self._call_alerts_tool(),
         )
 
