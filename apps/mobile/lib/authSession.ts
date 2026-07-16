@@ -89,8 +89,16 @@ export function setAuthSession(session: AuthSession | null): void {
 }
 
 export async function loginWithPassword(email: string, password: string): Promise<AuthSession> {
-  const response = await fetch(`${requireBaseUrl()}/api/v1/auth/login`, {
-    body: JSON.stringify({ email, password }),
+  return authenticateWithPassword("login", { email, password });
+}
+
+export async function registerWithPassword(email: string, password: string, nickname?: string): Promise<AuthSession> {
+  return authenticateWithPassword("register", { email, nickname, password });
+}
+
+async function authenticateWithPassword(endpoint: "login" | "register", body: Record<string, string | undefined>): Promise<AuthSession> {
+  const response = await fetch(`${requireBaseUrl()}/api/v1/auth/${endpoint}`, {
+    body: JSON.stringify(body),
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json"
@@ -163,5 +171,5 @@ export function tokenPreview(value: string | null | undefined): string {
 
 function safeAuthError(payload: unknown): string {
   const detail = (payload as { detail?: { message?: string } })?.detail;
-  return detail?.message ?? "登录失败，请检查账号或密码。";
+  return detail?.message ?? "操作未完成，请检查填写的信息后重试。";
 }

@@ -3,6 +3,7 @@ import {
   getAuthSessionSnapshot,
   loginWithPassword,
   logoutStoredAuthSession,
+  registerWithPassword,
   subscribeAuthSession,
   tokenPreview
 } from "@/lib/authSession";
@@ -45,12 +46,29 @@ export function useAuthSession() {
     }
   }, []);
 
+  const register = useCallback(async (email: string, password: string, nickname?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const nextSession = await registerWithPassword(email, password, nickname);
+      setSession(nextSession);
+      return nextSession;
+    } catch (registerError) {
+      const message = registerError instanceof Error ? registerError.message : "注册失败。";
+      setError(message);
+      throw registerError;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     accessTokenPreview: tokenPreview(session?.access_token),
     error,
     loading,
     login,
     logout,
+    register,
     refreshTokenStored: Boolean(session?.refresh_token),
     session,
     user: session?.user ?? null

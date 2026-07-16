@@ -8,11 +8,13 @@ export default function RootLayout() {
   const auth = useAuthSession();
   const loginRequired = dataMode === "api" && authMode === "auth";
 
-  if (loginRequired && !auth.session && pathname !== "/login") {
+  const isAuthRoute = pathname === "/login" || pathname === "/register";
+
+  if (loginRequired && !auth.session && !isAuthRoute) {
     return <Redirect href="/login" />;
   }
 
-  if (loginRequired && auth.session && pathname === "/login") {
+  if (loginRequired && auth.session && isAuthRoute) {
     // Route groups are implementation details, not navigation targets.
     return <Redirect href="/" />;
   }
