@@ -91,9 +91,18 @@ def refresh(
 
 
 @router.post("/logout", response_model=AuthLogoutResponse)
-def logout(payload: AuthLogoutRequest, db: Session = Depends(get_db)) -> AuthLogoutResponse:
+def logout(
+    payload: AuthLogoutRequest,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> AuthLogoutResponse:
     try:
-        service.logout(db, refresh_token=payload.refresh_token)
+        service.logout(
+            db,
+            settings,
+            refresh_token=payload.refresh_token,
+            access_token=payload.access_token,
+        )
     except InvalidTokenError as exc:
         raise_unauthorized()
         raise AssertionError("unreachable") from exc

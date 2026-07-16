@@ -141,7 +141,7 @@ export async function logoutStoredAuthSession(): Promise<void> {
   const current = getAuthSessionSnapshot();
   if (current?.refresh_token) {
     await fetch(`${requireBaseUrl()}/api/v1/auth/logout`, {
-      body: JSON.stringify({ refresh_token: current.refresh_token }),
+      body: JSON.stringify({ access_token: current.access_token, refresh_token: current.refresh_token }),
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json"

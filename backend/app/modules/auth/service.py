@@ -76,11 +76,25 @@ def refresh_access_token(
     return _issue_token_pair(db, settings, user=user)
 
 
-def logout(db: Session, *, refresh_token: str) -> None:
+def logout(
+    db: Session,
+    settings: Settings,
+    *,
+    refresh_token: str,
+    access_token: str | None = None,
+) -> None:
     now = datetime.now(timezone.utc)
     stored_token = repository.get_refresh_token_by_hash(db, hash_token(refresh_token))
     if stored_token is None or stored_token.revoked_at is not None:
         raise InvalidTokenError("invalid token")
+    if access_token:
+        authenticated_user = authenticate_access_token(db, settings, access_token)
+        if authenticated_user.user.id != stored_token.user_id:
+            raise InvalidTokenError("invalid token")
+        session = repository.get_login_session(db, authenticated_user.session_id)
+        if session is None:
+            raise InvalidTokenError("invalid token")
+        repository.revoke_login_session(db, session, now)
     repository.revoke_refresh_token(db, stored_token, now)
 
 

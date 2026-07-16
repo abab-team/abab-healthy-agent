@@ -35,6 +35,7 @@ class AuthLogoutRequest(BaseModel):
     model_config = STRICT_MODEL_CONFIG
 
     refresh_token: str = Field(min_length=16, max_length=512)
+    access_token: str | None = Field(default=None, min_length=16, max_length=4096)
 
 
 class AuthTokenResponse(BaseModel):

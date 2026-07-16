@@ -98,9 +98,16 @@ class AuthServiceTests(unittest.TestCase):
             with self.assertRaises(InvalidTokenError):
                 service.refresh_access_token(db, self.settings, refresh_token=first_pair.refresh_token)
 
-            service.logout(db, refresh_token=second_pair.refresh_token)
+            service.logout(
+                db,
+                self.settings,
+                access_token=second_pair.access_token,
+                refresh_token=second_pair.refresh_token,
+            )
             with self.assertRaises(InvalidTokenError):
                 service.refresh_access_token(db, self.settings, refresh_token=second_pair.refresh_token)
+            with self.assertRaises(InvalidTokenError):
+                service.authenticate_access_token(db, self.settings, second_pair.access_token)
 
     def test_authenticate_access_token_returns_current_user(self) -> None:
         with SessionLocal() as db:

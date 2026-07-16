@@ -88,7 +88,10 @@ class AuthApiTests(unittest.TestCase):
 
         logout_response = client.post(
             "/api/v1/auth/logout",
-            json={"refresh_token": refreshed_body["refresh_token"]},
+            json={
+                "access_token": refreshed_body["access_token"],
+                "refresh_token": refreshed_body["refresh_token"],
+            },
         )
         self.assertEqual(logout_response.status_code, 200, logout_response.text)
         self.assertEqual(logout_response.json()["status"], "ok")
@@ -98,6 +101,12 @@ class AuthApiTests(unittest.TestCase):
             json={"refresh_token": refreshed_body["refresh_token"]},
         )
         self.assertEqual(after_logout_refresh.status_code, 401, after_logout_refresh.text)
+
+        after_logout_me = client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {refreshed_body['access_token']}"},
+        )
+        self.assertEqual(after_logout_me.status_code, 401, after_logout_me.text)
 
     def test_auth_me_requires_bearer_token(self) -> None:
         response = client.get("/api/v1/auth/me")
