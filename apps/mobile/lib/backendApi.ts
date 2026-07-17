@@ -17,6 +17,7 @@ import type {
   DocumentProcessingJob,
   Family,
   FamilyCreationResult,
+  FamilyInvitation,
   FamilyMember,
   FamilySharePermission,
   HealthProfile,
@@ -116,6 +117,10 @@ export const backendApi = {
 
   joinFamilyByCode(inviteCode: string, currentUserId: string) {
     return apiClient.post<JoinedFamilyResult>("/api/v1/families/join-by-code", { invite_code: inviteCode }, currentUserId);
+  },
+
+  createFamilyInvitationCode(familyId: string, currentUserId: string) {
+    return apiClient.post<FamilyInvitation>(`/api/v1/families/${familyId}/invitation-codes`, {}, currentUserId);
   },
 
   listFamilyMembers(familyId: string, currentUserId: string) {

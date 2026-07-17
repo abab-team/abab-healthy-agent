@@ -18,6 +18,7 @@ import type {
   DocumentPipelineDetail,
   Family,
   FamilyCreationResult,
+  FamilyInvitation,
   FamilyMember,
   FamilySharePermission,
   HealthStatus,
@@ -226,6 +227,7 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
       listMyFamilies: async () => ok<Family[]>([{ id: mockFamily.id, name: mockFamily.name, owner_user_id: "me" }]),
       createFamily: async () => fail<FamilyCreationResult>(new Error("演示模式不会创建真实家庭。")),
       joinFamilyByCode: async () => fail<JoinedFamilyResult>(new Error("演示模式不会加入真实家庭。")),
+      createFamilyInvitationCode: async () => fail<FamilyInvitation>(new Error("演示模式不会生成真实邀请码。")),
       getMyFamilySharePermission: async () => ok<FamilySharePermission>({ family_id: mockFamily.id, user_id: "me", share_all: false, can_view_profile: false, can_view_metrics: false, can_view_symptoms: false, can_view_medical_events: false, can_view_documents: false }),
       updateMyFamilySharePermission: async (_familyId: string, input: Partial<FamilySharePermission>) => ok<FamilySharePermission>({ family_id: mockFamily.id, user_id: "me", share_all: false, can_view_profile: false, can_view_metrics: false, can_view_symptoms: false, can_view_medical_events: false, can_view_documents: false, ...input }),
       getMemberDetail: async (id: string) => {
@@ -396,6 +398,9 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
     },
     joinFamilyByCode: async (inviteCode: string) => {
       try { return ok(await backendApi.joinFamilyByCode(inviteCode, currentUserId)); } catch (error) { return fail<JoinedFamilyResult>(error); }
+    },
+    createFamilyInvitationCode: async (familyId: string) => {
+      try { return ok(await backendApi.createFamilyInvitationCode(familyId, currentUserId)); } catch (error) { return fail<FamilyInvitation>(error); }
     },
     getMyFamilySharePermission: async (familyId: string) => {
       try { return ok(await backendApi.getMyFamilySharePermission(familyId, currentUserId)); } catch (error) { return fail<FamilySharePermission>(error); }
