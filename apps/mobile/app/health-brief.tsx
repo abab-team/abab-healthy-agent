@@ -28,6 +28,11 @@ type SummarySection = {
   title: string;
 };
 
+type HealthSuggestion = {
+  icon: keyof typeof Ionicons.glyphMap;
+  text: string;
+};
+
 function formatGeneratedAt(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "刚刚";
@@ -106,6 +111,34 @@ function buildSections(data: PersonalArchiveRecentRecordsData | null): SummarySe
   return sections.filter((section) => section.metrics.length > 0);
 }
 
+function buildHealthSuggestions(data: PersonalArchiveRecentRecordsData | null): HealthSuggestion[] {
+  const metrics = data?.metrics ?? [];
+  const bloodPressure = recentSevenDays(data?.bloodPressure ?? []);
+  const sleep = recentSevenDays(metrics.filter((record) => record.metric_type === "sleep_duration"));
+  const steps = recentSevenDays(metrics.filter((record) => record.metric_type === "steps"));
+  const suggestions: HealthSuggestion[] = [];
+
+  if (sleep.length > 0) {
+    suggestions.push({ icon: "moon-outline", text: "继续保持相对固定的入睡和起床时间，让睡眠记录更容易形成规律。" });
+  } else {
+    suggestions.push({ icon: "moon-outline", text: "可以先从记录睡眠开始，连续记录几天后更容易了解自己的作息情况。" });
+  }
+
+  if (steps.length > 0) {
+    suggestions.push({ icon: "walk-outline", text: "在现有活动基础上，可安排轻松步行或拉伸，把活动分散到一天中完成。" });
+  } else {
+    suggestions.push({ icon: "walk-outline", text: "如果方便，可从每天 10–15 分钟的轻松步行或拉伸开始，按自己的感受循序增加。" });
+  }
+
+  if (bloodPressure.length > 0) {
+    suggestions.push({ icon: "pulse-outline", text: "下次记录血压时尽量选择相近时段和相同姿势，便于后续对照变化。" });
+  } else {
+    suggestions.push({ icon: "create-outline", text: "下周可优先持续记录一两项关心的指标，例如睡眠、步数或体重，方便回看日常变化。" });
+  }
+
+  return suggestions;
+}
+
 function extractReminder(content: string | null): string | null {
   if (!content) return null;
   const lines = content.split("\n").map((line) => line.trim());
@@ -141,6 +174,7 @@ export default function HealthBriefScreen() {
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const content = latest.data?.generated_content ?? null;
   const sections = useMemo(() => buildSections(archive.data), [archive.data]);
+  const suggestions = useMemo(() => buildHealthSuggestions(archive.data), [archive.data]);
   const reminder = extractReminder(content);
 
   const refreshBrief = useCallback(async () => {
@@ -171,6 +205,22 @@ export default function HealthBriefScreen() {
       {latest.error ? <ApiErrorState message={latest.error} /> : null}
       {archive.error ? <ApiErrorState message={archive.error} /> : null}
       {refreshError ? <ApiErrorState message={refreshError} /> : null}
+
+      {content ? (
+        <CardBase style={styles.suggestionCard}>
+          <View style={styles.sectionHeading}>
+            <View style={styles.suggestionIcon}><Ionicons color="#268C78" name="leaf-outline" size={18} /></View>
+            <Text style={styles.sectionTitle}>健康建议</Text>
+          </View>
+          <Text style={styles.suggestionIntro}>结合最近的记录，给你三个容易开始的小建议：</Text>
+          {suggestions.map((suggestion) => (
+            <View key={suggestion.text} style={styles.suggestionRow}>
+              <Ionicons color="#268C78" name={suggestion.icon} size={17} />
+              <Text style={styles.suggestionText}>{suggestion.text}</Text>
+            </View>
+          ))}
+        </CardBase>
+      ) : null}
 
       {content && sections.map((section) => (
         <CardBase key={section.id} style={styles.sectionCard}>
@@ -222,6 +272,11 @@ const styles = StyleSheet.create({
   sectionHeading: { alignItems: "center", flexDirection: "row", gap: 8 },
   sectionIcon: { alignItems: "center", borderRadius: 14, height: 28, justifyContent: "center", width: 28 },
   sectionTitle: { color: theme.colors.ink, fontSize: 16, fontWeight: "900" },
+  suggestionCard: { backgroundColor: "#F2FBF7", gap: 9 },
+  suggestionIcon: { alignItems: "center", backgroundColor: "#DDF5EA", borderRadius: 14, height: 28, justifyContent: "center", width: 28 },
+  suggestionIntro: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18 },
+  suggestionRow: { alignItems: "flex-start", flexDirection: "row", gap: 8 },
+  suggestionText: { color: theme.colors.ink, flex: 1, fontSize: 13, lineHeight: 20 },
   subtitle: { color: theme.colors.subtle, fontSize: 12, marginTop: 3 },
   title: { color: theme.colors.ink, fontSize: 19, fontWeight: "900" }
 });
