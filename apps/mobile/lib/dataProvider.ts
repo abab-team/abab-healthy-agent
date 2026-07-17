@@ -23,6 +23,7 @@ import type {
   BloodPressureCreateInput,
   ImportPreviewResult,
   ImportPreviewRow,
+  LatestDailyHealthBrief,
   MedicalDocument,
   MedicalEventDraftInput,
   SymptomRecord,
@@ -280,6 +281,7 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           workflow_type: "daily_health_brief"
         });
       },
+      getLatestDailyHealthBrief: async () => ok<LatestDailyHealthBrief | null>(null),
       runChatHealthQuery: async (input: ChatHealthQueryInput) =>
         ok<AgentRunResponse>({
           generated_content: buildMockChatReply(input.question),
@@ -426,6 +428,13 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         return ok(await backendApi.runDailyHealthBrief({ currentUserId, familyId, targetUserId }));
       } catch (error) {
         return fail<AgentRunResponse>(error);
+      }
+    },
+    getLatestDailyHealthBrief: async () => {
+      try {
+        return ok<LatestDailyHealthBrief | null>(await backendApi.getLatestDailyHealthBrief(currentUserId));
+      } catch (error) {
+        return fail<LatestDailyHealthBrief | null>(error);
       }
     },
     runChatHealthQuery: async (input: ChatHealthQueryInput) => {

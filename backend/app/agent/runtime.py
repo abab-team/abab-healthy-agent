@@ -136,7 +136,8 @@ class AgentRuntime:
                 safety_level = output_decision.safety_level
             elif input_decision.safety_level != "safe":
                 safety_level = input_decision.safety_level
-            service.complete_trace(db, trace.id, final_output_summary=safety.excerpt_text(message))
+            trace_output = generated_content if workflow_name == AgentWorkflowName.DAILY_HEALTH_BRIEF else message
+            service.complete_trace(db, trace.id, final_output_summary=safety.excerpt_text(trace_output, max_length=6000))
             db.commit()
             return AgentRunResult(
                 trace_id=trace.id,

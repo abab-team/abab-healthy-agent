@@ -91,6 +91,27 @@ class AgentApiTestCase(unittest.TestCase):
         for term in UNSAFE_TERMS:
             self.assertNotIn(term, response.text.lower())
 
+    def test_home_can_read_its_latest_daily_health_brief(self) -> None:
+        payload = self._payload(target_user_id=self.actor["id"])
+        payload["source"] = "mobile_home_daily_health_brief"
+        created = client.post("/api/v1/agent/runs", headers=auth_headers(self.actor["id"]), json=payload)
+        latest = client.get("/api/v1/agent/daily-health-brief/latest", headers=auth_headers(self.actor["id"]))
+
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(latest.status_code, 200)
+        self.assertEqual(latest.json()["trace_id"], created.json()["trace_id"])
+        self.assertEqual(latest.json()["generated_content"], created.json()["generated_content"])
+        self.assertIn("generated_at", latest.json())
+
+    def test_home_daily_health_brief_is_not_shared_with_another_user(self) -> None:
+        payload = self._payload(target_user_id=self.actor["id"])
+        payload["source"] = "mobile_home_daily_health_brief"
+        client.post("/api/v1/agent/runs", headers=auth_headers(self.actor["id"]), json=payload)
+
+        response = client.get("/api/v1/agent/daily-health-brief/latest", headers=auth_headers(self.outsider["id"]))
+
+        self.assertEqual(response.status_code, 404)
+
     def test_same_request_id_reuses_the_existing_run(self) -> None:
         payload = self._payload(target_user_id=self.actor["id"])
         payload["request_id"] = "api-idempotency-001"

@@ -59,6 +59,22 @@ def get_trace_by_request_id(db: Session, request_id: str) -> AgentTrace | None:
     return db.scalar(stmt)
 
 
+def get_latest_home_daily_health_brief(db: Session, *, user_id: UUID) -> AgentTrace | None:
+    stmt = (
+        select(AgentTrace)
+        .where(
+            AgentTrace.current_user_id == user_id,
+            AgentTrace.target_user_id == user_id,
+            AgentTrace.workflow_name == AgentWorkflowName.DAILY_HEALTH_BRIEF,
+            AgentTrace.source_page == "mobile_home_daily_health_brief",
+            AgentTrace.status == AgentTraceStatus.SUCCESS,
+            AgentTrace.final_output_summary.is_not(None),
+        )
+        .order_by(AgentTrace.ended_at.desc(), AgentTrace.created_at.desc())
+    )
+    return db.scalar(stmt)
+
+
 def mark_trace_running(db: Session, trace_id: UUID, *, started_at: datetime | None = None) -> AgentTrace | None:
     trace = get_trace(db, trace_id)
     if trace is None:

@@ -29,6 +29,7 @@ from app.modules.agent.api_schemas import (
     AgentSafetyCheckResponse,
     AgentToolCallResponse,
     AgentTraceResponse,
+    LatestDailyHealthBriefResponse,
     agent_memory_item_response,
     agent_message_response,
     agent_run_response,
@@ -74,6 +75,21 @@ def create_agent_run(
         ),
     )
     return agent_run_response(result)
+
+
+@router.get("/daily-health-brief/latest", response_model=LatestDailyHealthBriefResponse)
+def get_latest_home_daily_health_brief(
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+) -> LatestDailyHealthBriefResponse:
+    trace = agent_service.get_latest_home_daily_health_brief(db, user_id=current_user_id)
+    if trace is None or not trace.final_output_summary:
+        raise_not_found()
+    return LatestDailyHealthBriefResponse(
+        trace_id=trace.id,
+        generated_content=trace.final_output_summary[:6000],
+        generated_at=trace.ended_at or trace.started_at,
+    )
 
 
 @router.get("/memory", response_model=list[AgentMemoryItemResponse])

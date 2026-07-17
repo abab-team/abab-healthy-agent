@@ -52,6 +52,10 @@ def get_trace_by_request_id(db: Session, request_id: str) -> AgentTrace | None:
     return repository.get_trace_by_request_id(db, request_id)
 
 
+def get_latest_home_daily_health_brief(db: Session, *, user_id: UUID) -> AgentTrace | None:
+    return repository.get_latest_home_daily_health_brief(db, user_id=user_id)
+
+
 def complete_trace(db: Session, trace_id: UUID, *, final_output_summary: str | None = None) -> AgentTrace:
     trace = _require_trace(db, trace_id)
     completed = repository.mark_trace_completed(

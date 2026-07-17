@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/apiClient";
 import type {
   AgentRunResponse,
   AgentMemoryItem,
+  LatestDailyHealthBrief,
   AgentMessageSummary,
   AgentSessionSummary,
   AgentSafetyCheckSummary,
@@ -303,12 +304,16 @@ export const backendApi = {
       currentUserId: input.currentUserId,
       body: {
         family_id: input.familyId,
-        source: "mobile_phase_09_3_a",
+        source: "mobile_home_daily_health_brief",
         target_user_id: input.targetUserId,
         user_message: "请根据系统内记录生成今日健康简报。",
         workflow_type: "daily_health_brief"
       }
     });
+  },
+
+  getLatestDailyHealthBrief(currentUserId: string) {
+    return apiClient.get<LatestDailyHealthBrief>("/api/v1/agent/daily-health-brief/latest", currentUserId);
   },
 
   runChatHealthQuery(input: ChatHealthQueryInput & { currentUserId: string }) {

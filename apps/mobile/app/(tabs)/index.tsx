@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { HealthTrendSection } from "@/components/cards/HealthTrendSection";
@@ -39,14 +39,43 @@ function shortId(id: string): string {
   return id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-6)}` : id;
 }
 
+function formatGeneratedAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "刚刚";
+  }
+  return date.toLocaleString("zh-CN", { day: "numeric", hour: "2-digit", minute: "2-digit", month: "numeric" });
+}
+
 export default function HomeScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
   const [brief, setBrief] = useState<AgentRunResponse | null>(null);
+  const [briefGeneratedAt, setBriefGeneratedAt] = useState<string | null>(null);
   const [briefError, setBriefError] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
-  const briefContent = session.dataMode === "mock" ? personalBriefFallback : brief?.generated_content ?? personalBriefFallback;
+  const briefContent = brief?.generated_content ?? personalBriefFallback;
   const trendResource = useApiResource(() => provider.getArchiveTrends(), [session.currentUserId]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadLatestBrief() {
+      const result = await provider.getLatestDailyHealthBrief();
+      if (active && result.ok && result.data) {
+        setBrief({
+          generated_content: result.data.generated_content,
+          status: "completed",
+          trace_id: result.data.trace_id,
+          workflow_type: "daily_health_brief"
+        });
+        setBriefGeneratedAt(result.data.generated_at);
+      }
+    }
+    void loadLatestBrief();
+    return () => {
+      active = false;
+    };
+  }, [session.currentUserId, session.dataMode]);
 
   async function runBrief() {
     setBriefLoading(true);
@@ -55,6 +84,7 @@ export default function HomeScreen() {
     setBriefLoading(false);
     if (result.ok && result.data) {
       setBrief(result.data);
+      setBriefGeneratedAt(new Date().toISOString());
       return;
     }
     setBriefError(result.error?.message ?? "健康小结暂时无法整理，请稍后再试。");
@@ -101,6 +131,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.resultBox}>
           <Text style={styles.resultText}>{briefContent}</Text>
+          {briefGeneratedAt ? <Text style={styles.generatedAt}>最近生成：{formatGeneratedAt(briefGeneratedAt)}</Text> : null}
           {brief ? (
             <Link href={routes.agentRun(brief.trace_id)} style={styles.detailLink}>
               查看本次整理 · {shortId(brief.trace_id)}
@@ -146,6 +177,7 @@ const styles = StyleSheet.create({
   cardCaption: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 4 },
   cardTitle: { color: theme.colors.ink, fontSize: theme.type.section, fontWeight: "900" },
   detailLink: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
+  generatedAt: { color: theme.colors.subtle, fontSize: 11, marginTop: 10 },
   disclaimer: { alignItems: "flex-start", flexDirection: "row", gap: 8, paddingHorizontal: 4 },
   disclaimerText: { color: theme.colors.subtle, flex: 1, fontSize: 11, lineHeight: 17 },
   dotTeal: { backgroundColor: theme.colors.primary },

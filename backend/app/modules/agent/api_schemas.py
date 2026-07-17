@@ -258,6 +258,12 @@ class AgentTraceResponse(BaseModel):
     duration_ms: int | None = None
 
 
+class LatestDailyHealthBriefResponse(BaseModel):
+    trace_id: UUID
+    generated_content: str
+    generated_at: datetime
+
+
 class AgentToolCallResponse(BaseModel):
     id: UUID
     tool_name: str

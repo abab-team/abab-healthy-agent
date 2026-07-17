@@ -301,6 +301,12 @@ export type AgentRunResponse = {
   generated_content: string;
 };
 
+export type LatestDailyHealthBrief = {
+  trace_id: string;
+  generated_content: string;
+  generated_at: string;
+};
+
 export type AgentRunDetail = AgentRunResponse & {
   completed_at?: string | null;
   created_at?: string | null;
