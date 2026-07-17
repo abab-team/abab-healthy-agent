@@ -291,6 +291,17 @@ def maybe_generate_daily_brief_with_llm(
             safety_filtered=True,
         )
 
+    if not _is_structured_home_brief(content):
+        return DailyBriefLLMAttempt(
+            content=rule_content,
+            llm_used=True,
+            llm_attempted=True,
+            llm_provider=response.provider,
+            llm_model=response.model,
+            fallback_used=True,
+            fallback_reason="llm_output_not_structured",
+        )
+
     return DailyBriefLLMAttempt(
         content=content,
         llm_used=True,
@@ -310,14 +321,13 @@ def _build_daily_brief_llm_prompt_v2(results: _BriefToolResults, *, days: int) -
     fact_package = build_daily_brief_fact_package(results, days=days)
     return "\n".join(
         [
-            "请依据下面的安全事实包，写一份首页健康小结。",
-            "优先选择两项不同类型、对用户此刻有用的近期健康信息；只有一项可用时才只写一项。优先近48小时的新变化，其次是最近7天的睡眠、体重、血压、心率、步数或待办提醒，BMI 只在没有更合适的近期记录时使用。",
-            "只写一小段，两到三句即可；不要标题、项目符号、编号、数据清单或逐项盘点。",
-            "开头用自然的陪伴式表达，例如“我看见啦”或“我替你留意到”；说完事实后，用一句温柔且贴合事实的收尾，例如“这个小变化我先替你记着，之后我们再一起看看”。",
-            "绝对不要把记录次数、资料归档、缺少哪些类别、记录连续性当成正文内容；没有足够有用信息时，只简短说明系统内暂时没有足够的近期记录。",
+            "请依据下面的安全事实包，写一份首页健康小结，并严格保留以下栏目结构。",
+            "第一行必须是“健康小结 🌱”，第二行说明整理的是最近 7 天的已记录信息。",
+            "按有数据的栏目依次写“❤️ 身体指标”“😴 生活状态”“🏃 日常习惯”“📌 小提醒”；每个栏目用一到两句，带上真实的记录次数、最近一次或平均值。",
+            "如果数据不够，不要补造数值或评价；没有数据的栏目直接省略。血压只能说明已记录次数、最近值、平均值或范围，不要写正常、稳定、波动异常等判断。",
+            "小提醒只可复述系统内已有提醒/随访事项，或建议继续积累已有指标记录；不要诊断或给治疗建议。",
             "内容只能整理已给出的事实。不要诊断、确诊、开处方、给剂量、建议停药或替代医生判断。",
-            "BMI 事实只可作为已有身高和体重的计算结果说明；不要据此给出疾病或健康保证。",
-            "不要提及工具、文件路径、原始文本、模型或内部状态。用简体中文。",
+            "不要使用 Markdown 星号，不要提及工具、文件路径、原始文本、模型或内部状态。用简体中文。",
             "安全事实包：",
             fact_package,
         ]
@@ -542,7 +552,12 @@ def _is_compact_daily_brief(content: str) -> bool:
     stripped = content.strip()
     if len(stripped) > 180:
         return False
-    return not any(marker in stripped for marker in ("\n-", "\n*", "\n1.", "\n2.", "###", "健康简报"))
+    return not any(marker in stripped for marker in ("\n-", "\n*", "\n1.", "\n2.", "###"))
+
+
+def _is_structured_home_brief(content: str) -> bool:
+    headings = ("❤️ 身体指标", "😴 生活状态", "🏃 日常习惯", "📌 小提醒")
+    return content.startswith("健康小结 🌱") and "📌 小提醒" in content and any(heading in content for heading in headings[:-1])
 
 
 def _ensure_daily_brief_boundary(content: str) -> str:
@@ -639,7 +654,150 @@ def _record_rag_safety_summary(context: AgentWorkflowContext, summary: DailyBrie
 
 
 def build_daily_health_brief_content(results: _BriefToolResults, *, days: int = DEFAULT_DAYS) -> str:
-    return _build_daily_health_brief_fallback_v2(results, days=days)
+    return _build_structured_daily_health_brief(results, days=days)
+
+
+def _build_structured_daily_health_brief(results: _BriefToolResults, *, days: int) -> str:
+    sections: list[str] = []
+    body_lines = _body_metric_lines(results)
+    if body_lines:
+        sections.append("❤️ 身体指标\n" + "\n".join(body_lines))
+
+    lifestyle_lines = _lifestyle_metric_lines(results)
+    if lifestyle_lines:
+        sections.append("😴 生活状态\n" + "\n".join(lifestyle_lines))
+
+    habit_lines = _habit_metric_lines(results)
+    if habit_lines:
+        sections.append("🏃 日常习惯\n" + "\n".join(habit_lines))
+
+    reminder_lines = _daily_brief_reminder_lines(results)
+    if not reminder_lines:
+        tracked = _tracked_metric_labels(results.weekly_metrics)
+        if tracked:
+            reminder_lines.append(f"继续积累{'、'.join(tracked)}记录，更容易观察个人长期趋势。")
+        else:
+            reminder_lines.append("目前系统内暂无足够的近期记录；补记一项睡眠、血压或体重后，我可以继续帮你整理。")
+    sections.append("📌 小提醒\n" + "\n".join(reminder_lines[:2]))
+
+    availability_note = _brief_availability_note(results)
+    return "\n\n".join(
+        [
+            "健康小结 🌱\n我帮你整理了最近 7 天的已记录信息。",
+            *sections,
+            *([availability_note] if availability_note else []),
+            "基于系统内已有记录整理，不替代医生判断；如有明显不适请及时就医。",
+        ]
+    )
+
+
+def _body_metric_lines(results: _BriefToolResults) -> list[str]:
+    lines: list[str] = []
+    summary = _tool_summary(results.blood_pressure)
+    count = _summary_count(summary)
+    if count:
+        latest = _blood_pressure_value(summary, "latest_systolic", "latest_diastolic")
+        average = _blood_pressure_value(summary, "avg_systolic", "avg_diastolic")
+        detail = f"最近 7 天记录了 {count} 次血压"
+        if latest:
+            detail += f"，最近一次为 {latest}"
+        if average and average != latest:
+            detail += f"，平均约 {average}"
+        minimum = _blood_pressure_value(summary, "min_systolic", "min_diastolic")
+        maximum = _blood_pressure_value(summary, "max_systolic", "max_diastolic")
+        if count > 1 and minimum and maximum and minimum != maximum:
+            detail += f"，已记录范围为 {minimum} 至 {maximum}"
+        lines.append(detail + "。")
+    lines.extend(_metric_lines(results.weekly_metrics, ("weight", "heart_rate", "temperature")))
+    return lines
+
+
+def _lifestyle_metric_lines(results: _BriefToolResults) -> list[str]:
+    return _metric_lines(results.weekly_metrics, ("sleep", "sleep_duration"))
+
+
+def _habit_metric_lines(results: _BriefToolResults) -> list[str]:
+    return _metric_lines(results.weekly_metrics, ("steps",))
+
+
+def _metric_lines(result: ToolExecutionResult, metric_types: tuple[str, ...]) -> list[str]:
+    if _blocked_or_failed(result):
+        return []
+    summaries = (result.output_data or {}).get("metric_summaries") or []
+    lines: list[str] = []
+    for summary in summaries:
+        if not isinstance(summary, dict) or str(summary.get("metric_type")) not in metric_types:
+            continue
+        count = _summary_count(summary)
+        if not count:
+            continue
+        metric_type = str(summary.get("metric_type"))
+        label = _metric_label(metric_type)
+        latest = _format_summary_metric_value(summary.get("latest_value"), summary.get("unit"), metric_type)
+        average = _format_summary_metric_value(summary.get("avg_value"), summary.get("unit"), metric_type)
+        detail = f"最近 7 天记录了 {count} 次{label}"
+        if average:
+            detail += f"，平均约 {average}"
+        if latest and latest != average:
+            detail += f"，最近一次为 {latest}"
+        lines.append(detail + "。")
+    return lines
+
+
+def _daily_brief_reminder_lines(results: _BriefToolResults) -> list[str]:
+    lines: list[str] = []
+    if not _blocked_or_failed(results.followups):
+        items = (results.followups.output_data or {}).get("items") or []
+        if items:
+            title = items[0].get("title") if isinstance(items[0], dict) else None
+            lines.append(f"系统内有待跟进事项：{str(title or '请查看已有健康事件记录')}。")
+    if not _blocked_or_failed(results.alerts):
+        items = (results.alerts.output_data or {}).get("items") or []
+        if items:
+            title = items[0].get("title") if isinstance(items[0], dict) else None
+            lines.append(f"当前提醒：{str(title or '请查看已有提醒')}。")
+    return lines
+
+
+def _tracked_metric_labels(result: ToolExecutionResult) -> list[str]:
+    if _blocked_or_failed(result):
+        return []
+    return _unique_lines(
+        [_metric_label(summary.get("metric_type")) for summary in (result.output_data or {}).get("metric_summaries") or [] if isinstance(summary, dict)]
+    )[:3]
+
+
+def _tool_summary(result: ToolExecutionResult) -> dict[str, Any]:
+    if _blocked_or_failed(result):
+        return {}
+    summary = (result.output_data or {}).get("summary") or {}
+    return summary if isinstance(summary, dict) else {}
+
+
+def _summary_count(summary: dict[str, Any]) -> int:
+    try:
+        return int(summary.get("count") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _blood_pressure_value(summary: dict[str, Any], systolic_key: str, diastolic_key: str) -> str | None:
+    systolic = summary.get(systolic_key)
+    diastolic = summary.get(diastolic_key)
+    if systolic is None or diastolic is None:
+        return None
+    return f"{_format_number(systolic)}/{_format_number(diastolic)} mmHg"
+
+
+def _format_summary_metric_value(value: Any, unit: Any, metric_type: str) -> str | None:
+    if value is None or value == "":
+        return None
+    if metric_type in {"sleep", "sleep_duration"} and isinstance(value, (int, float)):
+        hours = int(float(value))
+        minutes = round((float(value) - hours) * 60)
+        return f"{hours} 小时" if minutes == 0 else f"{hours} 小时 {minutes} 分钟"
+    display_unit = {"bpm": "次/分", "steps": "步"}.get(str(unit or "").lower(), unit)
+    return _format_metric_value(value, display_unit)
 
 
 def _build_daily_health_brief_fallback_v2(results: _BriefToolResults, *, days: int) -> str:
