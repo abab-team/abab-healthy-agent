@@ -12,7 +12,7 @@ import { useAuthSession } from "@/hooks/useAuthSession";
 export default function LoginScreen() {
   const auth = useAuthSession();
   const [email, setEmail] = useState("gala.demo@example.com");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState("123456");
   const [message, setMessage] = useState<string | null>(null);
 
   async function submit() {
