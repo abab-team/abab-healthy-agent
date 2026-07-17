@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "@/constants/theme";
 
@@ -13,6 +14,9 @@ const tabs = [
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  // Android's navigator already reserves the system navigation bar. Adding its
+  // inset again here creates an empty white layer above the tab icons.
+  const bottomInset = Platform.OS === "ios" ? insets.bottom : 0;
   return (
     <Tabs
       screenOptions={{
@@ -23,8 +27,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.line,
-          height: 64 + insets.bottom,
-          paddingBottom: Math.max(insets.bottom, 8),
+          height: 64 + bottomInset,
+          paddingBottom: Math.max(bottomInset, 8),
           paddingTop: 8
         }
       }}
