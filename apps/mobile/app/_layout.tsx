@@ -1,5 +1,6 @@
 import { Redirect, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { authMode, dataMode } from "@/lib/apiConfig";
 import { useAuthSession } from "@/hooks/useAuthSession";
 
@@ -20,9 +21,9 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }} />
-    </>
+    </SafeAreaProvider>
   );
 }

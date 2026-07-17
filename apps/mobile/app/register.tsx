@@ -33,7 +33,6 @@ export default function RegisterScreen() {
     setMessage(null);
     try {
       await auth.register(normalizedEmail, password, nickname.trim() || undefined);
-      router.replace("/");
     } catch {
       // The hook preserves a safe server error message for display below.
     }

@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     gap: theme.spacing.lg,
-    paddingBottom: 118,
+    paddingBottom: theme.spacing.xl,
     paddingHorizontal: theme.spacing.lg
   },
   contentWithFooter: {

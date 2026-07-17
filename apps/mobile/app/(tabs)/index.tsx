@@ -33,10 +33,10 @@ const personalRecentRecords = [
   { detail: "62.2 kg", title: "体重记录", tone: "lavender" }
 ] as const;
 
-const personalBriefFallback = "根据你最近 7 天的系统内记录，已整理睡眠、血压与体重等个人健康数据。记录可能不完整，本小结仅用于日常整理，不替代医生判断。";
+const personalBriefFallback = "更新后，我会优先整理近期已记录的睡眠、血压、心率、步数等信息。";
 
-function shortId(id: string): string {
-  return id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-6)}` : id;
+function displayBriefContent(content: string): string {
+  return content.split("\n\n这些内容仅基于系统内已有记录整理")[0].trim();
 }
 
 function formatGeneratedAt(value: string): string {
@@ -54,7 +54,7 @@ export default function HomeScreen() {
   const [briefGeneratedAt, setBriefGeneratedAt] = useState<string | null>(null);
   const [briefError, setBriefError] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
-  const briefContent = brief?.generated_content ?? personalBriefFallback;
+  const briefContent = brief ? displayBriefContent(brief.generated_content) : personalBriefFallback;
   const trendResource = useApiResource(() => provider.getArchiveTrends(), [session.currentUserId]);
 
   useEffect(() => {
@@ -126,17 +126,12 @@ export default function HomeScreen() {
           </View>
           <View style={styles.briefCopy}>
             <Text style={styles.cardTitle}>AI 健康小结</Text>
-            <Text style={styles.cardCaption}>只基于系统内记录，不替代医生判断。</Text>
+            <Text style={styles.cardCaption}>近期系统内记录整理</Text>
           </View>
         </View>
         <View style={styles.resultBox}>
-          <Text style={styles.resultText}>{briefContent}</Text>
           {briefGeneratedAt ? <Text style={styles.generatedAt}>最近生成：{formatGeneratedAt(briefGeneratedAt)}</Text> : null}
-          {brief ? (
-            <Link href={routes.agentRun(brief.trace_id)} style={styles.detailLink}>
-              查看本次整理 · {shortId(brief.trace_id)}
-            </Link>
-          ) : null}
+          <Text style={styles.resultText}>{briefContent}</Text>
         </View>
         <PrimaryButton label={briefLoading ? "正在更新..." : "更新个人健康小结"} disabled={briefLoading} onPress={runBrief} />
         {briefError ? <ApiErrorState message={briefError} /> : null}
@@ -177,7 +172,7 @@ const styles = StyleSheet.create({
   cardCaption: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 4 },
   cardTitle: { color: theme.colors.ink, fontSize: theme.type.section, fontWeight: "900" },
   detailLink: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
-  generatedAt: { color: theme.colors.subtle, fontSize: 11, marginTop: 10 },
+  generatedAt: { color: theme.colors.subtle, fontSize: 11, marginBottom: 8 },
   disclaimer: { alignItems: "flex-start", flexDirection: "row", gap: 8, paddingHorizontal: 4 },
   disclaimerText: { color: theme.colors.subtle, flex: 1, fontSize: 11, lineHeight: 17 },
   dotTeal: { backgroundColor: theme.colors.primary },

@@ -25,7 +25,6 @@ export default function LoginScreen() {
     setMessage(null);
     try {
       await auth.login(normalizedEmail, password);
-      router.replace("/");
     } catch {
       // The hook preserves a safe server error message for display below.
     }

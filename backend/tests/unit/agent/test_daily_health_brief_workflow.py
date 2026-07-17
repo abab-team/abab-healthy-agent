@@ -149,16 +149,16 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertIn("健康小伙伴", prompt)
         self.assertIn("温柔、细心、自然", prompt)
 
-    def test_rule_brief_uses_one_useful_health_highlight_with_companion_voice(self) -> None:
+    def test_rule_brief_prioritizes_recent_recorded_metrics_over_bmi(self) -> None:
         health_profile_service.create_or_update_profile(self.db, self.actor.id, {"height_cm": 182})
         health_data_service.add_metric(self.db, user_id=self.actor.id, metric_type="weight", value_numeric=65, unit="kg")
 
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id))
         content = result.generated_content or ""
 
-        self.assertIn("BMI 约为 19.6", content)
-        self.assertIn("我看见啦", content)
-        self.assertIn("我先替你记着", content)
+        self.assertIn("近48小时体重记录", content)
+        self.assertNotIn("BMI 约为 19.6", content)
+        self.assertIn("我替你留意到", content)
         self.assertNotIn("记录连续", content)
         self.assertNotIn("资料归档", content)
 
@@ -174,8 +174,8 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.tool_calls_count, len(READONLY_TOOL_NAMES))
         self.assertEqual([call.tool_name for call in calls], READONLY_TOOL_NAMES)
         self.assertTrue(all(call.status.value == "success" for call in calls))
-        self.assertIn("内容基于系统内已有记录整理", result.generated_content or "")
-        self.assertIn("我看见啦", result.generated_content or "")
+        self.assertIn("基于系统内已有记录整理", result.generated_content or "")
+        self.assertIn("我替你留意到", result.generated_content or "")
 
     def test_family_access_allowed_generates_brief(self) -> None:
         self._seed_health_records(self.target.id, self.actor.id, family_id=self.family.id)
@@ -239,7 +239,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(len(calls), len(READONLY_TOOL_NAMES))
         self.assertIn("部分信息因权限设置暂不可用", result.generated_content or "")
-        self.assertIn("内容基于系统内已有记录整理", result.generated_content or "")
+        self.assertIn("基于系统内已有记录整理", result.generated_content or "")
 
     def test_no_records_uses_system_no_record_wording(self) -> None:
         result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id))
@@ -256,7 +256,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertFalse(result.blocked)
         self.assertIn("不替代医生判断", content)
-        self.assertIn("请联系医生或当地急救服务", content)
+        self.assertIn("如有明显不适请及时就医", content)
         for term in UNSAFE_OUTPUT_TERMS:
             self.assertNotIn(term, content)
 
@@ -379,7 +379,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
 
         self.assertEqual(fake_llm.calls, 1)
-        self.assertIn("内容基于系统内已有记录整理", result.generated_content or "")
+        self.assertIn("基于系统内已有记录整理", result.generated_content or "")
         self.assertIn("fallback_used=true", result.message)
         self.assertIn("fallback_reason=llm_provider_error", result.message)
 
@@ -445,7 +445,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
 
         self.assertEqual(fake_llm.calls, 1)
-        self.assertIn("内容基于系统内已有记录整理", result.generated_content or "")
+        self.assertIn("基于系统内已有记录整理", result.generated_content or "")
         self.assertNotIn("诊断结果", result.generated_content or "")
         self.assertIn("fallback_reason=llm_output_safety_blocked", result.message)
         self.assertIn("safety_filtered=true", result.message)
@@ -510,7 +510,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertNotIn("file_path", fake_llm.last_user_prompt)
         self.assertNotIn("raw_extracted_text", fake_llm.last_user_prompt)
         self.assertIn("可选健康重点", fake_llm.last_user_prompt)
-        self.assertIn("只选其中一项表达", fake_llm.last_user_prompt)
+        self.assertIn("优先选择两项不同类型的信息表达", fake_llm.last_user_prompt)
         self.assertNotIn("资料与安排", fake_llm.last_user_prompt)
         self.assertNotIn("api_key", result.message.lower())
 

@@ -431,7 +431,7 @@ def _is_safe_daily_health_brief_output(text: str, lowered: str) -> bool:
 def _has_daily_brief_boundary(text: str) -> bool:
     source_markers = ("\u57fa\u4e8e\u7cfb\u7edf\u5185", "\u6839\u636e\u7cfb\u7edf\u5185", "\u7cfb\u7edf\u5185\u8bb0\u5f55")
     doctor_markers = ("\u4e0d\u66ff\u4ee3\u533b\u751f\u5224\u65ad", "\u4e0d\u80fd\u66ff\u4ee3\u533b\u751f\u8bca\u65ad")
-    urgent_markers = ("\u8bf7\u8054\u7cfb\u533b\u751f", "\u8054\u7cfb\u533b\u751f\u6216\u5f53\u5730\u6025\u6551\u670d\u52a1")
+    urgent_markers = ("\u8bf7\u8054\u7cfb\u533b\u751f", "\u8054\u7cfb\u533b\u751f\u6216\u5f53\u5730\u6025\u6551\u670d\u52a1", "\u8bf7\u53ca\u65f6\u5c31\u533b")
     return any(marker in text for marker in source_markers) and any(marker in text for marker in doctor_markers) and any(
         marker in text for marker in urgent_markers
     )

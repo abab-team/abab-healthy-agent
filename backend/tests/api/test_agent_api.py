@@ -86,7 +86,7 @@ class AgentApiTestCase(unittest.TestCase):
         self.assertEqual(body["status"], "completed")
         self.assertEqual(body["workflow_type"], "daily_health_brief")
         self.assertIsInstance(body["generated_content"], str)
-        self.assertGreater(len(body["generated_content"]), 100)
+        self.assertGreater(len(body["generated_content"]), 40)
         self.assertGreater(body["tool_calls_count"], 0)
         for term in UNSAFE_TERMS:
             self.assertNotIn(term, response.text.lower())

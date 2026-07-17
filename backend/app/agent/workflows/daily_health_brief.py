@@ -311,7 +311,7 @@ def _build_daily_brief_llm_prompt_v2(results: _BriefToolResults, *, days: int) -
     return "\n".join(
         [
             "请依据下面的安全事实包，写一份首页健康小结。",
-            "只选一件对用户此刻真正有用的健康信息：优先近48小时的新变化，其次是最近7天的睡眠、体重、BMI、血压或待办提醒。",
+            "优先选择两项不同类型、对用户此刻有用的近期健康信息；只有一项可用时才只写一项。优先近48小时的新变化，其次是最近7天的睡眠、体重、血压、心率、步数或待办提醒，BMI 只在没有更合适的近期记录时使用。",
             "只写一小段，两到三句即可；不要标题、项目符号、编号、数据清单或逐项盘点。",
             "开头用自然的陪伴式表达，例如“我看见啦”或“我替你留意到”；说完事实后，用一句温柔且贴合事实的收尾，例如“这个小变化我先替你记着，之后我们再一起看看”。",
             "绝对不要把记录次数、资料归档、缺少哪些类别、记录连续性当成正文内容；没有足够有用信息时，只简短说明系统内暂时没有足够的近期记录。",
@@ -329,25 +329,40 @@ def build_daily_brief_fact_package(results: _BriefToolResults, *, days: int = DE
     highlights = _brief_candidate_lines(results, days=days)
     return "\n".join(
         [
-            "可选健康重点（只选其中一项表达）：",
+            "可选健康重点（优先选择两项不同类型的信息表达）：",
             *[f"- {line}" for line in highlights],
         ]
     )
 
 
 def _brief_candidate_lines(results: _BriefToolResults, *, days: int) -> list[str]:
-    """Keep only facts that can become a useful, user-facing daily insight."""
+    """Prefer recent recorded health facts; use BMI only when no recent fact is available."""
     candidates = [
-        _bmi_line(results.profile, results.weekly_metrics),
         *_metric_overview_lines(results.recent_metrics, window_label="近48小时"),
         *_blood_pressure_lines(results.recent_blood_pressure, window_label="近48小时"),
         *_metric_overview_lines(results.weekly_metrics, window_label=f"最近{days}天"),
         *_blood_pressure_lines(results.blood_pressure, window_label=f"最近{days}天"),
         *_positive_count_lines(results.followups, label="待随访事项"),
         *_positive_count_lines(results.alerts, label="健康提醒"),
+        _bmi_line(results.profile, results.weekly_metrics),
     ]
     meaningful = [line for line in candidates if line and "暂时没有" not in line and line != PARTIAL_UNAVAILABLE_MESSAGE]
     return _unique_lines(meaningful) or ["系统内暂时没有足够的近期健康记录"]
+
+
+def _distinct_brief_highlights(lines: list[str], *, limit: int = 2) -> list[str]:
+    topics = ("睡眠", "血压", "体重", "步数", "心率", "体温", "待随访", "健康提醒", "BMI")
+    selected: list[str] = []
+    selected_topics: set[str] = set()
+    for line in lines:
+        topic = next((item for item in topics if item in line), line)
+        if topic in selected_topics:
+            continue
+        selected.append(line)
+        selected_topics.add(topic)
+        if len(selected) == limit:
+            break
+    return selected
 
 
 def _recent_focus_lines(results: _BriefToolResults) -> list[str]:
@@ -533,13 +548,10 @@ def _is_compact_daily_brief(content: str) -> bool:
 def _ensure_daily_brief_boundary(content: str) -> str:
     has_source = "\u7cfb\u7edf" in content
     has_doctor_boundary = "\u533b\u751f" in content and ("\u5224\u65ad" in content or "\u8bca\u65ad" in content)
-    has_urgent_boundary = "\u8054\u7cfb\u533b\u751f" in content
+    has_urgent_boundary = "\u8054\u7cfb\u533b\u751f" in content or "\u53ca\u65f6\u5c31\u533b" in content
     if has_source and has_doctor_boundary and has_urgent_boundary:
         return content
-    boundary = (
-        "\u8fd9\u4e9b\u5185\u5bb9\u4ec5\u57fa\u4e8e\u7cfb\u7edf\u5185\u5df2\u6709\u8bb0\u5f55\u6574\u7406\uff0c\u4e0d\u66ff\u4ee3\u533b\u751f\u5224\u65ad\u3002"
-        "\u5982\u6709\u660e\u663e\u4e0d\u9002\u6216\u7d27\u6025\u60c5\u51b5\uff0c\u8bf7\u8054\u7cfb\u533b\u751f\u6216\u5f53\u5730\u6025\u6551\u670d\u52a1\u3002"
-    )
+    boundary = "基于系统内已有记录整理，不替代医生判断；如有明显不适请及时就医。"
     return f"{content.rstrip()}\n\n{boundary}"
 
 
@@ -631,17 +643,17 @@ def build_daily_health_brief_content(results: _BriefToolResults, *, days: int = 
 
 
 def _build_daily_health_brief_fallback_v2(results: _BriefToolResults, *, days: int) -> str:
-    highlight = _brief_candidate_lines(results, days=days)[0]
-    if highlight == "系统内暂时没有足够的近期健康记录":
+    highlights = _brief_candidate_lines(results, days=days)
+    if highlights[0] == "系统内暂时没有足够的近期健康记录":
         body = "系统内暂无相关记录。今天我先在这里替你留着位置；下次补记一项睡眠、体重或血压时，我们就能慢慢看出变化。"
     else:
-        body = f"我看见啦，{highlight}。这个小变化我先替你记着，之后我们再一起看看。"
+        body = f"我替你留意到：{'；'.join(_distinct_brief_highlights(highlights))}。这些是近期已记录的信息，我们之后可以继续一起看看变化。"
     availability_note = _brief_availability_note(results)
     return "\n\n".join(
         [
             body,
             *([availability_note] if availability_note else []),
-            "内容基于系统内已有记录整理，不替代医生判断。如有明显不适或紧急情况，请联系医生或当地急救服务。",
+            "基于系统内已有记录整理，不替代医生判断；如有明显不适请及时就医。",
         ]
     )
 
