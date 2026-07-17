@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { HealthTrendSection } from "@/components/cards/HealthTrendSection";
@@ -16,28 +17,24 @@ import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
-import type { AgentRunResponse } from "@/types/api";
+import type { AgentRunResponse, BloodPressureRecord, HealthMetricRecord } from "@/types/api";
 
-const metrics = [
-  { icon: "moon-outline", label: "睡眠", note: "最近 7 天记录", tone: "blue", value: "7.2 小时" },
-  { icon: "footsteps-outline", label: "步数", note: "今日系统内记录", tone: "teal", value: "6,100 步" },
-  { icon: "heart-outline", label: "心率", note: "最近一次记录", tone: "coral", value: "72 次/分" },
-  { icon: "pulse-outline", label: "血压", note: "系统内最近记录", tone: "lavender", value: "118/76" },
-  { icon: "scale-outline", label: "体重", note: "最近一次记录", tone: "teal", value: "62.2 kg", wide: true }
-] as const;
+type HomeMetricTile = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  note: string;
+  tone: "blue" | "coral" | "lavender" | "teal";
+  value: string;
+  wide?: boolean;
+};
 
-const personalRecentRecords = [
-  { detail: "7 小时 20 分钟", title: "睡眠记录", tone: "teal" },
-  { detail: "待确认草稿", title: "症状记录", tone: "coral" },
-  { detail: "体检资料已保存", title: "文档记录", tone: "blue" },
-  { detail: "62.2 kg", title: "体重记录", tone: "lavender" }
-] as const;
+type HomeRecentRecord = {
+  detail: string;
+  measuredAt: string;
+  title: string;
+};
 
-const personalBriefFallback = "更新后，我会优先整理近期已记录的睡眠、血压、心率、步数等信息。";
-
-function displayBriefContent(content: string): string {
-  return content.split("\n\n这些内容仅基于系统内已有记录整理")[0].trim();
-}
+const personalBriefFallback = "尚未生成健康小结。生成后可在详情页查看最近 7 天的记录整理。";
 
 function formatGeneratedAt(value: string): string {
   const date = new Date(value);
@@ -47,6 +44,50 @@ function formatGeneratedAt(value: string): string {
   return date.toLocaleString("zh-CN", { day: "numeric", hour: "2-digit", minute: "2-digit", month: "numeric" });
 }
 
+function formatMetricValue(metric: HealthMetricRecord): string {
+  const value = metric.value_numeric;
+  if (value === null || value === undefined) return metric.value_text?.trim() || "已记录";
+  if (metric.metric_type === "sleep_duration") {
+    const hours = Math.floor(value);
+    const minutes = Math.round((value - hours) * 60);
+    return `${hours} 小时${minutes ? ` ${minutes} 分钟` : ""}`;
+  }
+  const unit = metric.metric_type === "heart_rate" ? "次/分" : metric.metric_type === "steps" ? "步" : metric.unit ?? "";
+  return `${value}${unit ? ` ${unit}` : ""}`;
+}
+
+function metricLabel(metricType: string): string {
+  return ({ heart_rate: "心率", sleep_duration: "睡眠", steps: "步数", temperature: "体温", weight: "体重" } as Record<string, string>)[metricType] ?? "健康指标";
+}
+
+function newest<T extends { measured_at?: string; recorded_at?: string }>(records: T[]): T | null {
+  return [...records].sort((left, right) => new Date(right.measured_at ?? right.recorded_at ?? 0).getTime() - new Date(left.measured_at ?? left.recorded_at ?? 0).getTime())[0] ?? null;
+}
+
+function buildHomeMetrics(bloodPressure: BloodPressureRecord[], records: HealthMetricRecord[]): HomeMetricTile[] {
+  const latestByType = (type: string) => newest(records.filter((record) => record.metric_type === type));
+  const latestBloodPressure = newest(bloodPressure);
+  const metricTile = (type: string, icon: HomeMetricTile["icon"], tone: HomeMetricTile["tone"], wide = false): HomeMetricTile => {
+    const latest = latestByType(type);
+    return { icon, label: metricLabel(type), note: latest ? "最近一次记录" : "暂无已记录", tone, value: latest ? formatMetricValue(latest) : "--", wide };
+  };
+  return [
+    metricTile("sleep_duration", "moon-outline", "blue"),
+    metricTile("steps", "footsteps-outline", "teal"),
+    metricTile("heart_rate", "heart-outline", "coral"),
+    { icon: "pulse-outline", label: "血压", note: latestBloodPressure ? "最近一次记录" : "暂无已记录", tone: "lavender", value: latestBloodPressure ? `${latestBloodPressure.systolic}/${latestBloodPressure.diastolic}` : "--" },
+    metricTile("weight", "scale-outline", "teal", true)
+  ];
+}
+
+function buildRecentRecords(bloodPressure: BloodPressureRecord[], records: HealthMetricRecord[]): HomeRecentRecord[] {
+  const metricRecords = records.map((record) => ({ detail: formatMetricValue(record), measuredAt: record.measured_at, title: `${metricLabel(record.metric_type)}记录` }));
+  const bloodPressureRecords = bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, measuredAt: record.recorded_at, title: "血压记录" }));
+  return [...metricRecords, ...bloodPressureRecords]
+    .sort((left, right) => new Date(right.measuredAt).getTime() - new Date(left.measuredAt).getTime())
+    .slice(0, 4);
+}
+
 export default function HomeScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
@@ -54,8 +95,15 @@ export default function HomeScreen() {
   const [briefGeneratedAt, setBriefGeneratedAt] = useState<string | null>(null);
   const [briefError, setBriefError] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
-  const briefContent = brief ? displayBriefContent(brief.generated_content) : personalBriefFallback;
   const trendResource = useApiResource(() => provider.getArchiveTrends(), [session.currentUserId]);
+  const metricResource = useApiResource(() => provider.getPersonalHealthMetrics(), [session.currentUserId, session.dataMode]);
+  const homeMetrics = useMemo(() => buildHomeMetrics(metricResource.data?.bloodPressure ?? [], metricResource.data?.metrics ?? []), [metricResource.data]);
+  const recentRecords = useMemo(() => buildRecentRecords(metricResource.data?.bloodPressure ?? [], metricResource.data?.metrics ?? []), [metricResource.data]);
+
+  useFocusEffect(useCallback(() => {
+    void trendResource.reload();
+    void metricResource.reload();
+  }, [metricResource.reload, trendResource.reload]));
 
   useEffect(() => {
     let active = true;
@@ -107,7 +155,7 @@ export default function HomeScreen() {
           <Ionicons color={theme.colors.primary} name="calendar-outline" size={22} />
         </View>
         <View style={styles.metricGrid}>
-          {metrics.map((metric) => (
+          {homeMetrics.map((metric) => (
             <MetricTile key={metric.label} {...metric} />
           ))}
         </View>
@@ -130,8 +178,12 @@ export default function HomeScreen() {
           </View>
         </View>
         <View style={styles.resultBox}>
-          {briefGeneratedAt ? <Text style={styles.generatedAt}>最近生成：{formatGeneratedAt(briefGeneratedAt)}</Text> : null}
-          <Text style={styles.resultText}>{briefContent}</Text>
+          <Text style={styles.generatedAt}>{briefGeneratedAt ? `最近生成：${formatGeneratedAt(briefGeneratedAt)}` : "尚未生成健康小结"}</Text>
+          <Pressable accessibilityRole="button" disabled={!brief} onPress={() => router.push(routes.healthBrief)} style={[styles.briefDetailLink, !brief ? styles.briefDetailLinkDisabled : null]}>
+            <Text style={[styles.briefDetailText, !brief ? styles.briefDetailTextDisabled : null]}>查看健康小结详情</Text>
+            <Ionicons color={brief ? theme.colors.primaryDark : theme.colors.subtle} name="chevron-forward" size={17} />
+          </Pressable>
+          {!brief ? <Text style={styles.briefHint}>{personalBriefFallback}</Text> : null}
         </View>
         <PrimaryButton label={briefLoading ? "正在更新..." : "更新个人健康小结"} disabled={briefLoading} onPress={runBrief} />
         {briefError ? <ApiErrorState message={briefError} /> : null}
@@ -144,16 +196,16 @@ export default function HomeScreen() {
             查看档案
           </Link>
         </View>
-        {personalRecentRecords.map((record, index) => (
-          <View key={record.title} style={styles.recordRow}>
+        {recentRecords.length ? recentRecords.map((record, index) => (
+          <Pressable key={`${record.title}-${record.measuredAt}`} onPress={() => router.push(routes.archiveMetrics)} style={styles.recordRow}>
             <View style={[styles.recordDot, index === 0 ? styles.dotTeal : null]} />
             <View style={styles.recordCopy}>
               <Text style={styles.recordTitle}>{record.title}</Text>
               <Text style={styles.recordDetail}>{record.detail}</Text>
             </View>
             <Ionicons color={theme.colors.subtle} name="chevron-forward" size={16} />
-          </View>
-        ))}
+          </Pressable>
+        )) : <Text style={styles.emptyRecords}>系统内暂无健康指标记录。</Text>}
       </CardBase>
 
       <Pressable onPress={() => undefined} style={styles.disclaimer}>
@@ -166,6 +218,11 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   briefCard: { backgroundColor: theme.colors.tealSoft },
+  briefDetailLink: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", minHeight: 34 },
+  briefDetailLinkDisabled: { opacity: 0.58 },
+  briefDetailText: { color: theme.colors.primaryDark, fontSize: 14, fontWeight: "900" },
+  briefDetailTextDisabled: { color: theme.colors.subtle },
+  briefHint: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 6 },
   briefCopy: { flex: 1 },
   briefHeading: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 14 },
   briefIcon: { alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: theme.radius.pill, height: 40, justifyContent: "center", width: 40 },
@@ -176,6 +233,7 @@ const styles = StyleSheet.create({
   disclaimer: { alignItems: "flex-start", flexDirection: "row", gap: 8, paddingHorizontal: 4 },
   disclaimerText: { color: theme.colors.subtle, flex: 1, fontSize: 11, lineHeight: 17 },
   dotTeal: { backgroundColor: theme.colors.primary },
+  emptyRecords: { color: theme.colors.subtle, fontSize: 13, paddingTop: 10 },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
   metricEntry: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 6, marginTop: 14 },
   metricEntryText: { color: theme.colors.primaryDark, fontSize: 13, fontWeight: "900" },
@@ -187,6 +245,5 @@ const styles = StyleSheet.create({
   recordRow: { alignItems: "center", borderTopColor: theme.colors.line, borderTopWidth: 1, flexDirection: "row", gap: 10, marginTop: 10, paddingTop: 10 },
   recordTitle: { color: theme.colors.ink, fontSize: 13, fontWeight: "800", lineHeight: 19 },
   resultBox: { backgroundColor: "#FFFFFF", borderRadius: theme.radius.sm, padding: 12 },
-  resultText: { color: theme.colors.ink, fontSize: 13, lineHeight: 20 },
   sectionRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" }
 });

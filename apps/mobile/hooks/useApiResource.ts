@@ -12,8 +12,8 @@ export function useApiResource<T>(loader: () => Promise<ApiResult<T>>, deps: unk
     setError(null);
     setErrorCode(null);
     const result = await loader();
-    if (result.ok && result.data) {
-      setData(result.data);
+    if (result.ok) {
+      setData(result.data ?? null);
     } else {
       setError(result.error?.message ?? "加载失败");
       setErrorCode(result.error?.code ?? null);

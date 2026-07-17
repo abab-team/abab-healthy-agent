@@ -21,6 +21,7 @@ export const routes = {
   settings: "/settings" as Href,
   drafts: "/drafts" as Href,
   agentBrief: "/agent-brief" as Href,
+  healthBrief: "/health-brief" as Href,
   createSymptomDraft: "/create-symptom-draft" as Href,
   createAlert: "/create-alert" as Href,
   createHealthEventDraft: "/create-health-event-draft" as Href,
