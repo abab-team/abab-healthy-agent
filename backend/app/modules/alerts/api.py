@@ -26,6 +26,11 @@ def get_my_active_alerts(current_user_id: UUID = Depends(get_current_user_id_for
     return {"items": [_alert_response(alert) for alert in service.get_active_alerts(db, user_id=current_user_id)]}
 
 
+@router.get("/alerts/me")
+def list_my_alerts(current_user_id: UUID = Depends(get_current_user_id_for_demo), db: Session = Depends(get_db)):
+    return {"items": [_alert_response(alert) for alert in service.list_alerts(db, user_id=current_user_id)]}
+
+
 @router.get("/alerts/me/due")
 def get_my_due_alerts(due_before: datetime | None = None, current_user_id: UUID = Depends(get_current_user_id_for_demo), db: Session = Depends(get_db)):
     return {"items": [_alert_response(alert) for alert in service.get_due_alerts(db, user_id=current_user_id, due_before=due_before)]}

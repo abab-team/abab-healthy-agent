@@ -83,6 +83,10 @@ def get_active_alerts(db: Session, *, user_id: UUID, family_id: UUID | None | ob
     return repository.list_active_alerts(db, user_id, family_id=family_id)
 
 
+def list_alerts(db: Session, *, user_id: UUID, family_id: UUID | None | object = _UNSET, limit: int = 100) -> list[Alert]:
+    return repository.list_alerts(db, user_id, family_id=family_id, limit=limit)
+
+
 def get_due_alerts(
     db: Session,
     *,

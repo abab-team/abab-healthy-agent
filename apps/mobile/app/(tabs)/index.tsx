@@ -15,7 +15,7 @@ import { theme } from "@/constants/theme";
 import { currentUser } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
-import { getDataProvider } from "@/lib/dataProvider";
+import { getDataProvider, type PersonalArchiveRecentRecordsData } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
 import type { AgentRunResponse, BloodPressureRecord, HealthMetricRecord } from "@/types/api";
 
@@ -80,10 +80,15 @@ function buildHomeMetrics(bloodPressure: BloodPressureRecord[], records: HealthM
   ];
 }
 
-function buildRecentRecords(bloodPressure: BloodPressureRecord[], records: HealthMetricRecord[]): HomeRecentRecord[] {
-  const metricRecords = records.map((record) => ({ detail: formatMetricValue(record), measuredAt: record.measured_at, title: `${metricLabel(record.metric_type)}记录` }));
-  const bloodPressureRecords = bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, measuredAt: record.recorded_at, title: "血压记录" }));
-  return [...metricRecords, ...bloodPressureRecords]
+function buildRecentRecords(data: PersonalArchiveRecentRecordsData | null): HomeRecentRecord[] {
+  if (!data) return [];
+  const metricRecords = data.metrics.map((record) => ({ detail: formatMetricValue(record), measuredAt: record.created_at ?? record.measured_at, title: `${metricLabel(record.metric_type)}记录` }));
+  const bloodPressureRecords = data.bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, measuredAt: record.created_at ?? record.recorded_at, title: "血压记录" }));
+  const symptomRecords = data.symptoms.map((record) => ({ detail: record.summary, measuredAt: record.recorded_at, title: record.title || "症状记录" }));
+  const documentRecords = data.documents.map((record) => ({ detail: record.file_name, measuredAt: record.created_at ?? record.confirmed_at ?? record.document_date ?? "", title: record.title || "医疗资料" }));
+  const medicalEventRecords = data.medicalEvents.map((record) => ({ detail: record.summary?.trim() || record.event_type || "已保存的健康事件", measuredAt: record.created_at ?? record.event_date ?? "", title: record.title?.trim() || "健康事件" }));
+  const alertRecords = data.alerts.map((record) => ({ detail: record.message?.trim() || record.due_at ? (record.message?.trim() || `提醒时间：${record.due_at}`) : "已创建的健康提醒", measuredAt: record.created_at ?? record.due_at ?? "", title: record.title || "健康提醒" }));
+  return [...metricRecords, ...bloodPressureRecords, ...symptomRecords, ...documentRecords, ...medicalEventRecords, ...alertRecords]
     .sort((left, right) => new Date(right.measuredAt).getTime() - new Date(left.measuredAt).getTime())
     .slice(0, 4);
 }
@@ -96,14 +101,14 @@ export default function HomeScreen() {
   const [briefError, setBriefError] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
   const trendResource = useApiResource(() => provider.getArchiveTrends(), [session.currentUserId]);
-  const metricResource = useApiResource(() => provider.getPersonalHealthMetrics(), [session.currentUserId, session.dataMode]);
-  const homeMetrics = useMemo(() => buildHomeMetrics(metricResource.data?.bloodPressure ?? [], metricResource.data?.metrics ?? []), [metricResource.data]);
-  const recentRecords = useMemo(() => buildRecentRecords(metricResource.data?.bloodPressure ?? [], metricResource.data?.metrics ?? []), [metricResource.data]);
+  const timelineResource = useApiResource(() => provider.getPersonalArchiveRecentRecords(), [session.currentUserId, session.dataMode]);
+  const homeMetrics = useMemo(() => buildHomeMetrics(timelineResource.data?.bloodPressure ?? [], timelineResource.data?.metrics ?? []), [timelineResource.data]);
+  const recentRecords = useMemo(() => buildRecentRecords(timelineResource.data), [timelineResource.data]);
 
   useFocusEffect(useCallback(() => {
     void trendResource.reload();
-    void metricResource.reload();
-  }, [metricResource.reload, trendResource.reload]));
+    void timelineResource.reload();
+  }, [timelineResource.reload, trendResource.reload]));
 
   useEffect(() => {
     let active = true;
@@ -197,7 +202,7 @@ export default function HomeScreen() {
           </Link>
         </View>
         {recentRecords.length ? recentRecords.map((record, index) => (
-          <Pressable key={`${record.title}-${record.measuredAt}`} onPress={() => router.push(routes.archiveMetrics)} style={styles.recordRow}>
+          <Pressable key={`${record.title}-${record.measuredAt}`} onPress={() => router.push(routes.archive)} style={styles.recordRow}>
             <View style={[styles.recordDot, index === 0 ? styles.dotTeal : null]} />
             <View style={styles.recordCopy}>
               <Text style={styles.recordTitle}>{record.title}</Text>

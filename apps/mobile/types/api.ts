@@ -72,6 +72,8 @@ export type BloodPressureRecord = {
   systolic: number;
   diastolic: number;
   pulse?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type HealthMetricCreateInput = {
@@ -96,6 +98,8 @@ export type HealthMetricRecord = {
   value_text?: string | null;
   unit?: string | null;
   measured_at: string;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type SymptomRecord = {
@@ -126,11 +130,24 @@ export type MedicalEventDraft = {
 
 export type Alert = {
   id: string;
-  target_user_id: string;
+  target_user_id?: string;
   title: string;
-  reminder_type: string;
-  scheduled_at: string;
-  status: "preview" | "created" | "active";
+  reminder_type?: string;
+  scheduled_at?: string;
+  message?: string | null;
+  due_at?: string | null;
+  created_at?: string | null;
+  status: string;
+};
+
+export type MedicalTimelineEvent = {
+  id: string;
+  title?: string | null;
+  event_type?: string | null;
+  event_date?: string | null;
+  hospital_or_org?: string | null;
+  summary?: string | null;
+  created_at?: string | null;
 };
 
 export type MedicalDocument = {
@@ -141,6 +158,7 @@ export type MedicalDocument = {
   file_size?: number | null;
   document_type?: string | null;
   document_date?: string | null;
+  confirmed_at?: string | null;
   ai_extract_status: string;
   created_at?: string | null;
 };

@@ -29,6 +29,7 @@ import type {
   ImportPreviewResult,
   ImportPreviewRow,
   MedicalDocument,
+  MedicalTimelineEvent,
   MedicalEventDraftInput,
   SymptomDraftInput,
   SymptomRecord
@@ -75,8 +76,27 @@ type BackendSafetyCheck = {
 
 type BackendBloodPressureRecord = Omit<BloodPressureRecord, "recorded_at"> & { measured_at?: string; recorded_at?: string };
 
+type BackendSymptomRecord = {
+  id: string;
+  user_id: string;
+  symptom_name?: string | null;
+  ai_summary?: string | null;
+  raw_text?: string | null;
+  created_at?: string | null;
+};
+
 function toBloodPressureRecord(record: BackendBloodPressureRecord): BloodPressureRecord {
   return { ...record, recorded_at: record.recorded_at ?? record.measured_at ?? new Date(0).toISOString() };
+}
+
+function toSymptomRecord(record: BackendSymptomRecord): SymptomRecord {
+  return {
+    id: record.id,
+    recorded_at: record.created_at ?? new Date(0).toISOString(),
+    summary: record.ai_summary?.trim() || record.raw_text?.trim() || "已保存的症状记录",
+    title: record.symptom_name?.trim() || "症状记录",
+    user_id: record.user_id
+  };
 }
 
 function toFamilyMember(member: BackendFamilyMember): FamilyMember {
@@ -244,11 +264,23 @@ export const backendApi = {
   },
 
   getMyRecentSymptoms(currentUserId: string, days = 30) {
-    return apiClient.get<SymptomRecord[]>(`/api/v1/health-records/me/symptoms/recent?days=${days}`, currentUserId);
+    return apiClient
+      .get<{ items: BackendSymptomRecord[] }>(`/api/v1/health-records/me/symptoms/recent?days=${days}`, currentUserId)
+      .then((response) => response.items.map(toSymptomRecord));
+  },
+
+  getMyActiveAlerts(currentUserId: string) {
+    return apiClient.get<{ items: Alert[] }>("/api/v1/alerts/me/active", currentUserId).then((response) => response.items);
+  },
+
+  getMyAlerts(currentUserId: string) {
+    return apiClient.get<{ items: Alert[] }>("/api/v1/alerts/me", currentUserId).then((response) => response.items);
   },
 
   getFamilyMemberActiveAlerts(familyId: string, targetUserId: string, currentUserId: string) {
-    return apiClient.get<Alert[]>(`/api/v1/families/${familyId}/members/${targetUserId}/alerts/active`, currentUserId);
+    return apiClient
+      .get<{ items: Alert[] }>(`/api/v1/families/${familyId}/members/${targetUserId}/alerts/active`, currentUserId)
+      .then((response) => response.items);
   },
 
   listMyDocuments(currentUserId: string) {
@@ -288,7 +320,7 @@ export const backendApi = {
 
   listMyMedicalEvents(currentUserId: string) {
     return apiClient
-      .get<{ items: Array<{ id: string; title?: string | null; event_type?: string | null; event_date?: string | null; hospital_or_org?: string | null }> }>("/api/v1/medical-timeline/me/events", currentUserId)
+      .get<{ items: MedicalTimelineEvent[] }>("/api/v1/medical-timeline/me/events", currentUserId)
       .then((response) => response.items);
   },
 

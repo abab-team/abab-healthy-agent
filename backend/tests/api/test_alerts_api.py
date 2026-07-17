@@ -52,6 +52,16 @@ class AlertsApiTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 409)
 
+    def test_list_my_alerts_keeps_formally_saved_resolved_alerts(self) -> None:
+        alert = self._post_my_alert().json()
+        client.post(f"/api/v1/alerts/me/{alert['id']}/resolve", headers=auth_headers(self.owner["id"]))
+
+        response = client.get("/api/v1/alerts/me", headers=auth_headers(self.owner["id"]))
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()["items"]), 1)
+        self.assertEqual(response.json()["items"][0]["status"], "resolved")
+
     def test_summary_does_not_output_diagnosis(self) -> None:
         response = client.get("/api/v1/alerts/me/summary", headers=auth_headers(self.owner["id"]))
 

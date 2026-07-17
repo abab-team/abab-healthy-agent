@@ -8,6 +8,7 @@ import type {
   AgentMemoryItem,
   AgentMessageSummary,
   AgentSessionSummary,
+  Alert,
   AlertCreateInput,
   ArchiveTrends,
   ApiFamilyOverview,
@@ -30,6 +31,7 @@ import type {
   LatestDailyHealthBrief,
   JoinedFamilyResult,
   MedicalDocument,
+  MedicalTimelineEvent,
   MedicalEventDraftInput,
   SymptomRecord,
   SymptomDraftInput
@@ -44,7 +46,7 @@ export type MemberArchiveSectionData = {
   metrics: HealthMetricRecord[];
   symptoms: SymptomRecord[];
   documents: MedicalDocument[];
-  medicalEvents: Array<{ id: string; title?: string | null; event_type?: string | null; event_date?: string | null; hospital_or_org?: string | null }>;
+  medicalEvents: MedicalTimelineEvent[];
   profileSummary?: string;
 };
 
@@ -52,6 +54,16 @@ export type PersonalHealthMetricsData = {
   bloodPressure: BloodPressureRecord[];
   metrics: HealthMetricRecord[];
   source: "mock" | "api";
+};
+
+export type PersonalArchiveRecentRecordsData = {
+  alerts: Alert[];
+  bloodPressure: BloodPressureRecord[];
+  documents: MedicalDocument[];
+  medicalEvents: MedicalTimelineEvent[];
+  metrics: HealthMetricRecord[];
+  source: "mock" | "api";
+  symptoms: SymptomRecord[];
 };
 
 function ok<T>(data: T): ApiResult<T> {
@@ -277,6 +289,18 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         ],
         source: "mock"
       }),
+      getPersonalArchiveRecentRecords: async () => ok<PersonalArchiveRecentRecordsData>({
+        alerts: [],
+        bloodPressure: [{ diastolic: 78, id: "mock-self-bp-1", recorded_at: "2026-07-10T07:30:00", systolic: 120, user_id: "me" }],
+        documents: [{ ai_extract_status: "completed", created_at: "2026-07-08T16:20:00", file_name: "annual-checkup.pdf", id: "mock-document-1", title: "年度体检报告" }],
+        medicalEvents: [{ created_at: "2026-07-07T09:00:00", event_type: "复查", id: "mock-event-1", title: "内科复查" }],
+        metrics: [
+          { id: "mock-self-sleep-1", measured_at: "2026-07-10T22:00:00", metric_type: "sleep_duration", unit: "hours", user_id: "me", value_numeric: 7.2 },
+          { id: "mock-self-weight-1", measured_at: "2026-07-10T07:00:00", metric_type: "weight", unit: "kg", user_id: "me", value_numeric: 62.1 }
+        ],
+        source: "mock",
+        symptoms: [{ id: "mock-symptom-1", recorded_at: "2026-07-09T10:30:00", summary: "已保存的症状记录摘要", title: "症状记录", user_id: "me" }]
+      }),
       createHealthMetric: async (_input: HealthMetricCreateInput | BloodPressureCreateInput) => fail(new Error("演示模式不会提交真实健康记录。")),
       previewHealthDataImport: async (rows: ImportPreviewRow[]) => mockApi.previewHealthDataImport(rows),
       confirmHealthDataImport: async (rows: ImportPreviewRow[]) => mockApi.confirmHealthDataImport(rows),
@@ -426,6 +450,21 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
         return ok<PersonalHealthMetricsData>({ bloodPressure, metrics, source: "api" });
       } catch (error) {
         return fail<PersonalHealthMetricsData>(error);
+      }
+    },
+    getPersonalArchiveRecentRecords: async () => {
+      try {
+        const [alerts, bloodPressure, documents, medicalEvents, metrics, symptoms] = await Promise.all([
+          backendApi.getMyAlerts(currentUserId),
+          backendApi.getMyBloodPressureRecent(currentUserId, 365),
+          backendApi.listMyDocuments(currentUserId),
+          backendApi.listMyMedicalEvents(currentUserId),
+          backendApi.getMyRecentMetrics(currentUserId, 365),
+          backendApi.getMyRecentSymptoms(currentUserId, 365)
+        ]);
+        return ok<PersonalArchiveRecentRecordsData>({ alerts, bloodPressure, documents, medicalEvents, metrics, source: "api", symptoms });
+      } catch (error) {
+        return fail<PersonalArchiveRecentRecordsData>(error);
       }
     },
     createHealthMetric: async (input: HealthMetricCreateInput | BloodPressureCreateInput) => {
