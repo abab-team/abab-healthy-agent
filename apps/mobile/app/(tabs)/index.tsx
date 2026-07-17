@@ -44,6 +44,12 @@ function formatGeneratedAt(value: string): string {
   return date.toLocaleString("zh-CN", { day: "numeric", hour: "2-digit", minute: "2-digit", month: "numeric" });
 }
 
+function formatRecordedAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "记录时间待补充";
+  return `记录时间：${date.toLocaleString("zh-CN", { day: "numeric", hour: "2-digit", minute: "2-digit", month: "numeric" })}`;
+}
+
 function formatMetricValue(metric: HealthMetricRecord): string {
   const value = metric.value_numeric;
   if (value === null || value === undefined) return metric.value_text?.trim() || "已记录";
@@ -207,6 +213,7 @@ export default function HomeScreen() {
             <View style={styles.recordCopy}>
               <Text style={styles.recordTitle}>{record.title}</Text>
               <Text style={styles.recordDetail}>{record.detail}</Text>
+              <Text style={styles.recordTime}>{formatRecordedAt(record.measuredAt)}</Text>
             </View>
             <Ionicons color={theme.colors.subtle} name="chevron-forward" size={16} />
           </Pressable>
@@ -247,6 +254,7 @@ const styles = StyleSheet.create({
   recordDot: { backgroundColor: "#B9C9C3", borderRadius: 5, height: 8, width: 8 },
   recordCopy: { flex: 1 },
   recordDetail: { color: theme.colors.subtle, fontSize: 12, marginTop: 2 },
+  recordTime: { color: theme.colors.subtle, fontSize: 11, marginTop: 3 },
   recordRow: { alignItems: "center", borderTopColor: theme.colors.line, borderTopWidth: 1, flexDirection: "row", gap: 10, marginTop: 10, paddingTop: 10 },
   recordTitle: { color: theme.colors.ink, fontSize: 13, fontWeight: "800", lineHeight: 19 },
   resultBox: { backgroundColor: "#FFFFFF", borderRadius: theme.radius.sm, padding: 12 },
