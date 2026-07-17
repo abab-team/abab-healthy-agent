@@ -28,11 +28,6 @@ type SummarySection = {
   title: string;
 };
 
-type HealthSuggestion = {
-  icon: keyof typeof Ionicons.glyphMap;
-  text: string;
-};
-
 function formatGeneratedAt(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "刚刚";
@@ -111,40 +106,15 @@ function buildSections(data: PersonalArchiveRecentRecordsData | null): SummarySe
   return sections.filter((section) => section.metrics.length > 0);
 }
 
-function buildHealthSuggestions(data: PersonalArchiveRecentRecordsData | null): HealthSuggestion[] {
-  const metrics = data?.metrics ?? [];
-  const bloodPressure = recentSevenDays(data?.bloodPressure ?? []);
-  const sleep = recentSevenDays(metrics.filter((record) => record.metric_type === "sleep_duration"));
-  const steps = recentSevenDays(metrics.filter((record) => record.metric_type === "steps"));
-  const suggestions: HealthSuggestion[] = [];
-
-  if (sleep.length > 0) {
-    suggestions.push({ icon: "moon-outline", text: "继续保持相对固定的入睡和起床时间，让睡眠记录更容易形成规律。" });
-  } else {
-    suggestions.push({ icon: "moon-outline", text: "可以先从记录睡眠开始，连续记录几天后更容易了解自己的作息情况。" });
-  }
-
-  if (steps.length > 0) {
-    suggestions.push({ icon: "walk-outline", text: "在现有活动基础上，可安排轻松步行或拉伸，把活动分散到一天中完成。" });
-  } else {
-    suggestions.push({ icon: "walk-outline", text: "如果方便，可从每天 10–15 分钟的轻松步行或拉伸开始，按自己的感受循序增加。" });
-  }
-
-  if (bloodPressure.length > 0) {
-    suggestions.push({ icon: "pulse-outline", text: "下次记录血压时尽量选择相近时段和相同姿势，便于后续对照变化。" });
-  } else {
-    suggestions.push({ icon: "create-outline", text: "下周可优先持续记录一两项关心的指标，例如睡眠、步数或体重，方便回看日常变化。" });
-  }
-
-  return suggestions;
-}
-
-function extractReminder(content: string | null): string | null {
+function extractBriefSection(content: string | null, heading: string): string | null {
   if (!content) return null;
   const lines = content.split("\n").map((line) => line.trim());
-  const reminderIndex = lines.findIndex((line) => line.includes("小提醒"));
-  if (reminderIndex < 0) return null;
-  return lines.slice(reminderIndex + 1).find((line) => line && !line.includes("不替代医生判断")) ?? null;
+  const sectionIndex = lines.findIndex((line) => line.includes(heading));
+  if (sectionIndex < 0) return null;
+  const nextHeading = lines.slice(sectionIndex + 1).findIndex((line) => /^(❤️|😴|🏃|💡|📌)/.test(line));
+  const sectionLines = lines.slice(sectionIndex + 1, nextHeading < 0 ? undefined : sectionIndex + 1 + nextHeading);
+  const value = sectionLines.filter((line) => line && !line.includes("不替代医生判断")).join("\n");
+  return value || null;
 }
 
 function MetricCard({ item }: { item: MetricSummary }) {
@@ -174,8 +144,8 @@ export default function HealthBriefScreen() {
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const content = latest.data?.generated_content ?? null;
   const sections = useMemo(() => buildSections(archive.data), [archive.data]);
-  const suggestions = useMemo(() => buildHealthSuggestions(archive.data), [archive.data]);
-  const reminder = extractReminder(content);
+  const suggestion = extractBriefSection(content, "健康建议");
+  const reminder = extractBriefSection(content, "小提醒");
 
   const refreshBrief = useCallback(async () => {
     setRefreshing(true);
@@ -206,19 +176,17 @@ export default function HealthBriefScreen() {
       {archive.error ? <ApiErrorState message={archive.error} /> : null}
       {refreshError ? <ApiErrorState message={refreshError} /> : null}
 
-      {content ? (
+      {content && suggestion ? (
         <CardBase style={styles.suggestionCard}>
           <View style={styles.sectionHeading}>
             <View style={styles.suggestionIcon}><Ionicons color="#268C78" name="leaf-outline" size={18} /></View>
             <Text style={styles.sectionTitle}>健康建议</Text>
           </View>
-          <Text style={styles.suggestionIntro}>结合最近的记录，给你三个容易开始的小建议：</Text>
-          {suggestions.map((suggestion) => (
-            <View key={suggestion.text} style={styles.suggestionRow}>
-              <Ionicons color="#268C78" name={suggestion.icon} size={17} />
-              <Text style={styles.suggestionText}>{suggestion.text}</Text>
-            </View>
-          ))}
+          <Text style={styles.suggestionIntro}>根据本次健康小结生成</Text>
+          <View style={styles.suggestionRow}>
+            <Ionicons color="#268C78" name="bulb-outline" size={17} />
+            <Text style={styles.suggestionText}>{suggestion}</Text>
+          </View>
         </CardBase>
       ) : null}
 

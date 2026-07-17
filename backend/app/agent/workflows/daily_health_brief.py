@@ -323,8 +323,9 @@ def _build_daily_brief_llm_prompt_v2(results: _BriefToolResults, *, days: int) -
         [
             "请依据下面的安全事实包，写一份首页健康小结，并严格保留以下栏目结构。",
             "第一行必须是“健康小结 🌱”，第二行说明整理的是最近 7 天的已记录信息。",
-            "按有数据的栏目依次写“❤️ 身体指标”“😴 生活状态”“🏃 日常习惯”“📌 小提醒”；每个栏目用一到两句，带上真实的记录次数、最近一次或平均值。",
+            "按有数据的栏目依次写“❤️ 身体指标”“😴 生活状态”“🏃 日常习惯”“💡 健康建议”“📌 小提醒”；每个栏目用一到两句，带上真实的记录次数、最近一次或平均值。",
             "如果数据不够，不要补造数值或评价；没有数据的栏目直接省略。血压只能说明已记录次数、最近值、平均值或范围，不要写正常、稳定、波动异常等判断。",
+            "健康建议必须基于已给出的记录，写 1 至 2 条容易执行的日常建议，例如规律作息、轻松活动、持续记录。不要把建议写成诊断、治疗、用药、饮食处方或运动强度要求。",
             "小提醒只可复述系统内已有提醒/随访事项，或建议继续积累已有指标记录；不要诊断或给治疗建议。",
             "内容只能整理已给出的事实。不要诊断、确诊、开处方、给剂量、建议停药或替代医生判断。",
             "不要使用 Markdown 星号，不要提及工具、文件路径、原始文本、模型或内部状态。用简体中文。",
@@ -550,14 +551,19 @@ def _contains_cjk(value: str) -> bool:
 def _is_compact_daily_brief(content: str) -> bool:
     """Keep homepage summaries conversational instead of report-shaped."""
     stripped = content.strip()
-    if len(stripped) > 180:
+    if len(stripped) > 260:
         return False
     return not any(marker in stripped for marker in ("\n-", "\n*", "\n1.", "\n2.", "###"))
 
 
 def _is_structured_home_brief(content: str) -> bool:
-    headings = ("❤️ 身体指标", "😴 生活状态", "🏃 日常习惯", "📌 小提醒")
-    return content.startswith("健康小结 🌱") and "📌 小提醒" in content and any(heading in content for heading in headings[:-1])
+    headings = ("❤️ 身体指标", "😴 生活状态", "🏃 日常习惯")
+    return (
+        content.startswith("健康小结 🌱")
+        and "💡 健康建议" in content
+        and "📌 小提醒" in content
+        and any(heading in content for heading in headings)
+    )
 
 
 def _ensure_daily_brief_boundary(content: str) -> str:
@@ -671,6 +677,8 @@ def _build_structured_daily_health_brief(results: _BriefToolResults, *, days: in
     if habit_lines:
         sections.append("🏃 日常习惯\n" + "\n".join(habit_lines))
 
+    sections.append("💡 健康建议\n" + "\n".join(_daily_brief_health_suggestion_lines(results)))
+
     reminder_lines = _daily_brief_reminder_lines(results)
     if not reminder_lines:
         tracked = _tracked_metric_labels(results.weekly_metrics)
@@ -689,6 +697,19 @@ def _build_structured_daily_health_brief(results: _BriefToolResults, *, days: in
             "基于系统内已有记录整理，不替代医生判断；如有明显不适请及时就医。",
         ]
     )
+
+
+def _daily_brief_health_suggestion_lines(results: _BriefToolResults) -> list[str]:
+    """Fallback wording only; the LLM writes the final suggestion when enabled."""
+    tracked = _tracked_metric_labels(results.weekly_metrics)
+    suggestions: list[str] = []
+    if "睡眠" in tracked:
+        suggestions.append("继续保持相对固定的入睡和起床时间，方便结合记录回看自己的作息。")
+    if "步数" in tracked:
+        suggestions.append("可以把轻松步行或拉伸分散到一天中，按自己的感受安排活动。")
+    if not suggestions:
+        suggestions.append("可以先从规律记录一两项关心的指标开始，逐步形成适合自己的日常习惯。")
+    return suggestions[:2]
 
 
 def _body_metric_lines(results: _BriefToolResults) -> list[str]:

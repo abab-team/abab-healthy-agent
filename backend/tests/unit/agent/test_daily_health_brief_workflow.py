@@ -153,13 +153,16 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         health_profile_service.create_or_update_profile(self.db, self.actor.id, {"height_cm": 182})
         health_data_service.add_metric(self.db, user_id=self.actor.id, metric_type="weight", value_numeric=65, unit="kg")
 
-        result = AgentRuntime().run(self.db, self._request(self.actor.id, self.actor.id))
+        registry = AgentWorkflowRegistry()
+        registry.register(DailyHealthBriefWorkflow(settings=Settings(LLM_ENABLED=False, DAILY_BRIEF_USE_LLM=False)))
+        result = AgentRuntime(registry).run(self.db, self._request(self.actor.id, self.actor.id))
         content = result.generated_content or ""
 
         self.assertIn("健康小结 🌱", content)
         self.assertIn("❤️ 身体指标", content)
         self.assertIn("最近 7 天记录了 1 次体重", content)
         self.assertNotIn("BMI 约为 19.6", content)
+        self.assertIn("💡 健康建议", content)
         self.assertIn("📌 小提醒", content)
         self.assertNotIn("记录连续", content)
         self.assertNotIn("资料归档", content)
@@ -333,7 +336,7 @@ class DailyHealthBriefWorkflowTestCase(unittest.TestCase):
         self.assertIn("fallback_reason=daily_brief_use_llm_disabled", result.message)
 
     def test_llm_enabled_can_generate_safe_daily_brief(self) -> None:
-        safe_content = "健康小结 🌱\n我帮你整理了最近 7 天的已记录信息。\n❤️ 身体指标\n最近一次血压记录为 118/76 mmHg。\n📌 小提醒\n继续积累已有记录。"
+        safe_content = "健康小结 🌱\n我帮你整理了最近 7 天的已记录信息。\n❤️ 身体指标\n最近一次血压记录为 118/76 mmHg。\n💡 健康建议\n可以保持规律记录，并结合日常作息回看变化。\n📌 小提醒\n继续积累已有记录。"
         fake_llm = FakeLLMClient(safe_content)
         registry = AgentWorkflowRegistry()
         registry.register(
