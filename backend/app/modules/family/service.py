@@ -5,22 +5,32 @@
 
 from __future__ import annotations
 
+from datetime import timedelta, timezone
+from secrets import choice
+from string import ascii_uppercase, digits
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.modules.family import member_resolver, repository
-from app.modules.family.enums import FamilyMemberStatus, FamilyRole
+from app.db.mixins import utc_now
+from app.modules.family.enums import FamilyInvitationStatus, FamilyMemberStatus, FamilyRole
 from app.modules.family.exceptions import (
     FamilyMemberAlreadyExistsError,
     FamilyMemberNotFoundError,
     FamilyNotFoundError,
+    InvitationNotAvailableError,
     MemberReferenceAmbiguousError,
     MemberReferenceNotFoundError,
+    UserAlreadyInFamilyError,
 )
 from app.modules.family.models import Family, FamilyMember
 from app.modules.family.schemas import MemberCandidate, MemberResolutionResult
 from app.modules.identity.service import ensure_user_exists
+
+
+INVITE_CODE_LENGTH = 8
+INVITE_VALIDITY_DAYS = 7
 
 
 # 函数职责：创建流程，完成输入校验、业务规则检查和新对象写入。
@@ -37,6 +47,7 @@ def create_family_with_owner(
     # 2. 按模块规则完成校验、权限判断和状态流转。
     # 3. 调用仓储层读写数据，并返回稳定的业务结果。
     ensure_user_exists(db, owner_user_id)
+    _assert_user_has_no_active_family(db, owner_user_id)
     family = repository.create_family(
         db,
         name=family_name,
@@ -51,7 +62,65 @@ def create_family_with_owner(
         display_name=owner_display_name,
         status=FamilyMemberStatus.ACTIVE,
     )
+    _create_private_default_permission(db, family.id, owner_user_id)
     return family
+
+
+def create_invitation_code(db: Session, *, family_id: UUID, inviter_user_id: UUID):
+    member = assert_user_in_family(db, user_id=inviter_user_id, family_id=family_id)
+    if member.role not in {FamilyRole.OWNER, FamilyRole.ADMIN}:
+        raise FamilyMemberNotFoundError("only family administrators can create invitation codes")
+    return repository.create_family_invitation(
+        db,
+        family_id=family_id,
+        inviter_user_id=inviter_user_id,
+        invite_code=_new_invite_code(),
+        expires_at=utc_now() + timedelta(days=INVITE_VALIDITY_DAYS),
+    )
+
+
+def join_family_by_invitation_code(db: Session, *, user_id: UUID, invite_code: str) -> tuple[Family, FamilyMember]:
+    user = ensure_user_exists(db, user_id)
+    _assert_user_has_no_active_family(db, user_id)
+    invitation = repository.get_invitation_by_code(db, invite_code.strip().upper())
+    now = utc_now()
+    expires_at = invitation.expires_at.replace(tzinfo=timezone.utc) if invitation is not None and invitation.expires_at.tzinfo is None else invitation.expires_at if invitation is not None else None
+    if invitation is None or invitation.status != FamilyInvitationStatus.PENDING or expires_at <= now:
+        if invitation is not None and invitation.status == FamilyInvitationStatus.PENDING and expires_at <= now:
+            invitation.status = FamilyInvitationStatus.EXPIRED
+            db.flush()
+        raise InvitationNotAvailableError("invitation code is not available")
+    family = repository.get_family_by_id(db, invitation.family_id)
+    if family is None:
+        raise InvitationNotAvailableError("invitation code is not available")
+    member = repository.create_family_member(
+        db,
+        family_id=family.id,
+        user_id=user_id,
+        role=FamilyRole.MEMBER,
+        relationship_label="家庭成员",
+        display_name=user.nickname or "家庭成员",
+        status=FamilyMemberStatus.ACTIVE,
+    )
+    _create_private_default_permission(db, family.id, user_id)
+    repository.accept_family_invitation(db, invitation, user_id=user_id, accepted_at=now)
+    return family, member
+
+
+def _assert_user_has_no_active_family(db: Session, user_id: UUID) -> None:
+    if repository.list_families_for_user(db, user_id):
+        raise UserAlreadyInFamilyError("user already belongs to a family")
+
+
+def _create_private_default_permission(db: Session, family_id: UUID, user_id: UUID) -> None:
+    from app.modules.permissions import service as permission_service
+
+    permission_service.create_default_permissions_for_member(db, family_id=family_id, user_id=user_id, share_all=False)
+
+
+def _new_invite_code() -> str:
+    alphabet = ascii_uppercase + digits
+    return "".join(choice(alphabet) for _ in range(INVITE_CODE_LENGTH))
 
 
 # 函数职责：创建流程，完成输入校验、业务规则检查和新对象写入。

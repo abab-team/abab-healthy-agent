@@ -21,12 +21,17 @@ function isPrivateShare(status: string | undefined) {
 export default function FamilyScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
+  const familiesResource = useApiResource(() => provider.listMyFamilies(), [session.currentUserId, session.dataMode]);
   const overview = useApiResource(() => provider.getFamilyOverview(), [session.currentUserId, session.dataMode]);
   const familyName = overview.data?.family.name ?? "幸福一家";
   const members = overview.data?.members ?? [];
   const displayMembers = members.length ? members : demoMembers.map((member) => ({ display_name: member.name, family_id: "family-demo", id: member.id, relationship_label: member.relation, share_status: member.shareStatus, user_id: member.id }));
   const isMock = overview.data?.source !== "api";
   const activities = isMock ? ["爸爸 · 记录了血压", "妈妈 · 上传了体检报告", "我 · 记录了睡眠 7.2 小时"] : [];
+
+  if (session.dataMode === "api" && !familiesResource.loading && !familiesResource.error && familiesResource.data?.length === 0) {
+    return <AppScreen><ScreenHeader subtitle="先创建家庭或输入家人的邀请码。" title="家庭健康" /><CardBase style={styles.emptyCard}><Ionicons color={theme.colors.primaryDark} name="people-outline" size={32} /><Text style={styles.emptyTitle}>你还没有加入家庭</Text><Text style={styles.hint}>加入后，家人只能看到彼此主动开放的信息。</Text><Link href={routes.familyOnboarding} style={styles.emptyLink}>创建或加入家庭</Link></CardBase></AppScreen>;
+  }
 
   return (
     <AppScreen>
@@ -62,6 +67,9 @@ const styles = StyleSheet.create({
   avatar: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: "#D4EEE5", borderRadius: 20, borderWidth: 2, height: 40, justifyContent: "center", width: 40 },
   avatars: { flexDirection: "row", marginTop: 13 },
   count: { backgroundColor: "#D9F7EB", borderRadius: theme.radius.pill, color: theme.colors.primaryDark, fontSize: 11, fontWeight: "900", overflow: "hidden", paddingHorizontal: 8, paddingVertical: 5 },
+  emptyCard: { alignItems: "center", backgroundColor: theme.colors.tealSoft, gap: 10, marginTop: 24 },
+  emptyLink: { color: theme.colors.primaryDark, fontSize: 15, fontWeight: "900", marginTop: 4 },
+  emptyTitle: { color: theme.colors.ink, fontSize: 18, fontWeight: "900" },
   familyName: { color: theme.colors.ink, fontSize: 20, fontWeight: "900" },
   familyText: { color: theme.colors.subtle, fontSize: 12, marginTop: 5 },
   hero: { backgroundColor: "#E5F8F1" },

@@ -16,7 +16,10 @@ import type {
   BloodPressureRecord,
   ChatHealthQueryInput,
   DocumentPipelineDetail,
+  Family,
+  FamilyCreationResult,
   FamilyMember,
+  FamilySharePermission,
   HealthStatus,
   HealthMetricRecord,
   HealthMetricCreateInput,
@@ -24,6 +27,7 @@ import type {
   ImportPreviewResult,
   ImportPreviewRow,
   LatestDailyHealthBrief,
+  JoinedFamilyResult,
   MedicalDocument,
   MedicalEventDraftInput,
   SymptomRecord,
@@ -219,6 +223,11 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
           source: "mock"
         });
       },
+      listMyFamilies: async () => ok<Family[]>([{ id: mockFamily.id, name: mockFamily.name, owner_user_id: "me" }]),
+      createFamily: async () => fail<FamilyCreationResult>(new Error("演示模式不会创建真实家庭。")),
+      joinFamilyByCode: async () => fail<JoinedFamilyResult>(new Error("演示模式不会加入真实家庭。")),
+      getMyFamilySharePermission: async () => ok<FamilySharePermission>({ family_id: mockFamily.id, user_id: "me", share_all: false, can_view_profile: false, can_view_metrics: false, can_view_symptoms: false, can_view_medical_events: false, can_view_documents: false }),
+      updateMyFamilySharePermission: async (_familyId: string, input: Partial<FamilySharePermission>) => ok<FamilySharePermission>({ family_id: mockFamily.id, user_id: "me", share_all: false, can_view_profile: false, can_view_metrics: false, can_view_symptoms: false, can_view_medical_events: false, can_view_documents: false, ...input }),
       getMemberDetail: async (id: string) => {
         const member = mockMembers.find((item) => item.id === id) ?? mockMembers[0];
         return ok<ApiMemberDetail>({
@@ -379,6 +388,21 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
       }
     },
     getFamilyOverview: () => getApiFamilyOverview(currentUserId),
+    listMyFamilies: async () => {
+      try { return ok(await backendApi.listFamilies(currentUserId)); } catch (error) { return fail<Family[]>(error); }
+    },
+    createFamily: async (input: { name: string; ownerDisplayName: string }) => {
+      try { return ok(await backendApi.createFamily(input, currentUserId)); } catch (error) { return fail<FamilyCreationResult>(error); }
+    },
+    joinFamilyByCode: async (inviteCode: string) => {
+      try { return ok(await backendApi.joinFamilyByCode(inviteCode, currentUserId)); } catch (error) { return fail<JoinedFamilyResult>(error); }
+    },
+    getMyFamilySharePermission: async (familyId: string) => {
+      try { return ok(await backendApi.getMyFamilySharePermission(familyId, currentUserId)); } catch (error) { return fail<FamilySharePermission>(error); }
+    },
+    updateMyFamilySharePermission: async (familyId: string, input: Partial<FamilySharePermission>) => {
+      try { return ok(await backendApi.updateMyFamilySharePermission(familyId, input, currentUserId)); } catch (error) { return fail<FamilySharePermission>(error); }
+    },
     getMemberDetail: (id: string) => getApiMemberDetail(id, currentUserId),
     getMemberArchiveSection: (id: string, section: MemberArchiveSection) => getApiMemberArchiveSection(id, section, currentUserId),
     getArchiveTrends: async () => {

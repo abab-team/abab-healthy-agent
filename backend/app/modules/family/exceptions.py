@@ -27,6 +27,14 @@ class FamilyMemberAlreadyExistsError(FamilyError):
     """Raised when a user is already a member of a family."""
 
 
+class UserAlreadyInFamilyError(FamilyError):
+    """Raised when the single-family product mode would be exceeded."""
+
+
+class InvitationNotAvailableError(FamilyError):
+    """Raised when an invitation code is invalid, expired, or already used."""
+
+
 # 类职责：MemberReferenceNotFoundError 表示 家庭成员模块 中可预期的业务异常。
 # 设计边界：领域异常用于表达业务失败，不直接决定 HTTP 状态码。继承/混入：FamilyError。
 class MemberReferenceNotFoundError(FamilyError):

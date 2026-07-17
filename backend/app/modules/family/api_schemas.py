@@ -5,9 +5,9 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.api.validators import DisplayName, Name, RequiredDisplayName, RequiredRelationshipLabel, STRICT_MODEL_CONFIG
+from app.api.validators import DisplayName, Name, RequiredDisplayName, RequiredRelationshipLabel, RequiredShortText, STRICT_MODEL_CONFIG
 from app.modules.family.enums import FamilyMemberStatus, FamilyRole
-from app.modules.family.models import Family, FamilyMember
+from app.modules.family.models import Family, FamilyInvitation, FamilyMember
 from app.modules.family.schemas import MemberResolutionResult
 
 
@@ -48,9 +48,29 @@ class FamilyMemberResponse(BaseModel):
     updated_at: datetime
 
 
+class FamilyInvitationResponse(BaseModel):
+    id: UUID
+    family_id: UUID
+    invite_code: str
+    status: str
+    expires_at: datetime
+
+
+class JoinFamilyByCodeRequest(BaseModel):
+    model_config = STRICT_MODEL_CONFIG
+
+    invite_code: RequiredShortText
+
+
+class JoinedFamilyResponse(BaseModel):
+    family: FamilyResponse
+    member: FamilyMemberResponse
+
+
 class FamilyWithOwnerResponse(BaseModel):
     family: FamilyResponse
     owner_member: FamilyMemberResponse
+    invitation: FamilyInvitationResponse
 
 
 class ResolveMemberRequest(BaseModel):
@@ -100,6 +120,16 @@ def family_member_response(member: FamilyMember) -> FamilyMemberResponse:
         joined_at=member.joined_at,
         created_at=member.created_at,
         updated_at=member.updated_at,
+    )
+
+
+def family_invitation_response(invitation: FamilyInvitation) -> FamilyInvitationResponse:
+    return FamilyInvitationResponse(
+        id=invitation.id,
+        family_id=invitation.family_id,
+        invite_code=invitation.invite_code,
+        status=invitation.status.value,
+        expires_at=invitation.expires_at,
     )
 
 

@@ -113,7 +113,14 @@ def create_permission_for_member(family_id: str, user_id: str, *, share_all: boo
             db,
             family_id=uuid.UUID(family_id),
             user_id=uuid.UUID(user_id),
-            share_all=share_all,
+        )
+        permission_service.update_share_permission(
+            db,
+            actor_user_id=uuid.UUID(user_id),
+            family_id=uuid.UUID(family_id),
+            target_user_id=uuid.UUID(user_id),
+            updates={"share_all": share_all},
+            reason="api_test_fixture",
         )
         db.commit()
 

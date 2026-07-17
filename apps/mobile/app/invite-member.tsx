@@ -1,35 +1,34 @@
+import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { SafetyNotice } from "@/components/common/SafetyNotice";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { colors } from "@/constants/colors";
-import { family } from "@/constants/mockData";
 
 export default function InviteMemberScreen() {
-  const [contact, setContact] = useState("demo_family_member@example.com");
-  const [sent, setSent] = useState(false);
+  const { code, familyName } = useLocalSearchParams<{ code?: string; familyName?: string }>();
+  const [copied, setCopied] = useState(false);
 
   return (
     <AppScreen>
-      <Text style={styles.title}>邀请成员</Text>
-      <SafetyNotice text="当前为演示邀请流程，不会发送真实短信、邮件或通知。" />
+      <Text style={styles.title}>邀请码已生成</Text>
+      <SafetyNotice text="邀请码 7 天内有效且仅可使用一次。家人加入后，仍由各自决定健康信息共享范围。" />
       <CardBase>
         <SectionHeader title="邀请信息" />
-        <Text style={styles.label}>家庭：{family.name}</Text>
-        <TextInput value={contact} onChangeText={setContact} style={styles.input} />
+        <Text style={styles.label}>家庭：{familyName ?? "你的家庭"}</Text>
+        <Text style={styles.code}>{code ?? "请从家庭页重新生成邀请码"}</Text>
         <Pressable
           style={styles.button}
           onPress={() => {
-            setSent(true);
-            Alert.alert("演示邀请已生成", "当前不会发送真实邀请。");
+            setCopied(true);
           }}
         >
-          <Text style={styles.buttonText}>生成邀请预览</Text>
+          <Text style={styles.buttonText}>我已分享给家人</Text>
         </Pressable>
-        {sent ? <StatusBadge label="已生成演示邀请" tone="mint" /> : null}
+        {copied ? <StatusBadge label="等待家人输入邀请码加入" tone="mint" /> : null}
       </CardBase>
     </AppScreen>
   );
@@ -47,14 +46,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12
   },
-  input: {
-    borderColor: colors.border,
-    borderRadius: 14,
-    borderWidth: 1,
-    color: colors.text,
-    marginVertical: 12,
-    padding: 12
-  },
+  code: { color: colors.primaryDark, fontSize: 25, fontWeight: "900", letterSpacing: 3, marginVertical: 18, textAlign: "center" },
   button: {
     backgroundColor: colors.primary,
     borderRadius: 999,

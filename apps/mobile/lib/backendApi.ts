@@ -16,8 +16,11 @@ import type {
   DocumentExtractionResult,
   DocumentProcessingJob,
   Family,
+  FamilyCreationResult,
   FamilyMember,
+  FamilySharePermission,
   HealthProfile,
+  JoinedFamilyResult,
   HealthMetricRecord,
   HealthMetricCreateInput,
   BloodPressureCreateInput,
@@ -107,6 +110,14 @@ export const backendApi = {
     return apiClient.get<BackendFamily[]>("/api/v1/families", currentUserId);
   },
 
+  createFamily(input: { name: string; ownerDisplayName: string }, currentUserId: string) {
+    return apiClient.post<FamilyCreationResult>("/api/v1/families", { name: input.name, owner_display_name: input.ownerDisplayName }, currentUserId);
+  },
+
+  joinFamilyByCode(inviteCode: string, currentUserId: string) {
+    return apiClient.post<JoinedFamilyResult>("/api/v1/families/join-by-code", { invite_code: inviteCode }, currentUserId);
+  },
+
   listFamilyMembers(familyId: string, currentUserId: string) {
     return apiClient
       .get<BackendFamilyMember[]>(`/api/v1/families/${familyId}/members`, currentUserId)
@@ -115,6 +126,14 @@ export const backendApi = {
 
   listFamilyPermissions(familyId: string, currentUserId: string) {
     return apiClient.get<Record<string, unknown>[]>(`/api/v1/families/${familyId}/permissions`, currentUserId);
+  },
+
+  getMyFamilySharePermission(familyId: string, currentUserId: string) {
+    return apiClient.get<FamilySharePermission>(`/api/v1/families/${familyId}/members/${currentUserId}/permissions`, currentUserId);
+  },
+
+  updateMyFamilySharePermission(familyId: string, input: Partial<FamilySharePermission>, currentUserId: string) {
+    return apiClient.patch<FamilySharePermission>(`/api/v1/families/${familyId}/members/${currentUserId}/permissions`, input, currentUserId);
   },
 
   getMyHealthProfile(currentUserId: string) {

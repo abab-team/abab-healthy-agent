@@ -211,3 +211,11 @@ def get_invitation_by_code(
     return db.scalar(
         select(FamilyInvitation).where(FamilyInvitation.invite_code == invite_code),
     )
+
+
+def accept_family_invitation(db: Session, invitation: FamilyInvitation, *, user_id: UUID, accepted_at: datetime) -> FamilyInvitation:
+    invitation.status = FamilyInvitationStatus.ACCEPTED
+    invitation.accepted_by_user_id = user_id
+    invitation.accepted_at = accepted_at
+    db.flush()
+    return invitation

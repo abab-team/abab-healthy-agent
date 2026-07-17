@@ -20,6 +20,25 @@ export type Family = {
   owner_user_id: string;
 };
 
+export type FamilyInvitation = {
+  id: string;
+  family_id: string;
+  invite_code: string;
+  status: string;
+  expires_at: string;
+};
+
+export type FamilyCreationResult = {
+  family: Family;
+  owner_member: FamilyMember;
+  invitation: FamilyInvitation;
+};
+
+export type JoinedFamilyResult = {
+  family: Family;
+  member: FamilyMember;
+};
+
 export type FamilyMember = {
   id: string;
   family_id: string;
@@ -27,6 +46,17 @@ export type FamilyMember = {
   display_name: string;
   relationship_label: string;
   share_status: string;
+};
+
+export type FamilySharePermission = {
+  family_id: string;
+  user_id: string;
+  share_all: boolean;
+  can_view_profile: boolean;
+  can_view_metrics: boolean;
+  can_view_symptoms: boolean;
+  can_view_medical_events: boolean;
+  can_view_documents: boolean;
 };
 
 export type HealthProfile = {

@@ -75,9 +75,10 @@ def update_member_permissions(
     current_user_id: UUID = Depends(get_current_user_id_for_demo),
     db: Session = Depends(get_db),
 ) -> PermissionResponse:
-    # Phase 05.A only requires family membership; owner/admin checks are refined later.
     _assert_current_member(db, family_id, current_user_id)
     _assert_target_member(db, family_id, target_user_id)
+    if target_user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="members can only update their own sharing settings")
     updates = payload.model_dump(exclude={"reason"}, exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="no permission fields provided")
