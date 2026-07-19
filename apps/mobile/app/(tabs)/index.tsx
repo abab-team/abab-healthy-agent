@@ -110,9 +110,7 @@ function buildRecentRecords(data: PersonalArchiveRecentRecordsData | null): Home
   const metricRecords = data.metrics.map((record) => ({ detail: formatMetricValue(record), icon: metricRecordIcon(record.metric_type), id: record.id, measuredAt: record.measured_at, title: `${metricLabel(record.metric_type)}记录`, tone: theme.colors.primary }));
   const bloodPressureRecords = data.bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, icon: "pulse-outline" as const, id: record.id, measuredAt: record.recorded_at, title: "血压记录", tone: "#8168D8" }));
   const symptomRecords = data.symptoms.map((record) => ({ detail: record.summary, icon: "heart-outline" as const, id: record.id, measuredAt: record.recorded_at, title: record.title || "症状记录", tone: "#F38A69" }));
-  const documentRecords = data.documents.map((record) => ({ detail: record.file_name, icon: "document-text-outline" as const, id: record.id, measuredAt: record.document_date ?? record.confirmed_at ?? record.created_at ?? "", title: record.title || "医疗资料", tone: "#5E9CE6" }));
-  const medicalEventRecords = data.medicalEvents.map((record) => ({ detail: record.summary?.trim() || record.event_type || "已保存的健康事件", icon: "medical-outline" as const, id: record.id, measuredAt: record.event_date ?? record.created_at ?? "", title: record.title?.trim() || "健康事件", tone: "#E89545" }));
-  return [...metricRecords, ...bloodPressureRecords, ...symptomRecords, ...documentRecords, ...medicalEventRecords]
+  return [...metricRecords, ...bloodPressureRecords, ...symptomRecords]
     .sort((left, right) => new Date(right.measuredAt).getTime() - new Date(left.measuredAt).getTime())
     .slice(0, 4);
 }

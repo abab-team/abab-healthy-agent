@@ -43,7 +43,7 @@ export default function ArchiveScreen() {
   const recentItems = [
     ...documents.map((item: MedicalDocument) => ({ date: (item.document_date ?? item.created_at ?? "").replace("T", " ").slice(0, 16), detail: item.title || item.file_name, icon: "document-text-outline" as const, id: item.id, title: "新增医疗资料", tone: "#75A5F5" })),
     ...medicalEvents.map((item) => ({ date: (item.event_date ?? item.created_at ?? "").replace("T", " ").slice(0, 16), detail: item.title ?? item.event_type ?? "健康事件", icon: "medical-outline" as const, id: item.id, title: "归档健康事件", tone: "#E89545" }))
-  ].filter((item) => item.date).slice(0, 3);
+  ].filter((item) => item.date).sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime()).slice(0, 3);
 
   return (
     <AppScreen>

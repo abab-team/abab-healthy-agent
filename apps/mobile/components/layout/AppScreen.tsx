@@ -4,6 +4,7 @@ import { PropsWithChildren, ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "@/constants/theme";
+import { TabSwipeContainer } from "@/components/layout/TabSwipeContainer";
 
 type AppScreenProps = PropsWithChildren<{
   scroll?: boolean;
@@ -20,6 +21,7 @@ export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
   const content = <View style={[styles.content, footer ? styles.contentWithFooter : null]}>{children}</View>;
 
   return (
+    <TabSwipeContainer>
     <SafeAreaView style={styles.safeArea}>
       {scroll ? (
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -30,6 +32,7 @@ export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
       )}
       {footer ? <View style={styles.footer}>{footer}</View> : null}
     </SafeAreaView>
+    </TabSwipeContainer>
   );
 }
 

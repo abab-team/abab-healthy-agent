@@ -362,6 +362,8 @@ def seed_health_metrics(session: Session, users: dict[str, User]) -> None:
         add_metric("gala", MetricType.HEART_RATE, value, "bpm", recorded_at(2026, month, day))
     add_metric("gala", MetricType.EXERCISE_DURATION, 40, "minutes", recorded_at(2026, 6, 22), "步行")
     add_metric("gala", MetricType.EXERCISE_DURATION, 30, "minutes", recorded_at(2026, 7, 2), "跑步")
+    for day, value in [(4, 6520), (7, 7120), (10, 6800)]:
+        add_metric("gala", MetricType.STEPS, value, "steps", recorded_at(2026, 7, day))
     add_metric("gala", MetricType.WEIGHT, 65, "kg", recorded_at(2026, 7, 10))
     add_metric("gala", MetricType.BMI, 19.6, "kg/m2", recorded_at(2026, 7, 10))
 
