@@ -33,7 +33,9 @@ export default function FamilyScreen() {
       {overview.error ? <ApiErrorState message={overview.error} /> : null}
       <View style={styles.memberList}>
         {members.map((member) => {
-          return <FamilyHealthOverviewCard key={member.id} avatar="👤" id={member.user_id} name={member.display_name} relation={member.relationship_label} />;
+          const avatar = member.relationship_label === "爸爸" ? "👨" : member.relationship_label === "妈妈" ? "👩" : "🧑";
+          const avatarUrl = member.avatar_url?.startsWith("http") ? member.avatar_url : member.avatar_url ? `${session.apiBaseUrl}${member.avatar_url}` : undefined;
+          return <FamilyHealthOverviewCard key={member.id} avatar={avatar} avatarUrl={avatarUrl} id={member.user_id} name={member.display_name} relation={member.relationship_label} />;
         })}
       </View>
       <Link href={routes.inviteMember} asChild><Pressable style={styles.inviteButton}><Ionicons color={theme.colors.primaryDark} name="person-add-outline" size={20} /><Text style={styles.inviteText}>邀请家庭成员</Text></Pressable></Link>
@@ -42,9 +44,9 @@ export default function FamilyScreen() {
 }
 
 const styles = StyleSheet.create({
-  currentFamilyLabel: { color: theme.colors.subtle, fontSize: 14 },
-  currentFamilyName: { color: theme.colors.primaryDark, fontSize: 14, fontWeight: "900" },
-  currentFamilyRow: { alignItems: "center", flexDirection: "row", marginTop: 2 },
+  currentFamilyLabel: { color: theme.colors.subtle, fontSize: 17 },
+  currentFamilyName: { color: theme.colors.primaryDark, fontSize: 19, fontWeight: "900" },
+  currentFamilyRow: { alignItems: "center", flexDirection: "row", gap: 8, marginTop: 2 },
   emptyCard: { alignItems: "center", backgroundColor: theme.colors.tealSoft, gap: 10, marginTop: 24 },
   emptyLink: { color: theme.colors.primaryDark, fontSize: 15, fontWeight: "900", marginTop: 4 },
   emptyTitle: { color: theme.colors.ink, fontSize: 18, fontWeight: "900" },

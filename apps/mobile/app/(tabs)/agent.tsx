@@ -154,7 +154,7 @@ export default function AgentScreen() {
     <ScreenHeader subtitle="我可以帮你整理自己和家人的健康记录。" title="AI 健康管家" />
     <ScrollView ref={scrollRef} contentContainerStyle={styles.chatContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.chatScroll}>
       {messages.length === 0 ? <>
-        <ChatBubble content="你好，Gala 👋\n\n今天想聊点什么？我可以陪你说说话，也能在权限允许的范围内帮你整理自己和家人的健康记录。" role="assistant" />
+        <View style={styles.welcome}><Text style={styles.welcomeTitle}>你好，Gala 👋</Text><Text style={styles.welcomeText}>今天想聊点什么？我可以陪你说说话，也能在权限允许的范围内帮你整理自己和家人的健康记录。</Text></View>
         <View style={styles.questionHeader}><Text style={styles.sectionTitle}>你可以这样问</Text><Text style={styles.sectionCaption}>连续追问会沿用当前对话上下文</Text></View>
         <View style={styles.suggestions}>{suggestions.map((suggestion) => <Pressable key={suggestion} onPress={() => void runChatQuery(suggestion)} style={styles.suggestion}><Text style={styles.suggestionText}>{suggestion}</Text><Ionicons color={theme.colors.primaryDark} name="arrow-up-outline" size={15} /></Pressable>)}</View>
       </> : messages.map((message) => <View key={message.id} style={styles.messageGroup}>
@@ -193,5 +193,8 @@ const styles = StyleSheet.create({
   taskStateHint: { color: theme.colors.subtle, fontSize: 11, lineHeight: 16 },
   taskStateTitle: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "800" },
   typing: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: theme.radius.pill, borderWidth: 1, flexDirection: "row", gap: 5, paddingHorizontal: 13, paddingVertical: 10, width: 66 },
-  typingDot: { backgroundColor: theme.colors.primary, borderRadius: 3, height: 6, width: 6 }
+  typingDot: { backgroundColor: theme.colors.primary, borderRadius: 3, height: 6, width: 6 },
+  welcome: { gap: 7, paddingVertical: 4 },
+  welcomeTitle: { color: theme.colors.ink, fontSize: 20, fontWeight: "900" },
+  welcomeText: { color: theme.colors.subtle, fontSize: 14, lineHeight: 22 }
 });

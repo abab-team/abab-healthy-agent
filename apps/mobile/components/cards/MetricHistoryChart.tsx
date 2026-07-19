@@ -68,7 +68,7 @@ export function MetricHistoryChart({ series }: { series: ArchiveTrendSeries }) {
         {range.ticks.map((tick, index) => <View key={tick} style={[styles.grid, { top: 5 + (index / Math.max(range.ticks.length - 1, 1)) * 116 }]} />)}
         <ChartLine color="#1DB69A" points={primary} range={range} width={width} />
         {secondary.length ? <ChartLine color="#5A92E6" points={secondary} range={range} width={width} /> : null}
-        <View style={styles.axis}>{labels.map((label) => <Text key={label} style={styles.axisText}>{label}</Text>)}</View>
+        <View style={styles.axis}>{labels.map((label, index) => <Text key={`${label}-${index}`} style={styles.axisText}>{label}</Text>)}</View>
       </View>
     </View>
   );

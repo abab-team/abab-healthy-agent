@@ -46,6 +46,7 @@ class FamilyMemberResponse(BaseModel):
     joined_at: datetime
     created_at: datetime
     updated_at: datetime
+    avatar_url: str | None = None
 
 
 class FamilyInvitationResponse(BaseModel):
@@ -108,7 +109,7 @@ def family_response(family: Family) -> FamilyResponse:
     )
 
 
-def family_member_response(member: FamilyMember) -> FamilyMemberResponse:
+def family_member_response(member: FamilyMember, *, avatar_url: str | None = None) -> FamilyMemberResponse:
     return FamilyMemberResponse(
         id=member.id,
         family_id=member.family_id,
@@ -120,6 +121,7 @@ def family_member_response(member: FamilyMember) -> FamilyMemberResponse:
         joined_at=member.joined_at,
         created_at=member.created_at,
         updated_at=member.updated_at,
+        avatar_url=avatar_url,
     )
 
 

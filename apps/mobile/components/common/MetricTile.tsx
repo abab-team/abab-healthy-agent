@@ -30,9 +30,9 @@ export function MetricTile({ label, value, note, icon, tone = "teal", wide = fal
 }
 
 const styles = StyleSheet.create({
-  label: { color: theme.colors.subtle, fontSize: 12, marginTop: 9 },
-  note: { color: theme.colors.subtle, fontSize: 11, lineHeight: 16, marginTop: 4 },
-  tile: { borderRadius: theme.radius.md, minHeight: 132, padding: 13, width: "48%" },
-  value: { color: theme.colors.ink, fontSize: 19, fontWeight: "900", marginTop: 4 },
-  wide: { minHeight: 92, width: "100%" }
+  label: { color: theme.colors.subtle, fontSize: 12, marginTop: 6 },
+  note: { color: theme.colors.subtle, fontSize: 11, lineHeight: 15, marginTop: 3 },
+  tile: { borderRadius: theme.radius.md, minHeight: 112, padding: 12, width: "48%" },
+  value: { color: theme.colors.ink, fontSize: 18, fontWeight: "900", marginTop: 3 },
+  wide: { minHeight: 78, width: "100%" }
 });

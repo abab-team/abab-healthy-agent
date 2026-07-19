@@ -55,10 +55,10 @@ export function ArchiveProfileCard({
 }
 
 const styles = StyleSheet.create({
-  avatar: { alignItems: "center", backgroundColor: theme.colors.tealSoft, borderRadius: 28, height: 68, justifyContent: "center", width: 68 },
-  avatarText: { fontSize: 41 },
+  avatar: { alignItems: "center", backgroundColor: theme.colors.tealSoft, borderRadius: 24, height: 56, justifyContent: "center", width: 56 },
+  avatarText: { fontSize: 33 },
   body: { alignItems: "flex-start", flexDirection: "row", gap: 14 },
-  card: { backgroundColor: "#FFFFFF" },
+  card: { backgroundColor: "#FFFFFF", paddingVertical: 14 },
   copy: { flex: 1 },
   detailLabel: { color: theme.colors.subtle, fontSize: 11, width: 40 },
   detailRow: { flexDirection: "row", gap: 8 },
@@ -66,11 +66,11 @@ const styles = StyleSheet.create({
   detailValue: { color: theme.colors.ink, fontSize: 12, fontWeight: "700" },
   editButton: { backgroundColor: theme.colors.tealSoft, borderRadius: theme.radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
   editText: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
-  heading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 13 },
+  heading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 9 },
   name: { color: theme.colors.ink, fontSize: 19, fontWeight: "900" },
   nameRow: { alignItems: "center", flexDirection: "row", gap: 5 },
   readOnly: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
   summary: { color: theme.colors.subtle, fontSize: 11, lineHeight: 16, marginTop: 8 },
   title: { color: theme.colors.ink, fontSize: 16, fontWeight: "900" },
-  updated: { color: theme.colors.primaryDark, fontSize: 11, fontWeight: "800", marginTop: 10 }
+  updated: { color: theme.colors.primaryDark, fontSize: 11, fontWeight: "800", marginTop: 7 }
 });

@@ -46,6 +46,7 @@ export type FamilyMember = {
   display_name: string;
   relationship_label: string;
   share_status: string;
+  avatar_url?: string | null;
 };
 
 export type FamilySharePermission = {

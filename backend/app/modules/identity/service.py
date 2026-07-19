@@ -11,6 +11,8 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.modules.identity import repository
+from app.modules.identity import avatar_storage
+from app.core.config import Settings
 from app.modules.identity.enums import Gender, UserStatus
 from app.modules.identity.exceptions import (
     UserAlreadyExistsError,
@@ -140,5 +142,18 @@ def update_profile(
     # 分支说明：根据当前条件选择不同业务路径，保证异常场景和正常场景分开处理。
     if birth_date is not None:
         user.birth_date = birth_date
+    db.flush()
+    return to_user_public(user)
+
+
+def upload_avatar(db: Session, user_id: UUID, *, content: bytes, mime_type: str | None, settings: Settings) -> UserPublic:
+    user = ensure_user_exists(db, user_id)
+    avatar_storage.store_avatar_bytes(
+        content=content,
+        mime_type=mime_type,
+        settings=settings,
+        user_id=user_id,
+    )
+    user.avatar_url = f"/api/v1/identity/users/{user_id}/avatar"
     db.flush()
     return to_user_public(user)

@@ -18,7 +18,7 @@ export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
       requestAnimationFrame(() => scrollRef.current?.scrollTo({ animated: false, y: 0 }));
     }
   }, [scroll]));
-  const content = <View style={[styles.content, footer ? styles.contentWithFooter : null]}>{children}</View>;
+  const content = <View style={[scroll ? styles.scrollInner : styles.content, footer ? styles.contentWithFooter : null]}>{children}</View>;
 
   return (
     <TabSwipeContainer>
@@ -43,6 +43,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    gap: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.lg
+  },
+  scrollInner: {
     gap: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
     paddingHorizontal: theme.spacing.lg

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_id_for_demo, get_db
 from app.modules.family import service
+from app.modules.identity import service as identity_service
 from app.modules.family.api_schemas import (
     FamilyCreateRequest,
     FamilyMemberCreateRequest,
@@ -122,7 +123,13 @@ def list_family_members(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="family member not found",
         ) from exc
-    return [family_member_response(member) for member in members]
+    return [
+        family_member_response(
+            member,
+            avatar_url=(identity_service.get_user(db, member.user_id).avatar_url if identity_service.get_user(db, member.user_id) else None),
+        )
+        for member in members
+    ]
 
 
 @router.post("/{family_id}/members", response_model=FamilyMemberResponse, status_code=status.HTTP_201_CREATED)

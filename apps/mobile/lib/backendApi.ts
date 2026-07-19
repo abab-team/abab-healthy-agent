@@ -45,6 +45,7 @@ type BackendFamilyMember = {
   relationship_label?: string | null;
   role?: string;
   status?: string;
+  avatar_url?: string | null;
 };
 
 type BackendAgentTrace = {
@@ -106,7 +107,8 @@ function toFamilyMember(member: BackendFamilyMember): FamilyMember {
     user_id: member.user_id,
     display_name: member.display_name ?? member.relationship_label ?? "家庭成员",
     relationship_label: member.relationship_label ?? "家庭成员",
-    share_status: member.status ?? "active"
+    share_status: member.status ?? "active",
+    avatar_url: member.avatar_url
   };
 }
 
@@ -125,6 +127,14 @@ function postAgentRun(input: { currentUserId: string; body: AgentRunRequest }) {
 export const backendApi = {
   getHealth() {
     return apiClient.get<HealthStatus>("/health");
+  },
+
+  getMyIdentity(currentUserId: string) {
+    return apiClient.get<{ id: string; nickname?: string | null; email?: string | null; avatar_url?: string | null }>("/api/v1/identity/me", currentUserId);
+  },
+
+  uploadMyAvatar(input: { content: Blob; mimeType: string }, currentUserId: string) {
+    return apiClient.upload<{ id: string; nickname?: string | null; email?: string | null; avatar_url?: string | null }>("/api/v1/identity/me/avatar", input.content, { "Content-Type": input.mimeType }, currentUserId);
   },
 
   listFamilies(currentUserId: string) {
