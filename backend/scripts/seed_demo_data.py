@@ -20,7 +20,6 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.db.session import SessionLocal  # noqa: E402
 from app.modules.auth.password import hash_password  # noqa: E402
-from app.modules.alerts.enums import AlertLevel, AlertSource, AlertStatus, AlertType  # noqa: E402
 from app.modules.alerts.models import Alert, AlertEvent  # noqa: E402
 from app.modules.document_center.enums import (  # noqa: E402
     DocumentExtractStatus,
@@ -669,106 +668,6 @@ def seed_daily_reports(session: Session, family: Family, users: dict[str, User])
     )
 
 
-# 函数职责：演示数据流程，写入固定演示数据，保证本地开发和验收结果可复现。
-# 业务边界：演示数据脚本应尽量幂等，重复执行不应制造脏数据。
-def seed_alerts(
-    session: Session,
-    family: Family,
-    users: dict[str, User],
-    bp_records: list[BloodPressureRecord],
-    symptoms: list[SymptomRecord],
-    events: list[MedicalEvent],
-) -> None:
-    # 流程说明：
-    # 1. 接收上游传入的数据或上下文。
-    # 2. 完成本函数职责范围内的处理。
-    # 3. 将结果返回给调用方，继续由上层流程编排。
-    father_bp_record = next(record for record in bp_records if record.user_id == users["father"].id)
-    father_bp_alert = Alert(
-        user_id=users["father"].id,
-        family_id=family.id,
-        created_by_user_id=None,
-        alert_type=AlertType.METRIC_ATTENTION,
-        level=AlertLevel.ATTENTION,
-        title="每周测量血压",
-        message="记录每周血压测量。",
-        suggested_action="记录本周血压。",
-        related_entity_type="blood_pressure_records",
-        related_entity_id=father_bp_record.id,
-        trigger_reason="家庭健康 Demo 数据集 V1 的日常记录提醒",
-        status=AlertStatus.ACTIVE,
-        source=AlertSource.RULE,
-    )
-    father_follow_up = Alert(
-        user_id=users["father"].id,
-        family_id=family.id,
-        created_by_user_id=None,
-        alert_type=AlertType.MEDICAL_FOLLOW_UP,
-        level=AlertLevel.ATTENTION,
-        title="复查提醒",
-        message="2026-08-10 复查提醒。",
-        suggested_action="查看复查资料。",
-        related_entity_type="medical_events",
-        related_entity_id=events[0].id,
-        trigger_reason="家庭健康 Demo 数据集 V1 的复查提醒",
-        status=AlertStatus.ACTIVE,
-        due_at=recorded_at(2026, 8, 10),
-        source=AlertSource.SYSTEM,
-    )
-    mother_symptom = Alert(
-        user_id=users["mother"].id,
-        family_id=family.id,
-        created_by_user_id=None,
-        alert_type=AlertType.SYMPTOM_FOLLOW_UP,
-        level=AlertLevel.INFO,
-        title="年度体检提醒",
-        message="年度体检提醒。",
-        suggested_action="查看年度体检资料。",
-        related_entity_type="symptom_records",
-        related_entity_id=events[1].id,
-        trigger_reason="家庭健康 Demo 数据集 V1 的年度体检提醒",
-        status=AlertStatus.ACTIVE,
-        source=AlertSource.RULE,
-    )
-    gala_sleep = Alert(
-        user_id=users["gala"].id,
-        family_id=family.id,
-        created_by_user_id=users["gala"].id,
-        alert_type=AlertType.DATA_MISSING,
-        level=AlertLevel.INFO,
-        title="规律睡眠记录提醒",
-        message="建议保持规律睡眠。",
-        suggested_action="记录睡眠时长。",
-        status=AlertStatus.ACTIVE,
-        source=AlertSource.USER,
-    )
-    gala_weight = Alert(
-        user_id=users["gala"].id,
-        family_id=family.id,
-        created_by_user_id=users["gala"].id,
-        alert_type=AlertType.DATA_MISSING,
-        level=AlertLevel.INFO,
-        title="体重记录提醒",
-        message="每月记录一次体重。",
-        suggested_action="记录体重。",
-        status=AlertStatus.ACTIVE,
-        source=AlertSource.USER,
-    )
-    mother_exercise = Alert(
-        user_id=users["mother"].id,
-        family_id=family.id,
-        created_by_user_id=users["mother"].id,
-        alert_type=AlertType.DATA_MISSING,
-        level=AlertLevel.INFO,
-        title="保持运动习惯提醒",
-        message="保持运动习惯。",
-        suggested_action="记录运动时长。",
-        status=AlertStatus.ACTIVE,
-        source=AlertSource.USER,
-    )
-    session.add_all([father_bp_alert, father_follow_up, mother_symptom, gala_sleep, gala_weight, mother_exercise])
-
-
 # 函数职责：业务函数，封装 开发脚本 中的一段可复用逻辑。
 # 业务边界：调用方应根据返回值和异常语义处理成功与失败。
 def main() -> None:
@@ -783,12 +682,11 @@ def main() -> None:
         seed_permissions(session, family, users)
         seed_health_profiles(session, users)
         seed_health_metrics(session, users)
-        bp_records = seed_blood_pressure(session, users)
-        symptoms = seed_symptoms(session, family, users)
+        seed_blood_pressure(session, users)
+        seed_symptoms(session, family, users)
         documents = seed_documents(session, family, users)
-        events = seed_medical_events(session, family, users, documents)
+        seed_medical_events(session, family, users, documents)
         seed_daily_reports(session, family, users)
-        seed_alerts(session, family, users, bp_records, symptoms, events)
         session.commit()
 
     print("Phase 03 demo data seeded successfully.")

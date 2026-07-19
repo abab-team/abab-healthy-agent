@@ -29,8 +29,10 @@ type HomeMetricTile = {
 
 type HomeRecentRecord = {
   detail: string;
+  icon: keyof typeof Ionicons.glyphMap;
   id: string;
   measuredAt: string;
+  tone: string;
   title: string;
 };
 
@@ -66,6 +68,16 @@ function metricLabel(metricType: string): string {
   return ({ heart_rate: "心率", sleep_duration: "睡眠", steps: "步数", temperature: "体温", weight: "体重" } as Record<string, string>)[metricType] ?? "健康指标";
 }
 
+function metricRecordIcon(metricType: string): keyof typeof Ionicons.glyphMap {
+  return ({
+    heart_rate: "heart-outline",
+    sleep_duration: "moon-outline",
+    steps: "footsteps-outline",
+    temperature: "thermometer-outline",
+    weight: "scale-outline"
+  } as Record<string, keyof typeof Ionicons.glyphMap>)[metricType] ?? "analytics-outline";
+}
+
 function formatLatestMetricTime(value: string | null | undefined): string {
   if (!value) return "暂无已记录";
   const date = new Date(value);
@@ -95,13 +107,12 @@ function buildHomeMetrics(bloodPressure: BloodPressureRecord[], records: HealthM
 
 function buildRecentRecords(data: PersonalArchiveRecentRecordsData | null): HomeRecentRecord[] {
   if (!data) return [];
-  const metricRecords = data.metrics.map((record) => ({ detail: formatMetricValue(record), id: record.id, measuredAt: record.measured_at, title: `${metricLabel(record.metric_type)}记录` }));
-  const bloodPressureRecords = data.bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, id: record.id, measuredAt: record.recorded_at, title: "血压记录" }));
-  const symptomRecords = data.symptoms.map((record) => ({ detail: record.summary, id: record.id, measuredAt: record.recorded_at, title: record.title || "症状记录" }));
-  const documentRecords = data.documents.map((record) => ({ detail: record.file_name, id: record.id, measuredAt: record.document_date ?? record.confirmed_at ?? record.created_at ?? "", title: record.title || "医疗资料" }));
-  const medicalEventRecords = data.medicalEvents.map((record) => ({ detail: record.summary?.trim() || record.event_type || "已保存的健康事件", id: record.id, measuredAt: record.event_date ?? record.created_at ?? "", title: record.title?.trim() || "健康事件" }));
-  const alertRecords = data.alerts.map((record) => ({ detail: record.message?.trim() || record.due_at ? (record.message?.trim() || `提醒时间：${record.due_at}`) : "已创建的健康提醒", id: record.id, measuredAt: record.due_at ?? record.created_at ?? "", title: record.title || "健康提醒" }));
-  return [...metricRecords, ...bloodPressureRecords, ...symptomRecords, ...documentRecords, ...medicalEventRecords, ...alertRecords]
+  const metricRecords = data.metrics.map((record) => ({ detail: formatMetricValue(record), icon: metricRecordIcon(record.metric_type), id: record.id, measuredAt: record.measured_at, title: `${metricLabel(record.metric_type)}记录`, tone: theme.colors.primary }));
+  const bloodPressureRecords = data.bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, icon: "pulse-outline" as const, id: record.id, measuredAt: record.recorded_at, title: "血压记录", tone: "#8168D8" }));
+  const symptomRecords = data.symptoms.map((record) => ({ detail: record.summary, icon: "heart-outline" as const, id: record.id, measuredAt: record.recorded_at, title: record.title || "症状记录", tone: "#F38A69" }));
+  const documentRecords = data.documents.map((record) => ({ detail: record.file_name, icon: "document-text-outline" as const, id: record.id, measuredAt: record.document_date ?? record.confirmed_at ?? record.created_at ?? "", title: record.title || "医疗资料", tone: "#5E9CE6" }));
+  const medicalEventRecords = data.medicalEvents.map((record) => ({ detail: record.summary?.trim() || record.event_type || "已保存的健康事件", icon: "medical-outline" as const, id: record.id, measuredAt: record.event_date ?? record.created_at ?? "", title: record.title?.trim() || "健康事件", tone: "#E89545" }));
+  return [...metricRecords, ...bloodPressureRecords, ...symptomRecords, ...documentRecords, ...medicalEventRecords]
     .sort((left, right) => new Date(right.measuredAt).getTime() - new Date(left.measuredAt).getTime())
     .slice(0, 4);
 }
@@ -214,9 +225,11 @@ export default function HomeScreen() {
             查看档案
           </Link>
         </View>
-        {recentRecords.length ? recentRecords.map((record, index) => (
+        {recentRecords.length ? recentRecords.map((record) => (
           <Pressable key={record.id} onPress={() => router.push(routes.archive)} style={styles.recordRow}>
-            <View style={[styles.recordDot, index === 0 ? styles.dotTeal : null]} />
+            <View style={[styles.recordIcon, { backgroundColor: `${record.tone}16` }]}>
+              <Ionicons color={record.tone} name={record.icon} size={16} />
+            </View>
             <View style={styles.recordCopy}>
               <Text style={styles.recordTitle}>{record.title}</Text>
               <Text style={styles.recordDetail}>{record.detail}</Text>
@@ -251,14 +264,13 @@ const styles = StyleSheet.create({
   generatedAt: { color: theme.colors.subtle, fontSize: 11, marginBottom: 8 },
   disclaimer: { alignItems: "flex-start", flexDirection: "row", gap: 8, paddingHorizontal: 4 },
   disclaimerText: { color: theme.colors.subtle, flex: 1, fontSize: 11, lineHeight: 17 },
-  dotTeal: { backgroundColor: theme.colors.primary },
   emptyRecords: { color: theme.colors.subtle, fontSize: 13, paddingTop: 10 },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
   metricEntry: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 6, marginTop: 14 },
   metricEntryText: { color: theme.colors.primaryDark, fontSize: 13, fontWeight: "900" },
   overviewCard: { backgroundColor: "#FFFFFF" },
   overviewHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  recordDot: { backgroundColor: "#B9C9C3", borderRadius: 5, height: 8, width: 8 },
+  recordIcon: { alignItems: "center", borderRadius: 10, height: 32, justifyContent: "center", width: 32 },
   recordCopy: { flex: 1 },
   recordDetail: { color: theme.colors.subtle, fontSize: 12, marginTop: 2 },
   recordTime: { color: theme.colors.subtle, fontSize: 11, marginTop: 3 },

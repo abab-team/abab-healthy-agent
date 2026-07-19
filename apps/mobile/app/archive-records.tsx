@@ -33,6 +33,16 @@ function metricTitle(type: string) {
   return ({ heart_rate: "心率", sleep_duration: "睡眠", steps: "步数", temperature: "体温", weight: "体重" } as Record<string, string>)[type] ?? "健康指标";
 }
 
+function metricIcon(type: string): keyof typeof Ionicons.glyphMap {
+  return ({
+    heart_rate: "heart-outline",
+    sleep_duration: "moon-outline",
+    steps: "footsteps-outline",
+    temperature: "thermometer-outline",
+    weight: "scale-outline"
+  } as Record<string, keyof typeof Ionicons.glyphMap>)[type] ?? "analytics-outline";
+}
+
 export default function ArchiveRecordsScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
@@ -44,7 +54,7 @@ export default function ArchiveRecordsScreen() {
     if (!data) return [];
     return [
       ...data.bloodPressure.map((item) => ({ date: item.recorded_at, detail: `${item.systolic}/${item.diastolic} mmHg`, icon: "pulse-outline" as const, id: item.id, tag: "指标", title: "血压记录", tone: theme.colors.primary })),
-      ...data.metrics.map((item) => ({ date: item.measured_at, detail: metricDetail(item.metric_type, item.value_numeric, item.unit), icon: "pulse-outline" as const, id: item.id, tag: "指标", title: `${metricTitle(item.metric_type)}记录`, tone: theme.colors.primary })),
+      ...data.metrics.map((item) => ({ date: item.measured_at, detail: metricDetail(item.metric_type, item.value_numeric, item.unit), icon: metricIcon(item.metric_type), id: item.id, tag: "指标", title: `${metricTitle(item.metric_type)}记录`, tone: theme.colors.primary })),
       ...data.symptoms.map((item) => ({ date: item.recorded_at, detail: item.summary, icon: "heart-outline" as const, id: item.id, tag: "症状", title: item.title || "症状记录", tone: "#F38A69" })),
       ...data.documents.map((item) => ({ date: item.document_date ?? item.confirmed_at ?? item.created_at ?? "", detail: item.file_name, icon: "document-text-outline" as const, id: item.id, tag: "文档", title: item.title || "健康资料", tone: "#5E9CE6" })),
       ...data.medicalEvents.map((item) => ({ date: item.event_date ?? item.created_at ?? "", detail: item.summary ?? item.hospital_or_org ?? "已保存的健康事件", icon: "medical-outline" as const, id: item.id, tag: "就医", title: item.title ?? item.event_type ?? "健康事件", tone: "#E89545" }))
