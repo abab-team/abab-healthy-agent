@@ -36,6 +36,39 @@ function Test-PortListening {
     return $null -ne $conn
 }
 
+function Stop-PortListeners {
+    param(
+        [int]$Port,
+        [string]$ServiceName
+    )
+
+    $connections = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue
+    $processIds = @($connections | Select-Object -ExpandProperty OwningProcess -Unique)
+    foreach ($processId in $processIds) {
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        if ($process) {
+            Write-Host "Stopping existing $ServiceName on port $Port (PID $processId)..." -ForegroundColor Yellow
+            Stop-Process -Id $processId -Force
+        }
+    }
+}
+
+function Wait-ForBackend {
+    param([string]$HealthUrl)
+
+    for ($attempt = 1; $attempt -le 45; $attempt++) {
+        try {
+            $response = Invoke-WebRequest -UseBasicParsing -Uri $HealthUrl -TimeoutSec 2
+            if ($response.StatusCode -eq 200) {
+                return
+            }
+        } catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    throw "QA backend did not become healthy: $HealthUrl"
+}
+
 function Get-LanIp {
     $preferred = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
         Where-Object {
@@ -94,10 +127,8 @@ Write-Host "LAN API: $apiBaseUrl"
 Write-Host "Python: $python"
 Write-Host ""
 
-if (Test-PortListening -Port $BackendPort) {
-    Write-Host "Backend port $BackendPort is already listening. Reusing existing backend." -ForegroundColor Yellow
-} else {
-    $backendCommand = @"
+Stop-PortListeners -Port $BackendPort -ServiceName "backend"
+$backendCommand = @"
 `$ErrorActionPreference = 'Stop'
 cd '$repoRoot'
 `$env:PYTHONPATH = 'backend'
@@ -133,15 +164,12 @@ if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 Write-Host 'Starting FastAPI on 0.0.0.0:$BackendPort ...'
 & '$python' -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $BackendPort
 "@
-    Start-PowerShellWindow -Title "Backend" -Command $backendCommand -Hidden
-    Write-Host "After a few seconds, test: $apiBaseUrl/health" -ForegroundColor Green
-}
+Start-PowerShellWindow -Title "Backend" -Command $backendCommand -Hidden
+Wait-ForBackend -HealthUrl "$apiBaseUrl/health"
+Write-Host "QA backend is ready with a freshly seeded database." -ForegroundColor Green
 
-if (Test-PortListening -Port $ExpoPort) {
-    Write-Host "Expo/Metro port $ExpoPort is already listening. Not starting another Node process." -ForegroundColor Yellow
-    Write-Host "If the old Expo env is wrong, close the old Expo window and run this launcher again." -ForegroundColor Yellow
-} else {
-    $expoCommand = @"
+Stop-PortListeners -Port $ExpoPort -ServiceName "Expo/Metro"
+$expoCommand = @"
 `$ErrorActionPreference = 'Stop'
 cd '$mobileRoot'
 `$env:EXPO_PUBLIC_DATA_MODE = '$DataMode'
@@ -157,9 +185,8 @@ Write-Host 'Starting Expo for real-device QA...'
 Write-Host 'API Base URL: $apiBaseUrl'
 npx expo start --lan
 "@
-    Start-PowerShellWindow -Title "Expo" -Command $expoCommand
-    Write-Host "Scan the QR code with Expo Go." -ForegroundColor Green
-}
+Start-PowerShellWindow -Title "Expo" -Command $expoCommand
+Write-Host "Scan the new QR code with Expo Go." -ForegroundColor Green
 
 Write-Host ""
 Write-Host "QA notes:" -ForegroundColor Cyan
