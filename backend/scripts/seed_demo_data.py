@@ -80,12 +80,14 @@ from app.modules.reports.models import DailyReport  # noqa: E402
 
 
 DEMO_EMAILS = {
-    "gala": "gala.demo@example.com",
+    "gala": "son.demo@example.com",
     "father": "father.demo@example.com",
     "mother": "mother.demo@example.com",
 }
+LEGACY_DEMO_EMAILS = {"gala.demo@example.com"}
 DEMO_PASSWORD = "123456"
-DEMO_FAMILY_NAME = "Gala 的家庭"
+DEMO_FAMILY_NAME = "儿子的家庭"
+LEGACY_DEMO_FAMILY_NAMES = {"Gala 的家庭"}
 # Keep local QA records current so relative queries such as "recent 7 days"
 # exercise the same data shown in the mobile app. A fixed date remains
 # available for reproducible checks through FHA_DEMO_TODAY=YYYY-MM-DD.
@@ -101,11 +103,11 @@ def clear_demo_data(session: Session) -> None:
     # 2. 完成本函数职责范围内的处理。
     # 3. 将结果返回给调用方，继续由上层流程编排。
     users = list(
-        session.scalars(select(User).where(User.email.in_(DEMO_EMAILS.values()))),
+        session.scalars(select(User).where(User.email.in_([*DEMO_EMAILS.values(), *LEGACY_DEMO_EMAILS]))),
     )
     user_ids = [user.id for user in users]
     families = list(
-        session.scalars(select(Family).where(Family.name == DEMO_FAMILY_NAME)),
+        session.scalars(select(Family).where(Family.name.in_([DEMO_FAMILY_NAME, *LEGACY_DEMO_FAMILY_NAMES]))),
     )
     family_ids = [family.id for family in families]
 
@@ -157,10 +159,10 @@ def seed_users(session: Session) -> dict[str, User]:
     # 3. 将结果返回给调用方，继续由上层流程编排。
     users = {
         "gala": User(
-            phone="demo_gala_phone",
+            phone="demo_son_phone",
             email=DEMO_EMAILS["gala"],
             password_hash=hash_password(DEMO_PASSWORD),
-            nickname="Gala",
+            nickname="儿子",
             gender=Gender.MALE,
             birth_date=date(2006, 1, 1),
             status=UserStatus.ACTIVE,
@@ -206,7 +208,7 @@ def seed_family(session: Session, users: dict[str, User]) -> Family:
                 user_id=users["gala"].id,
                 role=FamilyRole.OWNER,
                 relationship_label="本人",
-                display_name="Gala",
+                display_name="儿子",
                 status=FamilyMemberStatus.ACTIVE,
                 joined_at=DEMO_NOW,
             ),
