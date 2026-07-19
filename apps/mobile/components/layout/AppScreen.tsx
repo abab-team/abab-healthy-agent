@@ -22,7 +22,7 @@ export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
 
   return (
     <TabSwipeContainer>
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
       {scroll ? (
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {content}
