@@ -14,25 +14,17 @@ type ArchiveProfileCardProps = {
   onAction?: () => void;
 };
 
-const details = [
-  ["性别", "女"],
-  ["年龄", "32 岁"],
-  ["身高", "165 cm"],
-  ["体重", "62.1 kg"],
-  ["血型", "O 型"]
-] as const;
-
 export function ArchiveProfileCard({
   name,
   summary,
   avatar = "👩🏻",
   details: providedDetails,
-  recentUpdate = "今天 07:30",
+  recentUpdate,
   readOnly = false,
   actionLabel = "编辑",
   onAction
 }: ArchiveProfileCardProps) {
-  const profileDetails = providedDetails ?? details;
+  const profileDetails = providedDetails ?? [];
   return (
     <CardBase style={styles.card}>
       <View style={styles.heading}>
@@ -46,17 +38,17 @@ export function ArchiveProfileCard({
             <Text style={styles.name}>{name}</Text>
             <Ionicons color={theme.colors.primary} name="leaf" size={17} />
           </View>
-          <View style={styles.details}>
+          {profileDetails.length ? <View style={styles.details}>
             {profileDetails.map(([label, value]) => (
               <View key={label} style={styles.detailRow}>
                 <Text style={styles.detailLabel}>{label}</Text>
                 <Text style={styles.detailValue}>{value}</Text>
               </View>
             ))}
-          </View>
+          </View> : null}
         </View>
       </View>
-      <Text style={styles.updated}>最近更新：{recentUpdate}</Text>
+      {recentUpdate ? <Text style={styles.updated}>最近更新：{recentUpdate}</Text> : null}
       {summary ? <Text numberOfLines={2} style={styles.summary}>{summary}</Text> : null}
     </CardBase>
   );
