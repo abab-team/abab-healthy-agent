@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { FamilyHealthOverviewCard } from "@/components/cards/FamilyHealthOverviewCard";
@@ -21,10 +21,12 @@ export default function FamilyScreen() {
   const overview = useApiResource(() => provider.getFamilyOverview(), [session.currentUserId, session.dataMode]);
   const familyName = overview.data?.family.name ?? "";
   const members = overview.data?.members ?? [];
+  const [avatarRevision, setAvatarRevision] = useState(0);
 
   useFocusEffect(useCallback(() => {
     void overview.reload();
     void familiesResource.reload();
+    setAvatarRevision(Date.now());
   }, [familiesResource.reload, overview.reload]));
 
   if (session.dataMode === "api" && !familiesResource.loading && !familiesResource.error && familiesResource.data?.length === 0) {
@@ -41,7 +43,8 @@ export default function FamilyScreen() {
       <View style={styles.memberList}>
         {members.map((member) => {
           const avatar = member.relationship_label === "爸爸" ? "👨" : member.relationship_label === "妈妈" ? "👩" : "🧑";
-          const avatarUrl = member.avatar_url?.startsWith("http") ? member.avatar_url : member.avatar_url ? `${session.apiBaseUrl}${member.avatar_url}` : undefined;
+          const rawAvatarUrl = member.avatar_url?.startsWith("http") ? member.avatar_url : member.avatar_url ? `${session.apiBaseUrl}${member.avatar_url}` : undefined;
+          const avatarUrl = rawAvatarUrl ? `${rawAvatarUrl}${rawAvatarUrl.includes("?") ? "&" : "?"}v=${avatarRevision}` : undefined;
           return <FamilyHealthOverviewCard key={member.id} avatar={avatar} avatarUrl={avatarUrl} id={member.user_id} name={member.display_name} relation={member.relationship_label} />;
         })}
       </View>

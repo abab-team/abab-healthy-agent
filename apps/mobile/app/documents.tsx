@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
-import { ApiModeBadge } from "@/components/common/ApiModeBadge";
 import { ArchiveSubHeader } from "@/components/common/ArchiveSubHeader";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { AppScreen } from "@/components/layout/AppScreen";
@@ -219,8 +218,6 @@ export default function DocumentsScreen() {
   return (
     <AppScreen>
       <ArchiveSubHeader title="医疗资料与就医历史" />
-      <ApiModeBadge mode={session.dataMode} />
-
       <CardBase style={styles.uploadCard}>
         <View style={styles.uploadIcon}><Ionicons color={theme.colors.primary} name="cloud-upload-outline" size={24} /></View>
         <Text style={styles.uploadTitle}>医疗资料与就医历史</Text>

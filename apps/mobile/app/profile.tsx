@@ -20,6 +20,7 @@ export default function ProfileScreen() {
   const [uploading, setUploading] = useState(false);
   const [user, setUser] = useState<Identity | null>(null);
   const [familyName, setFamilyName] = useState<string | null>(null);
+  const [avatarRevision, setAvatarRevision] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -35,7 +36,8 @@ export default function ProfileScreen() {
     return () => { active = false; };
   }, [session.currentUserId, session.dataMode]);
 
-  const avatarUrl = user?.avatar_url?.startsWith("http") ? user.avatar_url : user?.avatar_url ? `${session.apiBaseUrl}${user.avatar_url}` : undefined;
+  const rawAvatarUrl = user?.avatar_url?.startsWith("http") ? user.avatar_url : user?.avatar_url ? `${session.apiBaseUrl}${user.avatar_url}` : undefined;
+  const avatarUrl = rawAvatarUrl ? `${rawAvatarUrl}${rawAvatarUrl.includes("?") ? "&" : "?"}v=${avatarRevision}` : undefined;
 
   async function chooseAvatar() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -51,6 +53,7 @@ export default function ProfileScreen() {
       const response = await fetch(asset.uri);
       const content = await response.blob();
       setUser(await backendApi.uploadMyAvatar({ content, mimeType: asset.mimeType ?? content.type ?? "image/jpeg" }, session.currentUserId));
+      setAvatarRevision(Date.now());
     } catch {
       Alert.alert("头像上传失败", "请检查网络后重试。");
     } finally {

@@ -1,6 +1,7 @@
 import { family as mockFamily, members as mockMembers, reminders as mockReminders } from "@/constants/mockData";
 import { dataMode, defaultDemoUserId } from "@/lib/apiConfig";
 import { backendApi } from "@/lib/backendApi";
+import { ApiClientError } from "@/lib/apiClient";
 import { mockApi } from "@/lib/mockApi";
 import type {
   AgentRunDetail,
@@ -519,6 +520,9 @@ export function getDataProvider(currentUserId = defaultDemoUserId) {
       try {
         return ok<LatestDailyHealthBrief | null>(await backendApi.getLatestDailyHealthBrief(currentUserId));
       } catch (error) {
+        if (error instanceof ApiClientError && error.status === 404) {
+          return ok<LatestDailyHealthBrief | null>(null);
+        }
         return fail<LatestDailyHealthBrief | null>(error);
       }
     },
