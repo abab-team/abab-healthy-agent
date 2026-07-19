@@ -1,6 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system/legacy";
 import { useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import * as Sharing from "expo-sharing";
+import { useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ArchiveSubHeader } from "@/components/common/ArchiveSubHeader";
@@ -8,6 +11,7 @@ import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
+import { backendApi } from "@/lib/backendApi";
 import { getDataProvider } from "@/lib/dataProvider";
 import type { ApiResult, MedicalDocument } from "@/types/api";
 
@@ -32,6 +36,18 @@ function prettySize(size?: number | null): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("无法读取资料文件。"));
+    reader.onloadend = () => {
+      const value = typeof reader.result === "string" ? reader.result : "";
+      resolve(value.split(",")[1] ?? "");
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
 export default function DocumentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const session = useDemoSession();
@@ -39,6 +55,25 @@ export default function DocumentDetailScreen() {
   const documentId = String(id ?? "mock-document-1");
   const detail = useApiResource(() => provider.listDocuments(), [documentId, session.currentUserId]);
   const document = detail.data?.items.find((item) => item.id === documentId);
+  const [opening, setOpening] = useState(false);
+
+  const openDocument = async () => {
+    if (!document || session.dataMode !== "api") return;
+    setOpening(true);
+    try {
+      const content = await backendApi.downloadMyDocument(document.id, session.currentUserId);
+      const targetPath = `${FileSystem.cacheDirectory}${document.id}-${document.file_name}`;
+      await FileSystem.writeAsStringAsync(targetPath, await blobToBase64(content), { encoding: FileSystem.EncodingType.Base64 });
+      if (!(await Sharing.isAvailableAsync())) {
+        throw new Error("当前设备无法打开此类文件。");
+      }
+      await Sharing.shareAsync(targetPath, { dialogTitle: "打开资料", mimeType: document.file_mime_type ?? undefined });
+    } catch (error) {
+      Alert.alert("暂时无法打开", error instanceof Error ? error.message : "资料文件暂时无法打开，请稍后重试。");
+    } finally {
+      setOpening(false);
+    }
+  };
 
   return (
     <AppScreen>
@@ -58,6 +93,9 @@ export default function DocumentDetailScreen() {
             <DetailRow label="文件大小" value={prettySize(document.file_size)} />
             <DetailRow label="归档状态" value="已归档" />
           </CardBase>
+          <Pressable disabled={opening || session.dataMode !== "api"} onPress={() => void openDocument()} style={[styles.openButton, (opening || session.dataMode !== "api") ? styles.openButtonDisabled : null]}>
+            {opening ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons color="#FFFFFF" name="open-outline" size={19} /><Text style={styles.openButtonText}>打开原始文件</Text></>}
+          </Pressable>
         </>
       ) : null}
       <CardBase style={styles.notice}>
@@ -79,6 +117,9 @@ const styles = StyleSheet.create({
   loading: { color: theme.colors.subtle, fontSize: 13 },
   notice: { alignItems: "center", backgroundColor: theme.colors.tealSoft, flexDirection: "row", gap: 10 },
   noticeText: { color: theme.colors.primaryDark, flex: 1, fontSize: 13, fontWeight: "700", lineHeight: 19 },
+  openButton: { alignItems: "center", backgroundColor: theme.colors.primary, borderRadius: theme.radius.md, flexDirection: "row", gap: 8, justifyContent: "center", minHeight: 48 },
+  openButtonDisabled: { opacity: 0.58 },
+  openButtonText: { color: "#FFFFFF", fontSize: 15, fontWeight: "900" },
   row: { alignItems: "center", borderBottomColor: theme.colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingVertical: 14 },
   summaryCard: { alignItems: "center", paddingVertical: 24 },
   title: { color: theme.colors.ink, fontSize: 19, fontWeight: "900", marginTop: 12, textAlign: "center" },

@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.access_control import require_self_or_family_permission
@@ -78,6 +79,27 @@ def get_my_document(
     document = _get_document_or_404(db, document_id)
     _assert_document_scope(document, user_id=current_user_id, family_id=None)
     return _document_response(document)
+
+
+@router.get("/documents/me/{document_id}/content")
+def get_my_document_content(
+    document_id: UUID,
+    current_user_id: UUID = Depends(get_current_user_id_for_demo),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    document = _get_document_or_404(db, document_id)
+    _assert_document_scope(document, user_id=current_user_id, family_id=None)
+    try:
+        file_path = storage.get_stored_document_path(document.file_path, settings)
+    except storage.DocumentUploadError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return FileResponse(
+        file_path,
+        filename=document.file_name,
+        media_type=document.file_mime_type or "application/octet-stream",
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/documents/me/{document_id}/versions", response_model=DocumentVersionResponse, status_code=status.HTTP_201_CREATED)

@@ -104,6 +104,20 @@ export const apiClient = {
     return this.request<T>(path, { currentUserId, headers, method: "POST", rawBody: body });
   },
 
+  async download(path: string, currentUserId?: string): Promise<Blob> {
+    if (authMode === "auth" && shouldRefreshAuthSession()) {
+      await refreshStoredAuthSession();
+    }
+    let response = await sendRequest(path, { currentUserId });
+    if (response.status === 401 && authMode === "auth" && (await refreshStoredAuthSession())) {
+      response = await sendRequest(path, { currentUserId });
+    }
+    if (!response.ok) {
+      throw parseErrorDetail(response.status, await readJson(response));
+    }
+    return response.blob();
+  },
+
   patch<T>(path: string, body: unknown, currentUserId?: string): Promise<T> {
     return this.request<T>(path, { body, currentUserId, method: "PATCH" });
   },

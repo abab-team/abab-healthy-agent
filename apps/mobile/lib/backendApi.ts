@@ -328,6 +328,10 @@ export const backendApi = {
     return apiClient.get<MedicalDocument>(`/api/v1/documents/me/${documentId}`, currentUserId);
   },
 
+  downloadMyDocument(documentId: string, currentUserId: string) {
+    return apiClient.download(`/api/v1/documents/me/${documentId}/content`, currentUserId);
+  },
+
   listMyDocumentJobs(documentId: string, currentUserId: string) {
     return apiClient
       .get<{ items: DocumentProcessingJob[] }>(`/api/v1/document-processing/me/documents/${documentId}/jobs`, currentUserId)

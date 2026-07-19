@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ArchiveEntry, ArchiveEntryList } from "@/components/cards/ArchiveEntryList";
 import { ArchiveProfileCard } from "@/components/cards/ArchiveProfileCard";
@@ -27,6 +28,10 @@ export default function ArchiveScreen() {
   const symptoms = recentRecords.data?.symptoms ?? [];
   const allRecordCount = metrics.length + bloodPressure.length + symptoms.length + documents.length + medicalEvents.length;
   const name = memberDetail.data?.profile?.display_name ?? session.authSession.user?.nickname ?? "";
+
+  useFocusEffect(useCallback(() => {
+    void recentRecords.reload();
+  }, [recentRecords.reload]));
 
   const entries: ArchiveEntry[] = [
     { count: `${allRecordCount} 条`, description: "按日期查看健康记录与重要事件", icon: "calendar-outline", id: "records", onPress: () => router.push(routes.archiveRecords), title: "全部记录", tone: "mint" },

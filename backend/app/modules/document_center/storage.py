@@ -127,6 +127,18 @@ def delete_stored_document(storage_key: str, settings: Settings) -> None:
         target_path.unlink()
 
 
+def get_stored_document_path(storage_key: str, settings: Settings) -> Path:
+    """Resolve a locally stored document without exposing storage paths to callers."""
+    if settings.DOCUMENT_STORAGE_BACKEND != "local" or not storage_key.startswith("documents/"):
+        raise DocumentUploadError("document file is unavailable")
+    storage_root = _storage_root(settings)
+    target_path = (storage_root / Path(storage_key).name).resolve()
+    _assert_inside(target_path, storage_root)
+    if not target_path.is_file():
+        raise DocumentUploadError("document file is unavailable")
+    return target_path
+
+
 def sanitize_upload_filename(filename: str) -> str:
     raw_name = Path(filename.replace("\\", "/")).name.strip()
     if not raw_name or raw_name in {".", ".."}:
