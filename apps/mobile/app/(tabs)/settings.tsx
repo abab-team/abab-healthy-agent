@@ -9,7 +9,6 @@ import { SettingsListItem } from "@/components/common/SettingsListItem";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
-import { currentUser, dataSources } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
@@ -34,7 +33,7 @@ export default function SettingsScreen() {
     <ScreenHeader subtitle="管理你的账户、家庭与数据。" title="我的" />
     <CardBase style={styles.profileCard}>
       <View style={styles.avatar}><Text style={styles.avatarText}>👩🏻</Text></View>
-      <View style={styles.profileCopy}><View style={styles.nameRow}><Text style={styles.name}>{authenticatedUser?.nickname ?? currentUser.name}</Text><StatusBadge label={session.isAuthenticated ? "已登录" : "演示用户"} tone="mint" /></View><Text style={styles.profileText}>{authenticatedUser?.email ?? "记录每一天，守护家人的健康生活。"}</Text><Text style={styles.familyText}>当前家庭：{currentUser.familyName}</Text></View>
+      <View style={styles.profileCopy}><View style={styles.nameRow}><Text style={styles.name}>{authenticatedUser?.nickname ?? "未命名用户"}</Text><StatusBadge label={session.isAuthenticated ? "已登录" : "未登录"} tone="mint" /></View><Text style={styles.profileText}>{authenticatedUser?.email ?? "登录后可管理自己的健康记录。"}</Text></View>
     </CardBase>
 
     <CardBase style={styles.groupCard}>
@@ -56,7 +55,7 @@ export default function SettingsScreen() {
     <CardBase style={styles.moreCard}>
       <Pressable onPress={() => setMoreOpen((value) => !value)} style={styles.moreHeader}><View><Text style={styles.sectionTitle}>更多与开发</Text><Text style={styles.note}>数据来源、本地连接与开发调试</Text></View><Ionicons color={theme.colors.primaryDark} name={moreOpen ? "chevron-up" : "chevron-down"} size={20} /></Pressable>
       {moreOpen ? <View style={styles.moreContent}>
-        <View><Text style={styles.subTitle}>数据来源</Text>{dataSources.map((source) => <Text key={source} style={styles.source}>• {source}</Text>)}</View>
+        <View><Text style={styles.subTitle}>数据来源</Text><Text style={styles.source}>• 当前账户在系统内保存的记录</Text></View>
         <Pressable onPress={() => setDebugOpen((value) => !value)} style={styles.debugHeader}><View><Text style={styles.subTitle}>开发者调试</Text><Text style={styles.note}>用于本地联调的连接与身份信息。</Text></View><StatusBadge label={debugOpen ? "收起" : "展开"} tone="plain" /></Pressable>
         {debugOpen ? <View style={styles.debugContent}><BackendStatusCard accessTokenPreview={session.authSession.accessTokenPreview} apiBaseUrl={session.apiBaseUrl} authMode={session.authMode} currentUserId={session.currentUserId} health={health.data} healthError={health.error} loading={health.loading} mode={session.dataMode} onRefresh={() => void health.reload()} warnings={session.warnings} /></View> : null}
       </View> : null}
@@ -70,7 +69,6 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 35 },
   debugContent: { gap: 12 },
   debugHeader: { alignItems: "center", borderTopColor: theme.colors.line, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: 14 },
-  familyText: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "800", marginTop: 4 },
   footerNote: { color: theme.colors.subtle, fontSize: 11, lineHeight: 18, paddingHorizontal: 4 },
   groupCard: { paddingBottom: 0, paddingTop: 0 },
   moreCard: { backgroundColor: "#F4FAF7" },

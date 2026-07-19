@@ -28,6 +28,7 @@ export function ArchiveRecentList({ items, onViewAll, title = "最近归档" }: 
           <Text style={styles.date}>{item.date}</Text>
         </View>
       ))}
+      {!items.length ? <Text style={styles.empty}>系统内暂无最近归档。</Text> : null}
     </CardBase>
   );
 }
@@ -36,6 +37,7 @@ const styles = StyleSheet.create({
   action: { color: theme.colors.primaryDark, fontSize: 12, fontWeight: "900" },
   date: { color: theme.colors.subtle, fontSize: 10 },
   detail: { color: theme.colors.ink, flex: 1, fontSize: 12, fontWeight: "700" },
+  empty: { color: theme.colors.subtle, fontSize: 13, paddingVertical: 12 },
   dot: { borderRadius: 4, height: 7, width: 7 },
   heading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 7 },
   itemTitle: { color: theme.colors.subtle, fontSize: 12 },

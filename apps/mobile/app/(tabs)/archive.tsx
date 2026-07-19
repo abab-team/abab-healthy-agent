@@ -9,36 +9,36 @@ import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ScreenHeader } from "@/components/common/ScreenHeader";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
-import { currentUser } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
-import type { ApiResult, MedicalDocument } from "@/types/api";
+import type { MedicalDocument } from "@/types/api";
 
 export default function ArchiveScreen() {
   const session = useDemoSession();
   const provider = useMemo(() => getDataProvider(session.currentUserId), [session.currentUserId]);
   const memberDetail = useApiResource(() => provider.getMemberDetail(session.currentUserId), [session.currentUserId, session.dataMode]);
-  const documents = useApiResource<{ items: MedicalDocument[] }>(
-    () => provider.listDocuments() as Promise<ApiResult<{ items: MedicalDocument[] }>>,
-    [session.currentUserId, session.dataMode]
-  );
-  const documentCount = documents.data?.items.length ?? 3;
-  const name = memberDetail.data?.profile?.display_name ?? currentUser.name;
+  const recentRecords = useApiResource(() => provider.getPersonalArchiveRecentRecords(), [session.currentUserId, session.dataMode]);
+  const documents = recentRecords.data?.documents ?? [];
+  const medicalEvents = recentRecords.data?.medicalEvents ?? [];
+  const metrics = recentRecords.data?.metrics ?? [];
+  const bloodPressure = recentRecords.data?.bloodPressure ?? [];
+  const symptoms = recentRecords.data?.symptoms ?? [];
+  const allRecordCount = metrics.length + bloodPressure.length + symptoms.length + documents.length + medicalEvents.length;
+  const name = memberDetail.data?.profile?.display_name ?? session.authSession.user?.nickname ?? "";
 
   const entries: ArchiveEntry[] = [
-    { count: "1,284 条", description: "按日期查看健康记录与重要事件", icon: "calendar-outline", id: "records", onPress: () => router.push(routes.archiveRecords), title: "全部记录", tone: "mint" },
-    { count: "24 类指标", description: "血压 / 睡眠 / 体重 / 步数等", icon: "pulse-outline", id: "metrics", onPress: () => router.push(routes.archiveMetrics), title: "健康指标", tone: "purple" },
-    { count: `${documentCount} 份 · 18 次`, description: "体检报告、检查资料与就医历史", icon: "documents-outline", id: "documents", onPress: () => router.push(routes.documents), title: "医疗资料与就医历史", tone: "blue" },
-    { count: "6 条", description: "基于系统内记录的安全整理", icon: "sparkles-outline", id: "ai", onPress: () => router.push(routes.archiveAiSummary), title: "AI 整理", tone: "teal" }
+    { count: `${allRecordCount} 条`, description: "按日期查看健康记录与重要事件", icon: "calendar-outline", id: "records", onPress: () => router.push(routes.archiveRecords), title: "全部记录", tone: "mint" },
+    { count: `${new Set(metrics.map((item) => item.metric_type)).size + (bloodPressure.length ? 1 : 0)} 类`, description: "血压 / 睡眠 / 体重 / 步数等", icon: "pulse-outline", id: "metrics", onPress: () => router.push(routes.archiveMetrics), title: "健康指标", tone: "purple" },
+    { count: `${documents.length} 份 · ${medicalEvents.length} 次`, description: "体检报告、检查资料与就医历史", icon: "documents-outline", id: "documents", onPress: () => router.push(routes.documents), title: "医疗资料与就医历史", tone: "blue" },
+    { count: "", description: "基于系统内记录的安全整理", icon: "sparkles-outline", id: "ai", onPress: () => router.push(routes.archiveAiSummary), title: "AI 整理", tone: "teal" }
   ];
 
   const recentItems = [
-    { date: "7 月 8 日", detail: documents.data?.items[0]?.title ?? "年度体检报告.pdf", icon: "document-text-outline" as const, id: "document", title: "新增医疗资料", tone: "#75A5F5" },
-    { date: "6 月 28 日", detail: "三甲医院 · 内科", icon: "medical-outline" as const, id: "visit", title: "归档就医记录", tone: "#E89545" },
-    { date: "6 月 14 日", detail: "基于系统内资料整理", icon: "sparkles-outline" as const, id: "ai-summary", title: "更新 AI 整理", tone: theme.colors.primary }
-  ];
+    ...documents.map((item: MedicalDocument) => ({ date: (item.document_date ?? item.created_at ?? "").replace("T", " ").slice(0, 16), detail: item.title || item.file_name, icon: "document-text-outline" as const, id: item.id, title: "新增医疗资料", tone: "#75A5F5" })),
+    ...medicalEvents.map((item) => ({ date: (item.event_date ?? item.created_at ?? "").replace("T", " ").slice(0, 16), detail: item.title ?? item.event_type ?? "健康事件", icon: "medical-outline" as const, id: item.id, title: "归档健康事件", tone: "#E89545" }))
+  ].filter((item) => item.date).slice(0, 3);
 
   return (
     <AppScreen>
@@ -56,7 +56,7 @@ export default function ArchiveScreen() {
       <ArchiveProfileCard name={name} summary={memberDetail.data?.profile?.summary} />
       {memberDetail.error ? <ApiErrorState message={memberDetail.error} /> : null}
       <ArchiveEntryList entries={entries} />
-      {documents.error ? <ApiErrorState message={documents.error} /> : null}
+      {recentRecords.error ? <ApiErrorState message={recentRecords.error} /> : null}
       <ArchiveRecentList items={recentItems} onViewAll={() => router.push(routes.documents)} title="最近归档" />
     </AppScreen>
   );

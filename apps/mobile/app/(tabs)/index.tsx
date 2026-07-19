@@ -12,7 +12,6 @@ import { ScreenHeader } from "@/components/common/ScreenHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
-import { currentUser } from "@/constants/mockData";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider, type PersonalArchiveRecentRecordsData } from "@/lib/dataProvider";
@@ -96,12 +95,12 @@ function buildHomeMetrics(bloodPressure: BloodPressureRecord[], records: HealthM
 
 function buildRecentRecords(data: PersonalArchiveRecentRecordsData | null): HomeRecentRecord[] {
   if (!data) return [];
-  const metricRecords = data.metrics.map((record) => ({ detail: formatMetricValue(record), id: record.id, measuredAt: record.created_at ?? record.measured_at, title: `${metricLabel(record.metric_type)}记录` }));
-  const bloodPressureRecords = data.bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, id: record.id, measuredAt: record.created_at ?? record.recorded_at, title: "血压记录" }));
+  const metricRecords = data.metrics.map((record) => ({ detail: formatMetricValue(record), id: record.id, measuredAt: record.measured_at, title: `${metricLabel(record.metric_type)}记录` }));
+  const bloodPressureRecords = data.bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, id: record.id, measuredAt: record.recorded_at, title: "血压记录" }));
   const symptomRecords = data.symptoms.map((record) => ({ detail: record.summary, id: record.id, measuredAt: record.recorded_at, title: record.title || "症状记录" }));
-  const documentRecords = data.documents.map((record) => ({ detail: record.file_name, id: record.id, measuredAt: record.created_at ?? record.confirmed_at ?? record.document_date ?? "", title: record.title || "医疗资料" }));
-  const medicalEventRecords = data.medicalEvents.map((record) => ({ detail: record.summary?.trim() || record.event_type || "已保存的健康事件", id: record.id, measuredAt: record.created_at ?? record.event_date ?? "", title: record.title?.trim() || "健康事件" }));
-  const alertRecords = data.alerts.map((record) => ({ detail: record.message?.trim() || record.due_at ? (record.message?.trim() || `提醒时间：${record.due_at}`) : "已创建的健康提醒", id: record.id, measuredAt: record.created_at ?? record.due_at ?? "", title: record.title || "健康提醒" }));
+  const documentRecords = data.documents.map((record) => ({ detail: record.file_name, id: record.id, measuredAt: record.document_date ?? record.confirmed_at ?? record.created_at ?? "", title: record.title || "医疗资料" }));
+  const medicalEventRecords = data.medicalEvents.map((record) => ({ detail: record.summary?.trim() || record.event_type || "已保存的健康事件", id: record.id, measuredAt: record.event_date ?? record.created_at ?? "", title: record.title?.trim() || "健康事件" }));
+  const alertRecords = data.alerts.map((record) => ({ detail: record.message?.trim() || record.due_at ? (record.message?.trim() || `提醒时间：${record.due_at}`) : "已创建的健康提醒", id: record.id, measuredAt: record.due_at ?? record.created_at ?? "", title: record.title || "健康提醒" }));
   return [...metricRecords, ...bloodPressureRecords, ...symptomRecords, ...documentRecords, ...medicalEventRecords, ...alertRecords]
     .sort((left, right) => new Date(right.measuredAt).getTime() - new Date(left.measuredAt).getTime())
     .slice(0, 4);
@@ -161,7 +160,7 @@ export default function HomeScreen() {
     <AppScreen>
       <ScreenHeader
         subtitle="今天也把健康记录照顾得井井有条。"
-        title={`早上好，${currentUser.name}`}
+        title={`早上好，${session.authSession.user?.nickname ?? ""}`.trim()}
         trailing={<StatusBadge label={session.dataMode === "api" ? "数据已连接" : "演示数据"} tone="mint" />}
       />
 

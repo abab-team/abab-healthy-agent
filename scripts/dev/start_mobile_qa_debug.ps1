@@ -128,14 +128,17 @@ Write-Host "Python: $python"
 Write-Host ""
 
 Stop-PortListeners -Port $BackendPort -ServiceName "backend"
+if (Test-Path $dbPath) {
+    Remove-Item -LiteralPath $dbPath -Force
+}
 $backendCommand = @"
 `$ErrorActionPreference = 'Stop'
 cd '$repoRoot'
 `$env:PYTHONPATH = 'backend'
 `$env:DATABASE_URL = '$dbUrl'
-`$env:AUTH_DEMO_HEADER_ENABLED = 'true'
+`$env:AUTH_DEMO_HEADER_ENABLED = 'false'
 `$env:AUTH_ENABLED = 'true'
-`$env:AUTH_DEMO_LOGIN_ENABLED = 'true'
+`$env:AUTH_DEMO_LOGIN_ENABLED = 'false'
 `$env:JWT_SECRET_KEY = 'mobile-qa-local-dev-secret'
 `$env:OCR_ENABLED = 'true'
 `$env:OCR_PROVIDER = 'mock'
@@ -159,14 +162,12 @@ foreach (`$name in @(
 Write-Host 'Preparing mobile QA database...'
 & '$python' -m alembic -c backend/alembic.ini upgrade head
 if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
-& '$python' backend/scripts/seed_demo_data.py
-if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }
 Write-Host 'Starting FastAPI on 0.0.0.0:$BackendPort ...'
 & '$python' -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $BackendPort
 "@
 Start-PowerShellWindow -Title "Backend" -Command $backendCommand -Hidden
 Wait-ForBackend -HealthUrl "$apiBaseUrl/health"
-Write-Host "QA backend is ready with a freshly seeded database." -ForegroundColor Green
+Write-Host "QA backend is ready with an empty local database." -ForegroundColor Green
 
 Stop-PortListeners -Port $ExpoPort -ServiceName "Expo/Metro"
 $expoCommand = @"
@@ -192,7 +193,7 @@ Write-Host ""
 Write-Host "QA notes:" -ForegroundColor Cyan
 Write-Host "1. Phone and computer must be on the same Wi-Fi."
 Write-Host "2. Use $apiBaseUrl on the phone. Do not use localhost."
-Write-Host "3. Demo login: gala.demo@example.com / 123456"
+Write-Host "3. Create an account from the registration screen, then log in."
 Write-Host "4. If /health does not open on the phone, allow Windows Firewall port $BackendPort."
 Write-Host "5. If LAN QR scanning fails, try from apps/mobile: npx expo start --tunnel"
 Write-Host ""
