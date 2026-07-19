@@ -66,6 +66,13 @@ function metricLabel(metricType: string): string {
   return ({ heart_rate: "心率", sleep_duration: "睡眠", steps: "步数", temperature: "体温", weight: "体重" } as Record<string, string>)[metricType] ?? "健康指标";
 }
 
+function formatLatestMetricTime(value: string | null | undefined): string {
+  if (!value) return "暂无已记录";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "时间待补充";
+  return `最近一次：${date.toLocaleString("zh-CN", { day: "numeric", hour: "2-digit", minute: "2-digit", month: "numeric" })}`;
+}
+
 function newest<T extends { measured_at?: string; recorded_at?: string }>(records: T[]): T | null {
   return [...records].sort((left, right) => new Date(right.measured_at ?? right.recorded_at ?? 0).getTime() - new Date(left.measured_at ?? left.recorded_at ?? 0).getTime())[0] ?? null;
 }
@@ -75,13 +82,13 @@ function buildHomeMetrics(bloodPressure: BloodPressureRecord[], records: HealthM
   const latestBloodPressure = newest(bloodPressure);
   const metricTile = (type: string, icon: HomeMetricTile["icon"], tone: HomeMetricTile["tone"], wide = false): HomeMetricTile => {
     const latest = latestByType(type);
-    return { icon, label: metricLabel(type), note: latest ? "最近一次记录" : "暂无已记录", tone, value: latest ? formatMetricValue(latest) : "--", wide };
+    return { icon, label: metricLabel(type), note: formatLatestMetricTime(latest?.measured_at), tone, value: latest ? formatMetricValue(latest) : "--", wide };
   };
   return [
     metricTile("sleep_duration", "moon-outline", "blue"),
     metricTile("steps", "footsteps-outline", "teal"),
     metricTile("heart_rate", "heart-outline", "coral"),
-    { icon: "pulse-outline", label: "血压", note: latestBloodPressure ? "最近一次记录" : "暂无已记录", tone: "lavender", value: latestBloodPressure ? `${latestBloodPressure.systolic}/${latestBloodPressure.diastolic}` : "--" },
+    { icon: "pulse-outline", label: "血压", note: formatLatestMetricTime(latestBloodPressure?.recorded_at), tone: "lavender", value: latestBloodPressure ? `${latestBloodPressure.systolic}/${latestBloodPressure.diastolic}` : "--" },
     metricTile("weight", "scale-outline", "teal", true)
   ];
 }
