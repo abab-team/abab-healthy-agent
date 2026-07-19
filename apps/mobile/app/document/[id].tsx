@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import { useLocalSearchParams } from "expo-router";
-import * as Sharing from "expo-sharing";
 import { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { WebView } from "react-native-webview";
 import { CardBase } from "@/components/cards/CardBase";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ArchiveSubHeader } from "@/components/common/ArchiveSubHeader";
@@ -56,6 +56,7 @@ export default function DocumentDetailScreen() {
   const detail = useApiResource(() => provider.listDocuments(), [documentId, session.currentUserId]);
   const document = detail.data?.items.find((item) => item.id === documentId);
   const [opening, setOpening] = useState(false);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
 
   const openDocument = async () => {
     if (!document || session.dataMode !== "api") return;
@@ -64,10 +65,7 @@ export default function DocumentDetailScreen() {
       const content = await backendApi.downloadMyDocument(document.id, session.currentUserId);
       const targetPath = `${FileSystem.cacheDirectory}${document.id}-${document.file_name}`;
       await FileSystem.writeAsStringAsync(targetPath, await blobToBase64(content), { encoding: FileSystem.EncodingType.Base64 });
-      if (!(await Sharing.isAvailableAsync())) {
-        throw new Error("当前设备无法打开此类文件。");
-      }
-      await Sharing.shareAsync(targetPath, { dialogTitle: "打开资料", mimeType: document.file_mime_type ?? undefined });
+      setPreviewPath(targetPath);
     } catch (error) {
       Alert.alert("暂时无法打开", error instanceof Error ? error.message : "资料文件暂时无法打开，请稍后重试。");
     } finally {
@@ -94,7 +92,7 @@ export default function DocumentDetailScreen() {
             <DetailRow label="归档状态" value="已归档" />
           </CardBase>
           <Pressable disabled={opening || session.dataMode !== "api"} onPress={() => void openDocument()} style={[styles.openButton, (opening || session.dataMode !== "api") ? styles.openButtonDisabled : null]}>
-            {opening ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons color="#FFFFFF" name="open-outline" size={19} /><Text style={styles.openButtonText}>打开原始文件</Text></>}
+            {opening ? <ActivityIndicator color="#FFFFFF" /> : <><Ionicons color="#FFFFFF" name="eye-outline" size={19} /><Text style={styles.openButtonText}>查看资料</Text></>}
           </Pressable>
         </>
       ) : null}
@@ -102,6 +100,21 @@ export default function DocumentDetailScreen() {
         <Ionicons color={theme.colors.primaryDark} name="shield-checkmark-outline" size={20} />
         <Text style={styles.noticeText}>资料仅用于保存与归档，当前不会自动解读内容。</Text>
       </CardBase>
+      <Modal animationType="slide" onRequestClose={() => setPreviewPath(null)} visible={Boolean(previewPath)}>
+        <View style={styles.previewScreen}>
+          <View style={styles.previewHeader}>
+            <Text numberOfLines={1} style={styles.previewTitle}>{document?.title ?? "资料预览"}</Text>
+            <Pressable accessibilityLabel="关闭资料预览" hitSlop={10} onPress={() => setPreviewPath(null)} style={styles.closeButton}>
+              <Ionicons color={theme.colors.ink} name="close" size={24} />
+            </Pressable>
+          </View>
+          {previewPath && document?.file_mime_type?.startsWith("image/") ? (
+            <Image resizeMode="contain" source={{ uri: previewPath }} style={styles.imagePreview} />
+          ) : previewPath ? (
+            <WebView allowFileAccess originWhitelist={["*"]} source={{ uri: previewPath }} style={styles.webPreview} />
+          ) : null}
+        </View>
+      </Modal>
     </AppScreen>
   );
 }
@@ -120,6 +133,12 @@ const styles = StyleSheet.create({
   openButton: { alignItems: "center", backgroundColor: theme.colors.primary, borderRadius: theme.radius.md, flexDirection: "row", gap: 8, justifyContent: "center", minHeight: 48 },
   openButtonDisabled: { opacity: 0.58 },
   openButtonText: { color: "#FFFFFF", fontSize: 15, fontWeight: "900" },
+  previewScreen: { backgroundColor: "#111A18", flex: 1 },
+  previewHeader: { alignItems: "center", backgroundColor: theme.colors.surface, flexDirection: "row", justifyContent: "space-between", paddingBottom: 12, paddingHorizontal: theme.spacing.lg, paddingTop: 18 },
+  previewTitle: { color: theme.colors.ink, flex: 1, fontSize: 16, fontWeight: "900", marginRight: 12 },
+  closeButton: { alignItems: "center", backgroundColor: theme.colors.canvas, borderRadius: 18, height: 36, justifyContent: "center", width: 36 },
+  imagePreview: { flex: 1, width: "100%" },
+  webPreview: { flex: 1 },
   row: { alignItems: "center", borderBottomColor: theme.colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingVertical: 14 },
   summaryCard: { alignItems: "center", paddingVertical: 24 },
   title: { color: theme.colors.ink, fontSize: 19, fontWeight: "900", marginTop: 12, textAlign: "center" },
