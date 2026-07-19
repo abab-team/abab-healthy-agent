@@ -31,15 +31,19 @@ export default function SettingsScreen() {
       <Ionicons color={theme.colors.subtle} name="chevron-forward" size={18} />
     </Pressable>
 
-    <View style={styles.settingsList}>
+    <CardBase style={styles.groupCard}>
       <SettingsListItem description="管理个人信息与健康档案关联" icon="person-outline" onPress={() => router.push(routes.profile)} title="个人资料" />
-      <SettingsListItem description="管理应用内的记录与整理提醒" icon="notifications-outline" onPress={() => router.push(routes.notificationSettings)} title="通知设置" />
+      <SettingsListItem description="管理应用内的记录与整理提醒" icon="notifications-outline" last onPress={() => router.push(routes.notificationSettings)} title="通知设置" />
+    </CardBase>
+    <CardBase style={styles.groupCard}>
       <SettingsListItem description="管理家庭成员与共享范围" icon="people-outline" onPress={() => router.push(routes.familySharingSettings)} title="家庭共享设置" />
       <SettingsListItem description="隐私与数据保护选项" icon="shield-checkmark-outline" onPress={() => router.push(routes.privacySettings)} title="隐私设置" />
-      <SettingsListItem description="查看或删除可编辑的对话偏好记忆" icon="sparkles-outline" onPress={() => router.push(routes.agentMemory)} title="AI 记忆管理" />
-      <SettingsListItem description="版本信息、帮助与健康安全说明" icon="information-circle-outline" onPress={() => router.push(routes.about)} title="关于 App" />
+      <SettingsListItem description="查看或删除可编辑的对话偏好记忆" icon="sparkles-outline" last onPress={() => router.push(routes.agentMemory)} title="AI 记忆管理" />
+    </CardBase>
+    <CardBase style={styles.groupCard}>
+      <SettingsListItem description="版本信息、帮助与健康安全说明" icon="information-circle-outline" last={session.authMode !== "auth"} onPress={() => router.push(routes.about)} title="关于 App" />
       {session.authMode === "auth" ? <SettingsListItem description="安全退出当前设备，已保存的会话信息将被清除" icon="log-out-outline" last onPress={() => setLogoutVisible(true)} title="退出登录" /> : null}
-    </View>
+    </CardBase>
 
     <CardBase style={styles.moreCard}>
       <Pressable onPress={() => setMoreOpen((value) => !value)} style={styles.moreHeader}><View><Text style={styles.sectionTitle}>更多与开发</Text><Text style={styles.note}>数据来源、本地连接与开发调试</Text></View><Ionicons color={theme.colors.primaryDark} name={moreOpen ? "chevron-up" : "chevron-down"} size={20} /></Pressable>
@@ -90,7 +94,7 @@ const styles = StyleSheet.create({
   profileCopy: { flex: 1 },
   profileText: { color: theme.colors.subtle, fontSize: 13, lineHeight: 19, marginTop: 6 },
   sectionTitle: { color: theme.colors.ink, fontSize: theme.type.section, fontWeight: "900" },
-  settingsList: { borderTopColor: theme.colors.line, borderTopWidth: 1 },
+  groupCard: { paddingBottom: 0, paddingTop: 0 },
   source: { color: theme.colors.subtle, fontSize: 12, lineHeight: 20 },
   subTitle: { color: theme.colors.ink, fontSize: 14, fontWeight: "900" }
 });

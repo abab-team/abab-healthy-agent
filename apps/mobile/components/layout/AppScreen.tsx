@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { PropsWithChildren, ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "@/constants/theme";
 import { TabSwipeContainer } from "@/components/layout/TabSwipeContainer";
@@ -22,6 +22,7 @@ export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
 
   return (
     <TabSwipeContainer>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoiding}>
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
       {scroll ? (
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -32,6 +33,7 @@ export function AppScreen({ children, footer, scroll = true }: AppScreenProps) {
       )}
       {footer ? <View style={styles.footer}>{footer}</View> : null}
     </SafeAreaView>
+    </KeyboardAvoidingView>
     </TabSwipeContainer>
   );
 }
@@ -41,6 +43,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.canvas
   },
+  keyboardAvoiding: { flex: 1 },
   content: {
     flex: 1,
     gap: theme.spacing.lg,
