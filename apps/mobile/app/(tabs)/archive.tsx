@@ -1,15 +1,11 @@
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCallback, useMemo } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ArchiveEntry, ArchiveEntryList } from "@/components/cards/ArchiveEntryList";
-import { ArchiveProfileCard } from "@/components/cards/ArchiveProfileCard";
 import { ArchiveRecentList } from "@/components/cards/ArchiveRecentList";
 import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { ScreenHeader } from "@/components/common/ScreenHeader";
 import { AppScreen } from "@/components/layout/AppScreen";
-import { theme } from "@/constants/theme";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
@@ -19,7 +15,6 @@ import type { MedicalDocument } from "@/types/api";
 export default function ArchiveScreen() {
   const session = useDemoSession();
   const provider = useMemo(() => getDataProvider(session.currentUserId), [session.currentUserId]);
-  const memberDetail = useApiResource(() => provider.getMemberDetail(session.currentUserId), [session.currentUserId, session.dataMode]);
   const recentRecords = useApiResource(() => provider.getPersonalArchiveRecentRecords(), [session.currentUserId, session.dataMode]);
   const documents = recentRecords.data?.documents ?? [];
   const medicalEvents = recentRecords.data?.medicalEvents ?? [];
@@ -27,7 +22,6 @@ export default function ArchiveScreen() {
   const bloodPressure = recentRecords.data?.bloodPressure ?? [];
   const symptoms = recentRecords.data?.symptoms ?? [];
   const allRecordCount = metrics.length + bloodPressure.length + symptoms.length + documents.length + medicalEvents.length;
-  const name = memberDetail.data?.profile?.display_name ?? session.authSession.user?.nickname ?? "";
 
   useFocusEffect(useCallback(() => {
     void recentRecords.reload();
@@ -47,27 +41,10 @@ export default function ArchiveScreen() {
 
   return (
     <AppScreen>
-      <ScreenHeader
-        subtitle="保存你的健康记录、资料和重要事件。"
-        title="健康档案"
-        trailing={
-          <Pressable onPress={() => undefined} style={styles.noticeButton}>
-            <Ionicons color={theme.colors.ink} name="notifications-outline" size={21} />
-            <View style={styles.noticeDot} />
-          </Pressable>
-        }
-      />
-
-      <ArchiveProfileCard name={name} summary={memberDetail.data?.profile?.summary} />
-      {memberDetail.error ? <ApiErrorState message={memberDetail.error} /> : null}
+      <ScreenHeader subtitle="保存你的健康记录、资料和重要事件。" title="健康档案" />
       <ArchiveEntryList entries={entries} />
       {recentRecords.error ? <ApiErrorState message={recentRecords.error} /> : null}
       <ArchiveRecentList items={recentItems} onViewAll={() => router.push(routes.documents)} title="最近归档" />
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  noticeButton: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: theme.colors.line, borderRadius: theme.radius.pill, borderWidth: 1, height: 40, justifyContent: "center", position: "relative", width: 40 },
-  noticeDot: { backgroundColor: "#F05A5A", borderColor: "#FFFFFF", borderRadius: 5, borderWidth: 1, height: 9, position: "absolute", right: 8, top: 7, width: 9 }
-});

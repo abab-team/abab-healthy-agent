@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { theme } from "@/constants/theme";
 
@@ -7,6 +7,7 @@ type ArchiveProfileCardProps = {
   name: string;
   summary?: string;
   avatar?: string;
+  avatarUrl?: string | null;
   details?: ReadonlyArray<readonly [string, string]>;
   recentUpdate?: string;
   readOnly?: boolean;
@@ -18,6 +19,7 @@ export function ArchiveProfileCard({
   name,
   summary,
   avatar = "👩🏻",
+  avatarUrl,
   details: providedDetails,
   recentUpdate,
   readOnly = false,
@@ -29,10 +31,10 @@ export function ArchiveProfileCard({
     <CardBase style={styles.card}>
       <View style={styles.heading}>
         <Text style={styles.title}>基本信息</Text>
-        {readOnly ? <Text style={styles.readOnly}>共享资料</Text> : <Pressable onPress={onAction ?? (() => undefined)} style={styles.editButton}><Text style={styles.editText}>{actionLabel}</Text></Pressable>}
+        {readOnly ? <Text style={styles.readOnly}>{actionLabel}</Text> : <Pressable onPress={onAction ?? (() => undefined)} style={styles.editButton}><Text style={styles.editText}>{actionLabel}</Text></Pressable>}
       </View>
       <View style={styles.body}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{avatar}</Text></View>
+        <View style={styles.avatar}>{avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatar}</Text>}</View>
         <View style={styles.copy}>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{name}</Text>
@@ -57,6 +59,7 @@ export function ArchiveProfileCard({
 const styles = StyleSheet.create({
   avatar: { alignItems: "center", backgroundColor: theme.colors.tealSoft, borderRadius: 24, height: 56, justifyContent: "center", width: 56 },
   avatarText: { fontSize: 33 },
+  avatarImage: { borderRadius: 24, height: 56, width: 56 },
   body: { alignItems: "flex-start", flexDirection: "row", gap: 14 },
   card: { backgroundColor: "#FFFFFF", paddingVertical: 14 },
   copy: { flex: 1 },

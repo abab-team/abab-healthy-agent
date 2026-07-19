@@ -133,6 +133,10 @@ export const backendApi = {
     return apiClient.get<{ id: string; nickname?: string | null; email?: string | null; avatar_url?: string | null }>("/api/v1/identity/me", currentUserId);
   },
 
+  updateMyIdentity(input: { nickname: string }, currentUserId: string) {
+    return apiClient.patch<{ id: string; nickname?: string | null; email?: string | null; avatar_url?: string | null }>("/api/v1/identity/me/profile", input, currentUserId);
+  },
+
   uploadMyAvatar(input: { content: Blob; mimeType: string }, currentUserId: string) {
     return apiClient.upload<{ id: string; nickname?: string | null; email?: string | null; avatar_url?: string | null }>("/api/v1/identity/me/avatar", input.content, { "Content-Type": input.mimeType }, currentUserId);
   },

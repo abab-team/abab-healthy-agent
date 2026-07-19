@@ -5,18 +5,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { HealthTrendSection } from "@/components/cards/HealthTrendSection";
-import { ApiErrorState } from "@/components/common/ApiErrorState";
 import { MetricTile } from "@/components/common/MetricTile";
-import { PrimaryButton } from "@/components/common/PrimaryButton";
 import { ScreenHeader } from "@/components/common/ScreenHeader";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { theme } from "@/constants/theme";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider, type PersonalArchiveRecentRecordsData } from "@/lib/dataProvider";
 import { routes } from "@/lib/routes";
-import type { AgentRunResponse, BloodPressureRecord, HealthMetricRecord } from "@/types/api";
+import type { BloodPressureRecord, HealthMetricRecord } from "@/types/api";
 
 type HomeMetricTile = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -35,8 +32,6 @@ type HomeRecentRecord = {
   tone: string;
   title: string;
 };
-
-const personalBriefFallback = "尚未生成健康小结。生成后可在详情页查看最近 7 天的记录整理。";
 
 function formatGeneratedAt(value: string): string {
   const date = new Date(value);
@@ -118,10 +113,7 @@ function buildRecentRecords(data: PersonalArchiveRecentRecordsData | null): Home
 export default function HomeScreen() {
   const session = useDemoSession();
   const provider = getDataProvider(session.currentUserId);
-  const [brief, setBrief] = useState<AgentRunResponse | null>(null);
   const [briefGeneratedAt, setBriefGeneratedAt] = useState<string | null>(null);
-  const [briefError, setBriefError] = useState<string | null>(null);
-  const [briefLoading, setBriefLoading] = useState(false);
   const trendResource = useApiResource(() => provider.getArchiveTrends(), [session.currentUserId]);
   const timelineResource = useApiResource(() => provider.getPersonalArchiveRecentRecords(), [session.currentUserId, session.dataMode]);
   const homeMetrics = useMemo(() => buildHomeMetrics(timelineResource.data?.bloodPressure ?? [], timelineResource.data?.metrics ?? []), [timelineResource.data]);
@@ -137,12 +129,6 @@ export default function HomeScreen() {
     async function loadLatestBrief() {
       const result = await provider.getLatestDailyHealthBrief();
       if (active && result.ok && result.data) {
-        setBrief({
-          generated_content: result.data.generated_content,
-          status: "completed",
-          trace_id: result.data.trace_id,
-          workflow_type: "daily_health_brief"
-        });
         setBriefGeneratedAt(result.data.generated_at);
       }
     }
@@ -152,25 +138,11 @@ export default function HomeScreen() {
     };
   }, [session.currentUserId, session.dataMode]);
 
-  async function runBrief() {
-    setBriefLoading(true);
-    setBriefError(null);
-    const result = await provider.runDailyHealthBrief(session.currentUserId);
-    setBriefLoading(false);
-    if (result.ok && result.data) {
-      setBrief(result.data);
-      setBriefGeneratedAt(new Date().toISOString());
-      return;
-    }
-    setBriefError(result.error?.message ?? "健康小结暂时无法整理，请稍后再试。");
-  }
-
   return (
     <AppScreen>
       <ScreenHeader
         subtitle="今天也把健康记录照顾得井井有条。"
         title={`早上好，${session.authSession.user?.nickname ?? ""}`.trim()}
-        trailing={<StatusBadge label={session.dataMode === "api" ? "数据已连接" : "演示数据"} tone="mint" />}
       />
 
       <CardBase style={styles.overviewCard}>
@@ -201,19 +173,15 @@ export default function HomeScreen() {
           </View>
           <View style={styles.briefCopy}>
             <Text style={styles.cardTitle}>AI 健康小结</Text>
-            <Text style={styles.cardCaption}>近期系统内记录整理</Text>
           </View>
         </View>
-        <View style={styles.resultBox}>
+        <Pressable accessibilityRole="button" onPress={() => router.push(routes.healthBrief)} style={styles.resultBox}>
           <Text style={styles.generatedAt}>{briefGeneratedAt ? `最近生成：${formatGeneratedAt(briefGeneratedAt)}` : "尚未生成健康小结"}</Text>
-          <Pressable accessibilityRole="button" disabled={!brief} onPress={() => router.push(routes.healthBrief)} style={[styles.briefDetailLink, !brief ? styles.briefDetailLinkDisabled : null]}>
-            <Text style={[styles.briefDetailText, !brief ? styles.briefDetailTextDisabled : null]}>查看健康小结详情</Text>
-            <Ionicons color={brief ? theme.colors.primaryDark : theme.colors.subtle} name="chevron-forward" size={17} />
-          </Pressable>
-          {!brief ? <Text style={styles.briefHint}>{personalBriefFallback}</Text> : null}
-        </View>
-        <PrimaryButton label={briefLoading ? "正在更新..." : "更新个人健康小结"} disabled={briefLoading} onPress={runBrief} />
-        {briefError ? <ApiErrorState message={briefError} /> : null}
+          <View style={styles.briefDetailLink}>
+            <Text style={styles.briefDetailText}>查询个人健康小结详情</Text>
+            <Ionicons color={theme.colors.primaryDark} name="chevron-forward" size={17} />
+          </View>
+        </Pressable>
       </CardBase>
 
       <CardBase>
@@ -249,10 +217,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   briefCard: { backgroundColor: theme.colors.tealSoft },
   briefDetailLink: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", minHeight: 34 },
-  briefDetailLinkDisabled: { opacity: 0.58 },
   briefDetailText: { color: theme.colors.primaryDark, fontSize: 14, fontWeight: "900" },
-  briefDetailTextDisabled: { color: theme.colors.subtle },
-  briefHint: { color: theme.colors.subtle, fontSize: 12, lineHeight: 18, marginTop: 6 },
   briefCopy: { flex: 1 },
   briefHeading: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 14 },
   briefIcon: { alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: theme.radius.pill, height: 40, justifyContent: "center", width: 40 },

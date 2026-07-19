@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { CardBase } from "@/components/cards/CardBase";
 import { BackendStatusCard } from "@/components/common/BackendStatusCard";
 import { ScreenHeader } from "@/components/common/ScreenHeader";
@@ -12,6 +12,7 @@ import { theme } from "@/constants/theme";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
+import { backendApi } from "@/lib/backendApi";
 import { routes } from "@/lib/routes";
 
 export default function SettingsScreen() {
@@ -21,21 +22,29 @@ export default function SettingsScreen() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
   const [logoutVisible, setLogoutVisible] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const authenticatedUser = session.authSession.user;
+
+  useEffect(() => {
+    let active = true;
+    void backendApi.getMyIdentity(session.currentUserId).then((user) => {
+      if (!active) return;
+      setAvatarUrl(user.avatar_url?.startsWith("http") ? user.avatar_url : user.avatar_url ? `${session.apiBaseUrl}${user.avatar_url}` : null);
+    }).catch(() => active && setAvatarUrl(null));
+    return () => { active = false; };
+  }, [session.apiBaseUrl, session.currentUserId, session.dataMode]);
 
   return <AppScreen>
     <ScreenHeader subtitle="管理你的账户、家庭与数据。" title="我的" />
     <Pressable onPress={() => router.push(routes.profile)} style={styles.profileCard}>
-      <View style={styles.avatar}><Text style={styles.avatarText}>👤</Text></View>
+      <View style={styles.avatar}>{avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>👤</Text>}</View>
       <View style={styles.profileCopy}><View style={styles.nameRow}><Text style={styles.name}>{authenticatedUser?.nickname ?? "未命名用户"}</Text><StatusBadge label={session.isAuthenticated ? "已登录" : "未登录"} tone="mint" /></View><Text style={styles.profileText}>{authenticatedUser?.email ?? "登录后可管理自己的健康记录。"}</Text></View>
       <Ionicons color={theme.colors.subtle} name="chevron-forward" size={18} />
     </Pressable>
 
     <CardBase style={styles.groupCard}>
       <SettingsListItem description="管理个人信息与健康档案关联" icon="person-outline" onPress={() => router.push(routes.profile)} title="个人资料" />
-      <SettingsListItem description="管理应用内的记录与整理提醒" icon="notifications-outline" last onPress={() => router.push(routes.notificationSettings)} title="通知设置" />
-    </CardBase>
-    <CardBase style={styles.groupCard}>
+      <SettingsListItem description="管理应用内的记录与整理提醒" icon="notifications-outline" onPress={() => router.push(routes.notificationSettings)} title="通知设置" />
       <SettingsListItem description="管理家庭成员与共享范围" icon="people-outline" onPress={() => router.push(routes.familySharingSettings)} title="家庭共享设置" />
       <SettingsListItem description="隐私与数据保护选项" icon="shield-checkmark-outline" onPress={() => router.push(routes.privacySettings)} title="隐私设置" />
       <SettingsListItem description="查看或删除可编辑的对话偏好记忆" icon="sparkles-outline" last onPress={() => router.push(routes.agentMemory)} title="AI 记忆管理" />
@@ -72,6 +81,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   avatar: { alignItems: "center", backgroundColor: theme.colors.tealSoft, borderRadius: 28, height: 58, justifyContent: "center", width: 58 },
   avatarText: { fontSize: 30 },
+  avatarImage: { borderRadius: 28, height: 58, width: 58 },
   debugContent: { gap: 12 },
   debugHeader: { alignItems: "center", borderTopColor: theme.colors.line, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: 14 },
   dialog: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, gap: 14, maxWidth: 360, padding: 24, shadowColor: "#17332B", shadowOpacity: 0.2, shadowRadius: 18, width: "100%" },

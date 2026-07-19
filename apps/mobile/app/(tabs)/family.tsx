@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link } from "expo-router";
+import { useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { FamilyHealthOverviewCard } from "@/components/cards/FamilyHealthOverviewCard";
 import { CardBase } from "@/components/cards/CardBase";
@@ -20,13 +22,18 @@ export default function FamilyScreen() {
   const familyName = overview.data?.family.name ?? "";
   const members = overview.data?.members ?? [];
 
+  useFocusEffect(useCallback(() => {
+    void overview.reload();
+    void familiesResource.reload();
+  }, [familiesResource.reload, overview.reload]));
+
   if (session.dataMode === "api" && !familiesResource.loading && !familiesResource.error && familiesResource.data?.length === 0) {
     return <AppScreen><ScreenHeader subtitle="先创建家庭或输入家人的邀请码。" title="家庭健康" /><CardBase style={styles.emptyCard}><Ionicons color={theme.colors.primaryDark} name="people-outline" size={32} /><Text style={styles.emptyTitle}>你还没有加入家庭</Text><Text style={styles.hint}>加入后，家人只能看到彼此主动开放的信息。</Text><Link href={routes.familyOnboarding} style={styles.emptyLink}>创建或加入家庭</Link></CardBase></AppScreen>;
   }
 
   return (
     <AppScreen>
-      <ScreenHeader subtitle="家人健康，一起守护。" title="家庭健康" trailing={<Ionicons color={theme.colors.primary} name="notifications-outline" size={21} />} />
+      <ScreenHeader subtitle="家人健康，一起守护。" title="家庭健康" />
       {familyName ? <View style={styles.currentFamilyRow}><Text style={styles.currentFamilyLabel}>当前家庭：</Text><Text style={styles.currentFamilyName}>{familyName}</Text></View> : null}
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>家庭成员</Text></View>
       {overview.loading ? <Text style={styles.hint}>正在读取家庭成员…</Text> : null}

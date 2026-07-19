@@ -191,7 +191,24 @@ async function getApiMemberArchiveSection(
       base.bloodPressure = bloodPressure;
       base.metrics = metrics;
     } else if (section === "records") {
-      base.symptoms = isSelf ? await backendApi.getMyRecentSymptoms(currentUserId) : await backendApi.getFamilyMemberRecentSymptoms(member.family_id, member.user_id, currentUserId);
+      const [bloodPressure, documents, medicalEvents, metrics, symptoms] = await Promise.all(isSelf ? [
+        backendApi.getMyBloodPressureRecent(currentUserId),
+        backendApi.listMyDocuments(currentUserId),
+        backendApi.listMyMedicalEvents(currentUserId),
+        backendApi.getMyRecentMetrics(currentUserId),
+        backendApi.getMyRecentSymptoms(currentUserId)
+      ] : [
+        backendApi.getFamilyMemberBloodPressureRecent(member.family_id, member.user_id, currentUserId),
+        backendApi.listFamilyMemberDocuments(member.family_id, member.user_id, currentUserId),
+        backendApi.listFamilyMemberMedicalEvents(member.family_id, member.user_id, currentUserId),
+        backendApi.getFamilyMemberRecentMetrics(member.family_id, member.user_id, currentUserId),
+        backendApi.getFamilyMemberRecentSymptoms(member.family_id, member.user_id, currentUserId)
+      ]);
+      base.bloodPressure = bloodPressure;
+      base.documents = documents;
+      base.medicalEvents = medicalEvents;
+      base.metrics = metrics;
+      base.symptoms = symptoms;
     } else if (section === "documents") {
       const [documents, medicalEvents] = await Promise.all(isSelf ? [
         backendApi.listMyDocuments(currentUserId),
