@@ -30,6 +30,7 @@ type HomeMetricTile = {
 
 type HomeRecentRecord = {
   detail: string;
+  id: string;
   measuredAt: string;
   title: string;
 };
@@ -95,12 +96,12 @@ function buildHomeMetrics(bloodPressure: BloodPressureRecord[], records: HealthM
 
 function buildRecentRecords(data: PersonalArchiveRecentRecordsData | null): HomeRecentRecord[] {
   if (!data) return [];
-  const metricRecords = data.metrics.map((record) => ({ detail: formatMetricValue(record), measuredAt: record.created_at ?? record.measured_at, title: `${metricLabel(record.metric_type)}记录` }));
-  const bloodPressureRecords = data.bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, measuredAt: record.created_at ?? record.recorded_at, title: "血压记录" }));
-  const symptomRecords = data.symptoms.map((record) => ({ detail: record.summary, measuredAt: record.recorded_at, title: record.title || "症状记录" }));
-  const documentRecords = data.documents.map((record) => ({ detail: record.file_name, measuredAt: record.created_at ?? record.confirmed_at ?? record.document_date ?? "", title: record.title || "医疗资料" }));
-  const medicalEventRecords = data.medicalEvents.map((record) => ({ detail: record.summary?.trim() || record.event_type || "已保存的健康事件", measuredAt: record.created_at ?? record.event_date ?? "", title: record.title?.trim() || "健康事件" }));
-  const alertRecords = data.alerts.map((record) => ({ detail: record.message?.trim() || record.due_at ? (record.message?.trim() || `提醒时间：${record.due_at}`) : "已创建的健康提醒", measuredAt: record.created_at ?? record.due_at ?? "", title: record.title || "健康提醒" }));
+  const metricRecords = data.metrics.map((record) => ({ detail: formatMetricValue(record), id: record.id, measuredAt: record.created_at ?? record.measured_at, title: `${metricLabel(record.metric_type)}记录` }));
+  const bloodPressureRecords = data.bloodPressure.map((record) => ({ detail: `${record.systolic}/${record.diastolic} mmHg`, id: record.id, measuredAt: record.created_at ?? record.recorded_at, title: "血压记录" }));
+  const symptomRecords = data.symptoms.map((record) => ({ detail: record.summary, id: record.id, measuredAt: record.recorded_at, title: record.title || "症状记录" }));
+  const documentRecords = data.documents.map((record) => ({ detail: record.file_name, id: record.id, measuredAt: record.created_at ?? record.confirmed_at ?? record.document_date ?? "", title: record.title || "医疗资料" }));
+  const medicalEventRecords = data.medicalEvents.map((record) => ({ detail: record.summary?.trim() || record.event_type || "已保存的健康事件", id: record.id, measuredAt: record.created_at ?? record.event_date ?? "", title: record.title?.trim() || "健康事件" }));
+  const alertRecords = data.alerts.map((record) => ({ detail: record.message?.trim() || record.due_at ? (record.message?.trim() || `提醒时间：${record.due_at}`) : "已创建的健康提醒", id: record.id, measuredAt: record.created_at ?? record.due_at ?? "", title: record.title || "健康提醒" }));
   return [...metricRecords, ...bloodPressureRecords, ...symptomRecords, ...documentRecords, ...medicalEventRecords, ...alertRecords]
     .sort((left, right) => new Date(right.measuredAt).getTime() - new Date(left.measuredAt).getTime())
     .slice(0, 4);
@@ -215,7 +216,7 @@ export default function HomeScreen() {
           </Link>
         </View>
         {recentRecords.length ? recentRecords.map((record, index) => (
-          <Pressable key={`${record.title}-${record.measuredAt}`} onPress={() => router.push(routes.archive)} style={styles.recordRow}>
+          <Pressable key={record.id} onPress={() => router.push(routes.archive)} style={styles.recordRow}>
             <View style={[styles.recordDot, index === 0 ? styles.dotTeal : null]} />
             <View style={styles.recordCopy}>
               <Text style={styles.recordTitle}>{record.title}</Text>

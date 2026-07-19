@@ -12,52 +12,95 @@ import { theme } from "@/constants/theme";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useDemoSession } from "@/hooks/useDemoSession";
 import { getDataProvider } from "@/lib/dataProvider";
-import type { ArchiveTrendSeries } from "@/types/api";
+import type { ArchiveTrendPoint, ArchiveTrendSeries } from "@/types/api";
 
-const metricInfo = {
-  "blood-pressure": { average: "119/76", history: ["120/78 mmHg", "118/76 mmHg", "125/80 mmHg", "112/72 mmHg"], label: "血压历史", max: "132/84", min: "106/68", type: "blood_pressure", unit: "mmHg" },
-  sleep: { average: "7.2", history: ["7.2 小时", "6.8 小时", "7.5 小时", "7.0 小时"], label: "睡眠历史", max: "8.1", min: "6.2", type: "sleep_duration", unit: "小时" },
-  weight: { average: "62.1", history: ["62.1 kg", "62.4 kg", "62.0 kg", "62.3 kg"], label: "体重历史", max: "62.8", min: "61.7", type: "weight", unit: "kg" },
-  steps: { average: "6,100", history: ["6,100 步", "5,820 步", "6,520 步", "5,760 步"], label: "步数历史", max: "7,420", min: "4,880", type: "steps", unit: "步" }
-  ,"heart-rate": { average: "70", history: ["70 次/分"], label: "心率历史", max: "72", min: "68", type: "heart_rate", unit: "次/分" },
-  temperature: { average: "36.5", history: ["36.5 °C"], label: "体温历史", max: "36.8", min: "36.2", type: "temperature", unit: "°C" }
-} as const;
+const metricInfo: Record<string, { label: string; type: string; unit: string }> = {
+  "blood-pressure": { label: "血压", type: "blood_pressure", unit: "mmHg" },
+  sleep: { label: "睡眠", type: "sleep_duration", unit: "小时" },
+  weight: { label: "体重", type: "weight", unit: "kg" },
+  steps: { label: "步数", type: "steps", unit: "步" },
+  "heart-rate": { label: "心率", type: "heart_rate", unit: "次/分" },
+  temperature: { label: "体温", type: "temperature", unit: "°C" }
+};
 
-function fallbackSeries(type: string, label: string, unit: string): ArchiveTrendSeries {
-  const values = type === "steps" ? [6100, 5820, 6520, 5760, 7010, 6200] : type === "weight" ? [62.2, 62.4, 62.0, 62.1, 62.3, 62.1] : type === "sleep_duration" ? [6.8, 7.1, 7.3, 6.9, 7.4, 7.2] : [120, 118, 125, 112, 121, 119];
-  return { count: values.length, data_quality: "demo", label, metric_type: type, points: values.map((value, index) => type === "blood_pressure" ? { diastolic: [78, 76, 80, 72, 77, 76][index], measured_at: `2026-07-${String(index + 5).padStart(2, "0")}`, systolic: value } : { measured_at: `2026-07-${String(index + 5).padStart(2, "0")}`, value }), summary: "系统内记录示例", unit };
+function valuesFor(series: ArchiveTrendSeries) {
+  return series.points.map((point) => series.metric_type === "blood_pressure" ? point.systolic ?? 0 : point.value ?? 0).filter((value) => value > 0);
+}
+
+function statText(series: ArchiveTrendSeries, kind: "average" | "max" | "min") {
+  const values = valuesFor(series);
+  if (!values.length) return "--";
+  if (series.metric_type === "blood_pressure") {
+    const systolic = series.points.map((point) => point.systolic ?? 0).filter(Boolean);
+    const diastolic = series.points.map((point) => point.diastolic ?? 0).filter(Boolean);
+    const pair = kind === "average"
+      ? [Math.round(systolic.reduce((sum, value) => sum + value, 0) / systolic.length), Math.round(diastolic.reduce((sum, value) => sum + value, 0) / diastolic.length)]
+      : kind === "max" ? [Math.max(...systolic), Math.max(...diastolic)] : [Math.min(...systolic), Math.min(...diastolic)];
+    return `${pair[0]}/${pair[1]}`;
+  }
+  const value = kind === "average" ? values.reduce((sum, item) => sum + item, 0) / values.length : kind === "max" ? Math.max(...values) : Math.min(...values);
+  return value < 10 ? value.toFixed(1) : Math.round(value).toLocaleString("zh-CN");
+}
+
+function pointDetail(point: ArchiveTrendPoint, series: ArchiveTrendSeries): string {
+  if (series.metric_type === "blood_pressure") return `${point.systolic ?? "--"}/${point.diastolic ?? "--"} mmHg`;
+  const value = point.value;
+  if (value === null || value === undefined) return "已记录";
+  if (series.metric_type === "sleep_duration") {
+    const hours = Math.floor(value);
+    const minutes = Math.round((value - hours) * 60);
+    return `${hours} 小时${minutes ? ` ${minutes} 分钟` : ""}`;
+  }
+  return `${value.toLocaleString("zh-CN")} ${series.unit ?? ""}`.trim();
 }
 
 export default function ArchiveMetricDetailScreen() {
-  const { metric = "blood-pressure" } = useLocalSearchParams<{ metric: keyof typeof metricInfo }>();
+  const { metric = "blood-pressure" } = useLocalSearchParams<{ metric: string }>();
   const info = metricInfo[metric] ?? metricInfo["blood-pressure"];
   const session = useDemoSession();
   const provider = useMemo(() => getDataProvider(session.currentUserId), [session.currentUserId]);
   const trends = useApiResource(() => provider.getArchiveTrends(), [session.currentUserId, session.dataMode]);
   const [period, setPeriod] = useState<Period>("全部");
-  const series = trends.data?.series.find((item) => item.metric_type === info.type) ?? fallbackSeries(info.type, info.label.replace("历史", ""), info.unit);
+  const series = trends.data?.series.find((item) => item.metric_type === info.type) ?? {
+    count: 0,
+    data_quality: "system",
+    label: info.label,
+    metric_type: info.type,
+    points: [],
+    summary: "系统内暂无记录",
+    unit: info.unit
+  };
+  const history = [...series.points].reverse().map((point, index) => ({
+    date: point.measured_at.replace("T", " ").slice(0, 16),
+    detail: pointDetail(point, series),
+    icon: "pulse-outline" as const,
+    id: `${info.type}-${point.measured_at}-${index}`,
+    title: `${info.label}记录`,
+    tone: theme.colors.primary
+  }));
 
   return (
     <AppScreen>
-      <ArchiveSubHeader title={info.label} trailing="share" />
+      <ArchiveSubHeader title={`${info.label}历史`} trailing="share" />
+      {trends.error ? <ApiErrorState message={trends.error} /> : null}
       <CardBase>
         <View style={styles.stats}>
-          <View style={styles.stat}><Text style={styles.statLabel}>平均值</Text><Text style={styles.statValue}>{info.average}</Text><Text style={styles.unit}>{info.unit}</Text></View>
-          <View style={styles.stat}><Text style={styles.statLabel}>最高值</Text><Text style={styles.statValue}>{info.max}</Text><Text style={styles.unit}>{info.unit}</Text></View>
-          <View style={styles.stat}><Text style={styles.statLabel}>最低值</Text><Text style={styles.statValue}>{info.min}</Text><Text style={styles.unit}>{info.unit}</Text></View>
+          <View style={styles.stat}><Text style={styles.statLabel}>平均值</Text><Text style={styles.statValue}>{statText(series, "average")}</Text><Text style={styles.unit}>{info.unit}</Text></View>
+          <View style={styles.stat}><Text style={styles.statLabel}>最高值</Text><Text style={styles.statValue}>{statText(series, "max")}</Text><Text style={styles.unit}>{info.unit}</Text></View>
+          <View style={styles.stat}><Text style={styles.statLabel}>最低值</Text><Text style={styles.statValue}>{statText(series, "min")}</Text><Text style={styles.unit}>{info.unit}</Text></View>
         </View>
         <Text style={styles.caption}>统计周期：系统内已有记录</Text>
       </CardBase>
       <PeriodSelector onChange={setPeriod} value={period} />
-      {trends.error ? <ApiErrorState message={trends.error} /> : null}
       <CardBase><MetricHistoryChart series={series} /></CardBase>
-      <ArchiveTimelineList items={info.history.map((detail, index) => ({ date: `2026-07-${String(10 - index * 3).padStart(2, "0")} 07:${String(30 - index * 5).padStart(2, "0")}`, detail, icon: "pulse-outline" as const, id: `${metric}-${index}`, title: info.label.replace("历史", "记录"), tone: theme.colors.primary }))} title="历史记录" />
+      {history.length ? <ArchiveTimelineList items={history} title="历史记录" /> : <CardBase><Text style={styles.empty}>系统内暂无{info.label}记录。</Text></CardBase>}
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   caption: { color: theme.colors.subtle, fontSize: 12, marginTop: 14 },
+  empty: { color: theme.colors.subtle, fontSize: 14, textAlign: "center" },
   stat: { flex: 1 },
   statLabel: { color: theme.colors.subtle, fontSize: 11, fontWeight: "700" },
   statValue: { color: theme.colors.ink, fontSize: 17, fontWeight: "900", marginTop: 5 },
