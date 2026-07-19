@@ -80,14 +80,14 @@ from app.modules.reports.models import DailyReport  # noqa: E402
 
 
 DEMO_EMAILS = {
-    "gala": "son.demo@example.com",
+    "gala": "gala.demo@example.com",
     "father": "father.demo@example.com",
     "mother": "mother.demo@example.com",
 }
-LEGACY_DEMO_EMAILS = {"gala.demo@example.com"}
+LEGACY_DEMO_EMAILS = {"son.demo@example.com"}
 DEMO_PASSWORD = "123456"
-DEMO_FAMILY_NAME = "儿子的家庭"
-LEGACY_DEMO_FAMILY_NAMES = {"Gala 的家庭"}
+DEMO_FAMILY_NAME = "Gala 的家庭"
+LEGACY_DEMO_FAMILY_NAMES = {"儿子的家庭"}
 # Keep local QA records current so relative queries such as "recent 7 days"
 # exercise the same data shown in the mobile app. A fixed date remains
 # available for reproducible checks through FHA_DEMO_TODAY=YYYY-MM-DD.
@@ -159,10 +159,10 @@ def seed_users(session: Session) -> dict[str, User]:
     # 3. 将结果返回给调用方，继续由上层流程编排。
     users = {
         "gala": User(
-            phone="demo_son_phone",
+            phone="demo_gala_phone",
             email=DEMO_EMAILS["gala"],
             password_hash=hash_password(DEMO_PASSWORD),
-            nickname="儿子",
+            nickname="Gala",
             gender=Gender.MALE,
             birth_date=date(2006, 1, 1),
             status=UserStatus.ACTIVE,
@@ -208,7 +208,7 @@ def seed_family(session: Session, users: dict[str, User]) -> Family:
                 user_id=users["gala"].id,
                 role=FamilyRole.OWNER,
                 relationship_label="本人",
-                display_name="儿子",
+                display_name="Gala",
                 status=FamilyMemberStatus.ACTIVE,
                 joined_at=DEMO_NOW,
             ),
