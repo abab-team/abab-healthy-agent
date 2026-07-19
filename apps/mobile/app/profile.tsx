@@ -79,7 +79,7 @@ export default function ProfileScreen() {
     <ArchiveSubHeader title="个人资料" />
     <CardBase style={styles.profileCard}>
       <Pressable accessibilityHint="选择后可裁剪为正方形，页面会以圆形头像显示" onPress={() => void chooseAvatar()} style={styles.avatar}>
-        {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>👤</Text>}
+        {avatarUrl ? <Image source={{ cache: "reload", uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>👤</Text>}
         <View style={styles.avatarEdit}><Ionicons color="#FFFFFF" name="camera" size={12} /></View>
       </Pressable>
       <View style={styles.profileCopy}>

@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { CardBase } from "@/components/cards/CardBase";
 import { BackendStatusCard } from "@/components/common/BackendStatusCard";
 import { ScreenHeader } from "@/components/common/ScreenHeader";
@@ -25,19 +26,22 @@ export default function SettingsScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const authenticatedUser = session.authSession.user;
 
-  useEffect(() => {
+  const refreshAvatar = useCallback(() => {
     let active = true;
     void backendApi.getMyIdentity(session.currentUserId).then((user) => {
       if (!active) return;
-      setAvatarUrl(user.avatar_url?.startsWith("http") ? user.avatar_url : user.avatar_url ? `${session.apiBaseUrl}${user.avatar_url}` : null);
+      const rawAvatarUrl = user.avatar_url?.startsWith("http") ? user.avatar_url : user.avatar_url ? `${session.apiBaseUrl}${user.avatar_url}` : null;
+      setAvatarUrl(rawAvatarUrl ? `${rawAvatarUrl}${rawAvatarUrl.includes("?") ? "&" : "?"}v=${Date.now()}` : null);
     }).catch(() => active && setAvatarUrl(null));
     return () => { active = false; };
-  }, [session.apiBaseUrl, session.currentUserId, session.dataMode]);
+  }, [session.apiBaseUrl, session.currentUserId]);
+
+  useFocusEffect(refreshAvatar);
 
   return <AppScreen>
     <ScreenHeader subtitle="管理你的账户、家庭与数据。" title="我的" />
     <Pressable onPress={() => router.push(routes.profile)} style={styles.profileCard}>
-      <View style={styles.avatar}>{avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>👤</Text>}</View>
+      <View style={styles.avatar}>{avatarUrl ? <Image source={{ cache: "reload", uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>👤</Text>}</View>
       <View style={styles.profileCopy}><View style={styles.nameRow}><Text style={styles.name}>{authenticatedUser?.nickname ?? "未命名用户"}</Text><StatusBadge label={session.isAuthenticated ? "已登录" : "未登录"} tone="mint" /></View><Text style={styles.profileText}>{authenticatedUser?.email ?? "登录后可管理自己的健康记录。"}</Text></View>
       <Ionicons color={theme.colors.subtle} name="chevron-forward" size={18} />
     </Pressable>
