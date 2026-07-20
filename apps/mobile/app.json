@@ -25,6 +25,13 @@
     "web": {
       "bundler": "metro",
       "output": "single"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "927097e3-0625-4421-98cb-2ff2599bff82"
+      }
+    },
+    "owner": "bready1222"
   }
 }
