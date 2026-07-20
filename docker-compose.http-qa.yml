@@ -3,6 +3,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: docker.m.daocloud.io/library/python:3.12-slim
     restart: unless-stopped
     env_file:
       - ${APP_ENV_FILE:-.env.http-qa}
@@ -30,7 +32,7 @@ services:
       start_period: 30s
 
   postgres:
-    image: postgres:16-alpine
+    image: docker.m.daocloud.io/library/postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -45,14 +47,14 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: docker.m.daocloud.io/library/redis:7-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
 
   nginx:
-    image: nginx:1.27-alpine
+    image: docker.m.daocloud.io/library/nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
       backend:
