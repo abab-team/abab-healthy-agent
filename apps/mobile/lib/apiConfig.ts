@@ -1,7 +1,20 @@
 import type { AuthMode, DataMode } from "@/types/api";
 
 function envValue(name: string): string | undefined {
-  const value = process.env[name];
+  // Expo only inlines public environment variables when their names are
+  // statically referenced. Dynamic access such as process.env[name] works in
+  // Node, but becomes undefined in a standalone APK and silently falls back
+  // to mock/demo mode.
+  const publicValues: Record<string, string | undefined> = {
+    EXPO_PUBLIC_API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL,
+    EXPO_PUBLIC_AUTH_MODE: process.env.EXPO_PUBLIC_AUTH_MODE,
+    EXPO_PUBLIC_DATA_MODE: process.env.EXPO_PUBLIC_DATA_MODE,
+    EXPO_PUBLIC_DEMO_USER_FATHER_ID: process.env.EXPO_PUBLIC_DEMO_USER_FATHER_ID,
+    EXPO_PUBLIC_DEMO_USER_GALA_ID: process.env.EXPO_PUBLIC_DEMO_USER_GALA_ID,
+    EXPO_PUBLIC_DEMO_USER_ID: process.env.EXPO_PUBLIC_DEMO_USER_ID,
+    EXPO_PUBLIC_DEMO_USER_MOTHER_ID: process.env.EXPO_PUBLIC_DEMO_USER_MOTHER_ID
+  };
+  const value = publicValues[name];
   return value && value.trim().length > 0 ? value.trim() : undefined;
 }
 
