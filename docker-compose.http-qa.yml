@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         PYTHON_IMAGE: docker.m.daocloud.io/library/python:3.12-slim
+        PIP_INDEX_URL: https://mirrors.aliyun.com/pypi/simple/
     restart: unless-stopped
     env_file:
       - ${APP_ENV_FILE:-.env.http-qa}

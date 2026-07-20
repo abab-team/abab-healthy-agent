@@ -4,6 +4,8 @@
 ARG PYTHON_IMAGE=python:3.12-slim
 FROM ${PYTHON_IMAGE}
 
+ARG PIP_INDEX_URL=
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -11,7 +13,8 @@ WORKDIR /app
 
 COPY pyproject.toml /app/pyproject.toml
 
-RUN python -m pip install --no-cache-dir --upgrade pip \
+RUN if [ -n "$PIP_INDEX_URL" ]; then python -m pip config set global.index-url "$PIP_INDEX_URL"; fi \
+    && python -m pip install --no-cache-dir --upgrade pip \
     && python -c "import subprocess, sys, tomllib; deps = tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']; subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', *deps])"
 
 COPY . /app
