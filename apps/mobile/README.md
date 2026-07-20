@@ -65,6 +65,21 @@ npm run web
 npx expo start --web
 ```
 
+## HTTP 私测 APK
+
+`eas.json` 中的 `http-qa` profile 仅用于短期、内部 Android APK 测试。它连接
+`http://114.55.146.113`，使用真实登录模式而不是 demo header，并依赖 `app.json` 中
+`usesCleartextTraffic` 的 Android QA 兼容设置。
+
+在 `apps/mobile` 目录中执行：
+
+```bash
+npx eas-cli@latest build --platform android --profile http-qa
+```
+
+此命令会要求登录 Expo/EAS 账户。生成的 APK 仅可私下分发给测试者；迁移 HTTPS 后，必须
+移除 HTTP profile 和 cleartext 设置再制作正式发布包。
+
 ## 数据模式与环境变量
 
 复制 `.env.example` 为本地 `.env` 后按需配置：

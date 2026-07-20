@@ -1,0 +1,18 @@
+{
+  "cli": {
+    "version": ">= 16.0.0"
+  },
+  "build": {
+    "http-qa": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_DATA_MODE": "api",
+        "EXPO_PUBLIC_AUTH_MODE": "auth",
+        "EXPO_PUBLIC_API_BASE_URL": "http://114.55.146.113"
+      }
+    }
+  }
+}
