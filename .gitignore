@@ -12,7 +12,9 @@ coverage/
 .env.*
 !.env.example
 !.env.production.example
+!.env.http-qa.example
 !**/.env.example
+!apps/mobile/.env.http-qa.example
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

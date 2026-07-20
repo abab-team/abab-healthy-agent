@@ -12,7 +12,8 @@
       "web"
     ],
     "android": {
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "usesCleartextTraffic": true
     },
     "plugins": [
       "expo-router",

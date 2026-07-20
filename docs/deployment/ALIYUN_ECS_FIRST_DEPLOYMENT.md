@@ -1,5 +1,28 @@
 # 阿里云 ECS 首次部署
 
+## 无域名 HTTP QA（仅限短期私测）
+
+无域名时可使用 `docker-compose.http-qa.yml` 让 1–2 位测试者通过
+`http://<ECS 公网 IP>` 使用后端。该配置与正式 HTTPS 配置完全分开，首次启动只
+创建一个空的服务端 PostgreSQL 数据库，不会读取、导入或修改开发电脑上的 QA 数据。
+
+1. 在 ECS 安全组仅临时开放 TCP `80`；数据库和 Redis 不开放公网端口。
+2. 复制 `.env.http-qa.example` 为服务器上的 `.env.http-qa`，并用 `openssl rand -base64 48`
+   分别生成两个应用密钥和一个数据库密码。
+3. 运行：
+
+```bash
+docker compose --env-file .env.http-qa -f docker-compose.http-qa.yml config
+docker compose --env-file .env.http-qa -f docker-compose.http-qa.yml up -d --build
+curl --fail http://127.0.0.1/health
+```
+
+4. 给测试 APK 写入 `EXPO_PUBLIC_API_BASE_URL=http://<ECS 公网 IP>`、
+   `EXPO_PUBLIC_DATA_MODE=api` 和 `EXPO_PUBLIC_AUTH_MODE=auth`。Android QA 包已显式允许 HTTP；
+   上线前必须移除该能力并迁移到 HTTPS 域名。
+
+不要把 HTTP 地址、测试密钥或这个 HTTP 包用于公开分发。
+
 本文件用于单台 ECS 的初次受控部署。它不会导入、重置、seed 或删除任何现有 QA 数据库。
 
 ## 前置条件
