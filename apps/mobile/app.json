@@ -12,6 +12,7 @@
       "web"
     ],
     "android": {
+      "package": "com.bready1222.familyhealthagent",
       "softwareKeyboardLayoutMode": "resize",
       "usesCleartextTraffic": true
     },
